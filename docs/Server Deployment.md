@@ -6,6 +6,20 @@ Replace placeholders such as `<GAME_USER>`, `<GAME_ROOT>`, `<SCREEN_SESSION>`, `
 
 ## 简体中文部署教程
 
+### 0. 让 AI 协助部署（可选）
+
+如果你不熟悉 Linux，可以把公开项目地址交给一个你信任、能够操作服务器终端的 AI 助手，请它按照本教程部署：
+
+~~~text
+请根据 L4D2-Control 项目和服务器部署教程，帮我在这台我有权限管理的 Linux 服务器上完成部署。
+项目地址：https://github.com/Z1og/L4D2-Control
+教程：https://github.com/Z1og/L4D2-Control/blob/main/docs/Server%20Deployment.md
+请先检查 Node.js、screen、L4D2 游戏目录和权限，再逐步执行；每一步报告结果，遇到错误先停下来说明原因。
+请使用安全的随机面板密码、HTTPS 和最小权限，不要把密码、私钥、令牌、订阅链接或服务器凭据写入公开聊天、代码或 Git 提交。
+~~~
+
+只把项目地址和必要的非敏感环境信息提供给 AI；密码、私钥、令牌、订阅链接等应在服务器上的私密环境文件中直接填写，不能粘贴到公开内容。AI 需要你明确授予终端或 SSH 操作权限，且应由你审核每条会改变服务器状态的命令。
+
 ### 1. 前置条件
 
 推荐直接部署在运行 L4D2 的 Linux 主机上，并使用与游戏 screen 会话相同的 Unix 账号运行面板。需要已运行的 L4D2 专用服务器、GNU screen。插件管理还需要 MetaMod:Source 和 SourceMod。完整地图/插件管理及内容安装需要 L4D2_EXEC_MODE=local。
@@ -170,6 +184,20 @@ sudo systemctl start l4d2-control.service
 状态/地图为空：确认面板和游戏使用同一账号且 screen 会话名正确。导入/删除失败：检查 local 模式及游戏目录写权限。systemd 退出：查看 journalctl、Node 路径及环境文件权限。GameMaps 验证失败：检查 Chrome/Xvfb，切换节点或改用 Steam 搜索。Origin 校验按实际 TLS 状态工作；简单的 HTTPS 反向代理到 HTTP 可能导致写入被拒绝，建议由 Node 直接提供 HTTPS。
 
 ## English server deployment guide
+
+### 0. Let an AI assistant help (optional)
+
+If you are not comfortable with Linux, give the public project URL to a trusted AI assistant that can operate a server terminal, and ask it to follow this guide:
+
+~~~text
+Please deploy L4D2-Control on this Linux server, which I am authorized to manage, using the project and deployment guide below.
+Project: https://github.com/Z1og/L4D2-Control
+Guide: https://github.com/Z1og/L4D2-Control/blob/main/docs/Server%20Deployment.md
+Check Node.js, screen, the L4D2 directory and permissions first. Execute one step at a time and report the result; stop and explain any error before continuing.
+Use a strong random panel password, HTTPS and least privilege. Never put passwords, private keys, tokens, subscription URLs or server credentials in public chat, source code or Git commits.
+~~~
+
+Provide only the project URL and necessary non-sensitive environment details. Enter passwords, private keys, tokens and subscription URLs directly in a private server-side environment file, never in public content. The AI must have your explicit permission to use the terminal or SSH, and you should review every command that changes server state.
 
 ### 1. Prerequisites
 

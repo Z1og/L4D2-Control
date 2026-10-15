@@ -4,6 +4,18 @@
 
 A web control panel for a Left 4 Dead 2 dedicated server, built with vanilla HTML/CSS/JavaScript and Node.js. Run the backend on the game server and manage it from a browser; no local desktop backend is required. The application UI is primarily Chinese.
 
+## Project preview
+
+Server details in these previews are redacted; the project does not include a real server address, account or password.
+
+| Overview | Map management |
+| --- | --- |
+| ![Overview](docs/Project%20Preview/Overview.png) | ![Map management](docs/Project%20Preview/Maps.png) |
+
+| Plugin management | Content downloads |
+| --- | --- |
+| ![Plugin management](docs/Project%20Preview/Plugins.png) | ![Content downloads](docs/Project%20Preview/Downloads.png) |
+
 ## Features
 
 | Module | Capabilities |

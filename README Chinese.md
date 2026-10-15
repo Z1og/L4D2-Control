@@ -4,6 +4,18 @@
 
 求生之路 2 专用服务器网页管理面板。使用原生 HTML/CSS/JavaScript 和 Node.js，界面以中文为主。部署在游戏服务器上后，可直接通过浏览器管理，不需要在自己的电脑运行后端。
 
+## 项目预览
+
+预览图中的服务器地址已打码；项目不包含真实服务器地址、账号或密码。
+
+| 总览 | 地图管理 |
+| --- | --- |
+| ![总览](docs/Project%20Preview/Overview.png) | ![地图管理](docs/Project%20Preview/Maps.png) |
+
+| 插件管理 | 内容下载 |
+| --- | --- |
+| ![插件管理](docs/Project%20Preview/Plugins.png) | ![内容下载](docs/Project%20Preview/Downloads.png) |
+
 ## 功能
 
 | 模块 | 支持的操作 |

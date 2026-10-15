@@ -7,3 +7,15 @@
 服务器部署： [中文部署教程](docs/Server%20Deployment.md#简体中文部署教程) · [English deployment guide](docs/Server%20Deployment.md#english-server-deployment-guide)
 
 > 仓库公开不代表项目已部署到任意服务器。部署者须自行配置游戏路径、登录凭据、HTTPS 和所需的第三方服务。本仓库不包含服务器地址、账户、密码、订阅或证书。
+
+## 项目预览
+
+以下预览图已对截图中的服务器信息进行打码处理，原始附件未被修改。
+
+| 总览 | 地图管理 |
+| --- | --- |
+| ![总览](docs/Project%20Preview/Overview.png) | ![地图管理](docs/Project%20Preview/Maps.png) |
+
+| 插件管理 | 内容下载 |
+| --- | --- |
+| ![插件管理](docs/Project%20Preview/Plugins.png) | ![内容下载](docs/Project%20Preview/Downloads.png) |
