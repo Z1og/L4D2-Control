@@ -1,6 +1,6 @@
 # L4D2-Control
 
-[Home](README.md) · [简体中文](README%20中文.md) · [Server deployment guide](docs/Server%20Deployment.md#english-server-deployment-guide)
+[Home](README.md) · [简体中文](README%20Chinese.md) · [Server deployment guide](docs/Server%20Deployment.md#english-server-deployment-guide)
 
 A web control panel for a Left 4 Dead 2 dedicated server, built with vanilla HTML/CSS/JavaScript and Node.js. Run the backend on the game server and manage it from a browser; no local desktop backend is required. The application UI is primarily Chinese.
 

@@ -1,8 +1,8 @@
 # L4D2-Control Server Deployment / 服务器部署教程
 
-Replace placeholders such as <GAME_USER>, <GAME_ROOT>, <SCREEN_SESSION>, <PANEL_DOMAIN> and <PUBLIC_GAME_HOST> with your own values. Never commit passwords, subscription links, private keys or real credentials.
+Replace placeholders such as `<GAME_USER>`, `<GAME_ROOT>`, `<SCREEN_SESSION>`, `<PANEL_DOMAIN>` and `<PUBLIC_GAME_HOST>` with your own values. Never commit passwords, subscription links, private keys or real credentials.
 
-请将 <GAME_USER>、<GAME_ROOT>、<SCREEN_SESSION>、<PANEL_DOMAIN>、<PUBLIC_GAME_HOST> 等占位符替换为自己的值。切勿提交密码、订阅链接、私钥或真实凭据。
+请将 `<GAME_USER>`、`<GAME_ROOT>`、`<SCREEN_SESSION>`、`<PANEL_DOMAIN>`、`<PUBLIC_GAME_HOST>` 等占位符替换为自己的值。切勿提交密码、订阅链接、私钥或真实凭据。
 
 ## 简体中文部署教程
 
@@ -72,7 +72,7 @@ L4D2_GAME_HOST 仅供界面显示/复制，不会更改游戏监听地址。首�
 
 ### 4. 配置 HTTPS
 
-使用 DNS 指向自己服务器的域名 <PANEL_DOMAIN>。Certbot standalone 示例需要 TCP 80 暂时可用：
+使用 DNS 指向自己服务器的域名 `<PANEL_DOMAIN>`。Certbot standalone 示例需要 TCP 80 暂时可用：
 
 ~~~sh
 GAME_USER=replace-with-game-user
@@ -101,8 +101,7 @@ Type=simple
 User=<GAME_USER>
 Group=<GAME_USER>
 WorkingDirectory=/opt/L4D2-Control
-EnvironmentFile=/etc/l4d2-control.env
-ExecStart=/usr/bin/node /opt/L4D2-Control/server.js
+ExecStart=/usr/bin/node --env-file=/etc/l4d2-control.env /opt/L4D2-Control/server.js
 Restart=on-failure
 RestartSec=5
 UMask=0077
@@ -124,7 +123,7 @@ sudo systemctl status l4d2-control.service --no-pager
 sudo journalctl -u l4d2-control.service -n 100 --no-pager
 ~~~
 
-浏览器访问 https://<PANEL_DOMAIN>:4174/ 并登录。日志应显示 HTTPS；若显示 HTTP，检查环境变量、证书路径和权限，不要让公网面板长期使用明文 HTTP。
+浏览器访问 `https://<PANEL_DOMAIN>:4174/` 并登录。日志应显示 HTTPS；若显示 HTTP，检查环境变量、证书路径和权限，不要让公网面板长期使用明文 HTTP。
 
 ### 6. 防火墙
 
@@ -236,7 +235,7 @@ L4D2_GAME_HOST is only displayed/copied in the UI. For an initial local-only tes
 
 ### 4. HTTPS certificate
 
-Use your own DNS name <PANEL_DOMAIN>. Certbot standalone validation requires TCP port 80 to be available temporarily:
+Use your own DNS name `<PANEL_DOMAIN>`. Certbot standalone validation requires TCP port 80 to be available temporarily:
 
 ~~~sh
 GAME_USER=replace-with-game-user
@@ -265,8 +264,7 @@ Type=simple
 User=<GAME_USER>
 Group=<GAME_USER>
 WorkingDirectory=/opt/L4D2-Control
-EnvironmentFile=/etc/l4d2-control.env
-ExecStart=/usr/bin/node /opt/L4D2-Control/server.js
+ExecStart=/usr/bin/node --env-file=/etc/l4d2-control.env /opt/L4D2-Control/server.js
 Restart=on-failure
 RestartSec=5
 UMask=0077
@@ -288,7 +286,7 @@ sudo systemctl status l4d2-control.service --no-pager
 sudo journalctl -u l4d2-control.service -n 100 --no-pager
 ~~~
 
-Open https://<PANEL_DOMAIN>:4174/ and sign in. The log should report HTTPS; check certificate paths/permissions if it reports HTTP. Do not expose the public panel over plain HTTP.
+Open `https://<PANEL_DOMAIN>:4174/` and sign in. The log should report HTTPS; check certificate paths/permissions if it reports HTTP. Do not expose the public panel over plain HTTP.
 
 ### 6. Firewall
 
