@@ -29,7 +29,7 @@ async function request(value, { signal, method = 'GET', body, redirects = 0, ori
   if (redirects > 5) throw new Error('GameMaps 重定向次数过多');
   const url = officialUrl(value, origin);
   const response = await new Promise((resolve, reject) => {
-    const headers = { 'user-agent': 'DeadAirPanel/1.0', accept: '*/*' };
+    const headers = { 'user-agent': 'L4D2-Control/1.0', accept: '*/*' };
     if (body) { headers['content-type'] = 'application/x-www-form-urlencoded'; headers['content-length'] = Buffer.byteLength(body); }
     const req = https.request(url, { method, headers, lookup, signal, timeout: 30000, agent }, resolve);
     req.on('timeout', () => req.destroy(new Error('GameMaps 请求超时')));

@@ -41,7 +41,7 @@ function createSource(proxy = '', { search } = {}) {
   async function request(value, { signal, body, redirects = 0 } = {}) {
     if (redirects > 5) throw new Error('Steam 文件重定向次数过多');
     const url = body ? new URL(detailsUrl) : officialFileUrl(value);
-    const headers = { 'user-agent': 'DeadAirPanel/1.0', accept: '*/*' };
+    const headers = { 'user-agent': 'L4D2-Control/1.0', accept: '*/*' };
     if (body) { headers['content-type'] = 'application/x-www-form-urlencoded'; headers['content-length'] = Buffer.byteLength(body); }
     const response = await new Promise((resolve, reject) => {
       const req = https.request(url, { method: body ? 'POST' : 'GET', headers, agent, signal, timeout: 30000 }, resolve);

@@ -136,7 +136,7 @@ function fetchSteamWorkshop(query, page = 1, signal) {
   const url = buildSearchUrl(query, page);
   return new Promise((resolve, reject) => {
     const curl = process.platform === 'win32' ? 'curl.exe' : 'curl';
-    const args = ['-L', '--fail', '--silent', '--show-error', '--max-time', '20', '-A', 'DeadAirServerControl/1.0'];
+    const args = ['-L', '--fail', '--silent', '--show-error', '--max-time', '20', '-A', 'L4D2-Control/1.0'];
     if (workshopProxy) args.push('--proxy', workshopProxy);
     args.push(url);
     execFile(curl, args, { timeout: 25000, maxBuffer: 8 * 1024 * 1024, signal }, (error, stdout, stderr) => {
@@ -418,7 +418,7 @@ function isAuthorized(req) {
 const serve = (req, res) => {
   if (!isAuthorized(req)) {
     res.statusCode = 401;
-    res.setHeader('WWW-Authenticate', 'Basic realm="Dead Air Server Control", charset="UTF-8"');
+    res.setHeader('WWW-Authenticate', 'Basic realm="L4D2-Control", charset="UTF-8"');
     res.setHeader('cache-control', 'no-store');
     res.end('Authentication required');
     return;
@@ -442,4 +442,4 @@ server.on('upgrade', (req, socket, head) => {
   if (!isAuthorized(req) || !req.url.startsWith('/mihomo/') || !proxyManager.upgrade || (req.headers.origin && req.headers.origin !== `${req.socket.encrypted ? 'https' : 'http'}://${req.headers.host}`)) { socket.destroy(); return; }
   proxyManager.upgrade(req, socket, head, req.url.slice('/mihomo'.length));
 });
-server.listen(port, bindHost, () => console.log(`Dead Air panel listening on ${useTls ? 'https' : 'http'}://${bindHost}:${server.address().port} (${localMode ? 'local control' : 'ssh control'})`));
+server.listen(port, bindHost, () => console.log(`L4D2-Control listening on ${useTls ? 'https' : 'http'}://${bindHost}:${server.address().port} (${localMode ? 'local control' : 'ssh control'})`));
