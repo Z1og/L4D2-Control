@@ -1,0 +1,23 @@
+{
+  "name": "dead-air-server-control",
+  "private": true,
+  "version": "1.0.0",
+  "description": "L4D2 server control panel",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test tests/downloads.test.js tests/steam.test.js tests/mihomo.test.js tests/library.test.js"
+  },
+  "dependencies": {
+    "@node-steam/vdf": "^2.2.0",
+    "cheerio": "^1.0.0",
+    "playwright-core": "1.56.1",
+    "socks-proxy-agent": "^8.0.5",
+    "ssh2": "^1.16.0",
+    "valve-vpk": "^1.1.0",
+    "yaml": "2.8.1",
+    "yauzl": "^3.4.0"
+  },
+  "devDependencies": {
+    "yazl": "^3.3.1"
+  }
+}
