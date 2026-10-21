@@ -187,7 +187,7 @@ function createManager({ serverRoot, addonDir, config = parseConfig(), fetchImpl
     if (!response.ok || result?.code !== 200) throw Object.assign(new Error('OpenList 未能创建分享，请检查令牌权限和地图存储路径'), { status: response.status >= 400 ? 502 : 400 });
     const id = result.data?.id || result.data?.sharing?.id;
     if (typeof id !== 'string' || !/^[\w\p{Script=Han}-]{1,64}$/u.test(id)) throw Object.assign(new Error('OpenList 未返回有效的分享编号'), { status: 502 });
-    const openUrl = `${config.url.replace(/\/+$/, '')}/s/${encodeURIComponent(id)}`;
+    const openUrl = `${config.url.replace(/\/+$/, '')}/@s/${encodeURIComponent(id)}`;
     const resultValue = {
       ok: true,
       openUrl,

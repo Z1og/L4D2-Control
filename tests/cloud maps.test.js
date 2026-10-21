@@ -63,7 +63,7 @@ test('stop aborts a running upload and disables future automatic runs', async t 
 });
 test('share only accepts a map confirmed inside the dedicated cloud folder', async t => {
   const f = fixture(t); await assert.rejects(() => f.manager.shareCloud('../secret.vpk')); await assert.rejects(() => f.manager.shareCloud('absent.vpk'));
-  f.remote.set('map.vpk', { name: 'map.vpk', size: 1 }); const share = await f.manager.shareCloud('map.vpk'); assert.equal(share.openUrl, 'https://files.example/s/map-share'); assert.deepEqual(f.calls.at(-1).body.files, ['/l4d2-maps/map.vpk']);
+  f.remote.set('map.vpk', { name: 'map.vpk', size: 1 }); const share = await f.manager.shareCloud('map.vpk'); assert.equal(share.openUrl, 'https://files.example/@s/map-share'); assert.deepEqual(f.calls.at(-1).body.files, ['/l4d2-maps/map.vpk']);
 });
 
 test('upload diagnostics expose numeric codes without provider URLs or credentials', () => {

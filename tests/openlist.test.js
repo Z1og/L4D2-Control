@@ -62,7 +62,7 @@ test('OpenList creates a share page for an installed custom map without copying 
   let request, calls = 0;
   const manager = createManager({ serverRoot: root, addonDir, config: { enabled: true, url: 'https://files.example/openlist', token: 'admin-token', projectUrl: 'https://github.com/OpenListTeam/OpenList', mapsPath: '/l4d2-maps' }, fetchImpl: async (url, options) => { calls++; request = { url, options }; return new Response(JSON.stringify({ code: 200, data: { id: 'night-terror' } }), { status: 200, headers: { 'content-type': 'application/json' } }); } });
   const result = await manager.shareMap('night terror.vpk');
-  assert.equal(result.openUrl, 'https://files.example/openlist/s/night-terror');
+  assert.equal(result.openUrl, 'https://files.example/openlist/@s/night-terror');
   assert.equal(result.path, '/l4d2-maps/night terror.vpk');
   assert.equal(fs.readFileSync(source).equals(bytes), true);
   assert.equal(request.url, 'https://files.example/openlist/api/share/create');
