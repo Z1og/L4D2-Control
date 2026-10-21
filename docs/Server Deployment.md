@@ -166,7 +166,20 @@ WORKSHOP_DASHBOARD_DIR=/opt/MetaCubeXD
 
 **现有代码不会从空目录自动初始化 Mihomo。** 在启用以上变量前，需先由管理员准备可运行的 Mihomo 服务、同目录的 config.json、nodes.json、secret.txt，以及名为“内容下载”的代理组与匹配节点。面板的导入/切换操作依赖这些现有文件和正在运行的控制器。若没有完整 Mihomo 环境，保持 WORKSHOP_SOCKS_PROXY 为空，暂不使用代理管理页。订阅/节点不应提交到仓库。MetaCubeXD 是可选组件，需另行下载静态文件。GameMaps 浏览器功能需另外安装 Chrome、配置 GAMEMAPS_BROWSER_BIN；无图形界面的 Linux 需 Xvfb。上游站点仍可能要求验证。
 
-### 8. 验收、更新与排错
+### 8. 可选 OpenList 地图分享
+
+OpenList 是独立的文件列表/分享服务，不会被 L4D2-Control 自动替你选择网盘或填写第三方授权。使用 OpenList 官方发布包或 Docker 单独运行；在 OpenList 管理页添加你的网盘驱动，公开路径设为 `/l4d2-maps`，不要把整个游戏根目录暴露给访客。关闭访客的存储目录浏览，并使用只对该存储有写入、访问及分享权限的专用账号。启用 HTTPS 后，在 `/etc/l4d2-control.env` 增加（令牌只放服务器环境文件，不要提交仓库）：
+
+~~~text
+OPENLIST_URL=https://files.example.com
+OPENLIST_SHARE_TOKEN=replace-with-openlist-token
+OPENLIST_MAPS_PATH=/l4d2-maps
+OPENLIST_UPLOAD=true
+~~~
+
+`OPENLIST_MAPS_PATH` 是 OpenList 中网盘存储的公开路径，不是服务器文件系统路径。启用 `OPENLIST_UPLOAD=true` 后，在“云端地图”备份 VPK，完成后可通过 `/api/share/create` 创建单文件分享；令牌只在服务器端使用，不返回浏览器。首次上传占用游戏服务器上行，好友下载能否走网盘直链取决于该驱动的直链/代理设置。同名不同大小的文件不会被覆盖。OpenList 地址必须是 HTTPS 且不能带账号、密码、查询参数或令牌。
+
+### 9. 验收、更新与排错
 
 登录后依次检查总览/当前地图、地图导入导出、插件清单、一个公开下载及可选代理。安装内容后可能要手动重启游戏；面板不会自动重启游戏。
 
@@ -343,7 +356,20 @@ WORKSHOP_DASHBOARD_DIR=/opt/MetaCubeXD
 
 **The current code does not bootstrap Mihomo from an empty directory.** Before enabling those variables, prepare a running Mihomo service, config.json, nodes.json and secret.txt in the configured private directory, plus a matching proxy group named “内容下载”. The panel's import/switch actions need those existing files and a live controller. If you do not have a complete Mihomo setup, keep WORKSHOP_SOCKS_PROXY empty and skip proxy management. Never commit credentials. MetaCubeXD is optional and installed separately. GameMaps browser support needs Chrome, GAMEMAPS_BROWSER_BIN and Xvfb on headless Linux; upstream verification may still block access.
 
-### 8. Verify, update and troubleshoot
+### 8. Optional OpenList map sharing
+
+OpenList is a separate file-list and sharing service. L4D2-Control does not choose a cloud provider or fill in its credentials. Run an official OpenList release or Docker container separately; add your cloud-drive driver in the OpenList admin page with public path `/l4d2-maps`, do not expose the whole game directory to guests, disable guest storage browsing, scope a dedicated account to that storage with write/access/share permission, and enable HTTPS. Then add to `/etc/l4d2-control.env` (keep the token only in this server-side file):
+
+~~~text
+OPENLIST_URL=https://files.example.com
+OPENLIST_SHARE_TOKEN=replace-with-openlist-token
+OPENLIST_MAPS_PATH=/l4d2-maps
+OPENLIST_UPLOAD=true
+~~~
+
+`OPENLIST_MAPS_PATH` is the public path inside OpenList, not a filesystem path. With `OPENLIST_UPLOAD=true`, back up VPKs in Cloud Maps first, then use `/api/share/create` for a single-file share; the token never reaches the browser. The first upload uses the game server uplink; whether later downloads use the cloud provider's direct link depends on the driver/proxy setting. Same-name files with a different size are never overwritten. `OPENLIST_URL` must be HTTPS without embedded credentials, query parameters or tokens.
+
+### 9. Verify, update and troubleshoot
 
 Sign in and verify status/current map, a small VPK import/export, plugin inventory, one public download and optional proxy routing. Installed content may require a manual game restart; the panel never restarts the game automatically.
 
@@ -359,3 +385,58 @@ sudo systemctl start l4d2-control.service
 ~~~
 
 Missing status/maps: check that game and panel use the same account and screen-session name. Failed imports/deletions: check local mode and game-directory write access. Service exits: inspect journalctl, Node path and environment-file permissions. GameMaps challenges: configure Chrome/Xvfb, switch node or use Steam search. Origin validation uses actual TLS state; a basic HTTPS-to-HTTP reverse proxy can reject writes, so direct Node HTTPS is recommended.
+
+### 控制台内的云端地图与自动备份
+
+“云端地图”直接列出专用 OpenList 存储内的 VPK，无需跳转。可搜索文件、查看容量与服务器备份状态、生成单文件分享链接；高级存储设置仍由 OpenList 管理。
+
+点击“开启自动备份”后，服务器每 5 分钟检查 `addons` 和其 `workshop` 子目录中的 VPK，包含地图资源分包；不复制官方游戏目录或插件。顺序流式上传，文件成功上传并核对大小后才记录完成；已备份且未变化的文件跳过。文件变化或遇到已有同名文件时保留独立指纹版本，不覆盖、不联动删除。关闭网页后继续运行；“停止本轮并关闭自动备份”可取消当前任务。
+
+推荐专用普通账号：基本路径 `/l4d2-maps`，仅开启写入内容与分享权限，关闭删除/移动/管理权限；访客继续停用。服务器环境设置 `OPENLIST_USER` / `OPENLIST_PASSWORD`，并设 `OPENLIST_API_PATH=/`（相对于专用账号的基本路径）。保留 `OPENLIST_MAPS_PATH=/l4d2-maps` 作为公开挂载路径；配置后重启面板。也支持已有 `OPENLIST_SHARE_TOKEN`，但其权限须由部署者限制。自动备份记录存于私有状态目录，可用 `CLOUD_MAPS_STATE_DIR` 自定义；勿把凭据或备份记录提交到 Git。
+
+首次备份仍使用游戏服务器上行；后续下载是否直连取决于网盘驱动及代理设置。下载速度并不由“内嵌列表”功能改变。
+
+### In-console cloud maps and automatic backup
+
+Cloud Maps lists VPKs from the dedicated OpenList folder without leaving the console. Search files, inspect capacity and per-server backup status, or copy a single-file share link. Advanced storage configuration remains in OpenList.
+
+Enabling automatic backup starts an incremental scan every five minutes on the server. It includes VPKs in `addons` and its `workshop` directory, including map resource parts, but excludes the base game and plugins. Files stream sequentially. Completion is recorded only after upload and remote-size validation; unchanged recorded files are skipped. Changes and name collisions create fingerprinted versions without overwriting or propagating deletion. Closing the browser does not stop the worker; the Stop action aborts the current run and disables the schedule.
+
+Use a dedicated GENERAL account based at `/l4d2-maps`, with write-content and share permissions only. Keep guest access disabled. Configure `OPENLIST_USER` and `OPENLIST_PASSWORD` in the private server environment and set `OPENLIST_API_PATH=/` relative to that account; retain `OPENLIST_MAPS_PATH=/l4d2-maps` as the public mount path. Restart the panel after configuration. Existing `OPENLIST_SHARE_TOKEN` authentication also works, but its scope must be restricted by the operator. Private incremental records can be relocated with `CLOUD_MAPS_STATE_DIR`. Never commit credentials or backup records. Initial uploads still use the game server uplink; direct downloads depend on the cloud driver and proxy settings.
+
+同机部署 OpenList 时，可选 `OPENLIST_CONNECT_ADDRESS=127.0.0.1`，上传连接走本机回环，仍校验 `OPENLIST_URL` 的 HTTPS 证书。进度到“云盘正在保存”表示 OpenList 已接收文件，须等网盘完成后才计为备份成功。百度上传较慢时可在驱动中设置单线程、4 MiB 分片、每片超时 600 秒；这些仅为部署建议，面板不会自动改动网盘设置。
+
+For co-located OpenList, optional `OPENLIST_CONNECT_ADDRESS=127.0.0.1` uses loopback uploads while validating the original HTTPS identity. The cloud-save stage means OpenList has received the file; completion is only recorded after the cloud provider finishes. For slow Baidu uploads, consider one upload thread, 4 MiB slices, and a 600-second per-slice timeout in the driver; the panel does not automatically change these provider settings.
+
+### 玩家采集插件 / Player bridge
+
+面板与游戏应使用同一个系统账号。以下命令在游戏服务器执行，先按实际路径设置变量。使用游戏自带 SourceMod 编译器，编译成功后才安装；不会重启游戏。
+
+Run as the same operating-system user as the game and panel. Adjust these paths. Compile with the server's SourceMod compiler, and install only after a successful build. No game restart is required.
+
+~~~sh
+PANEL=/opt/L4D2-Control
+GAME=/srv/l4d2
+SM="$GAME/left4dead2/addons/sourcemod"
+"$SM/scripting/spcomp64" "$PANEL/sourcemod/L4D2 Control Players.sp" \
+  -i"$SM/scripting/include" -o"$SM/plugins/L4D2 Control Players.smx"
+~~~
+
+在游戏服务器控制台执行 / In the game server console:
+
+~~~text
+sm plugins load "L4D2 Control Players"
+l4d2_control_players verify
+~~~
+
+若编译器没有执行权限，可将它复制到私有临时目录，仅对副本执行 `chmod u+x` 后编译，不要替换游戏文件。新版本更新时使用 `sm plugins reload "L4D2 Control Players"`。
+
+If the compiler is not executable, copy it to a private temporary directory and apply `chmod u+x` to that copy. To update the bridge, use `sm plugins reload "L4D2 Control Players"`.
+
+插件每 5 秒导出快照，历史在加入/离开与定期保存时写入。私有目录 `left4dead2/addons/sourcemod/data/l4d2 control/` 为 0700，`players.txt` / `history.txt` 为 0600。面板私有状态默认 `~/.local/state/dead-air-panel/players/`，可用 `PLAYER_STATE_DIR` 指定；包括最新修改前配置与权限审计。面板应能读写 SourceMod 的 `configs/admins_simple.ini`，但不要公开这些数据目录。采集插件在面板内被列为受保护核心插件；维护/卸载请在服务器控制台手动执行。
+
+The bridge writes snapshots every five seconds and persists identity history on join/leave and periodically. Its private data directory is mode 0700; `players.txt` and `history.txt` are mode 0600. Panel state defaults to `~/.local/state/dead-air-panel/players/` (override with `PLAYER_STATE_DIR`) and contains the latest pre-edit config and permission audit. The panel needs read/write access to `configs/admins_simple.ini`. Do not publicly serve or commit these directories. The bridge is protected from disabling/deletion in the panel; use the server console for maintenance.
+
+安装后检查“在线玩家”显示实时更新时间；无真人时显示 0，不用机器人伪造玩家。为离线玩家授权时可直接输入 SteamID。修改权限需要 `basecommands`（提供 `sm_reloadadmins`）与 `admin-flatfile` 正常运行。`bfn` 不保证能调用所有第三方插件；根据插件文档设置最小必要权限，避免默认授予 `z`。出现重载/实际权限不匹配时自动恢复原文件。历史或采集不可读时请查看 SourceMod 错误日志及目录权限。
+
+Verify a fresh timestamp in Online Players; zero humans remains zero. An offline player can be configured by SteamID. Permission changes require working `basecommands` (`sm_reloadadmins`) and `admin-flatfile`. `bfn` does not unlock every third-party plugin; choose the least required flags rather than defaulting to `z`. Reload/effective-permission failures restore the previous file. For unreadable history or missing snapshots, inspect SourceMod logs and private-directory permissions.

@@ -1,20 +1,27 @@
 const $ = selector => document.querySelector(selector);
 const $$ = selector => [...document.querySelectorAll(selector)];
+const openListConsoleLink = $('#openlistConsoleLink');
+if (openListConsoleLink && window.location.hostname) openListConsoleLink.href = `https://${window.location.hostname}:5244/`;
 const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]);
 const categories = { admin: '管理权限', vote: '地图与投票', players: '玩家与人数', gameplay: '玩法与物品', fix: '修复与优化', framework: '框架依赖' };
 let campaigns = [], plugins = [], currentMap = '', selectedMap = '', mapFilter = 'all', pluginFilter = 'all';
 const expandedCampaigns = new Set();
 let proxyState = { activeId: null, nodes: [] }, workshopPage = 1, workshopQuery = '', workshopResults = [];
 let contentSource = 'steam-workshop', downloadJobs = [], searchVersion = 0, searchController = null, hasMoreResults = false, downloadsBusy = false;
+let openListState = { enabled: false, url: '', upload: false, projectUrl: 'https://github.com/OpenListTeam/OpenList', mapsPath: '/l4d2-maps' };
+let openListUploadTimer = null;
 const activities = [];
-const corePlugins = new Set(['admin-flatfile', 'adminmenu', 'basecommands', 'basechat']);
+const corePlugins = new Set(['admin-flatfile', 'adminmenu', 'basecommands', 'basechat', 'l4d2 control players']);
 const deletingDownloads = new Set();
 let libraryBusy = false;
 let gameAddress = '';
+let diagnosticsBusy = false;
 async function loadConnection() {
-  try { const config = await api('/api/config'); gameAddress = config.gameAddress || ''; } catch { gameAddress = ''; }
-  $('[data-game-address]').forEach(element => { element.textContent = gameAddress || '未配置连接地址'; });
+  try { const config = await api('/api/config'); gameAddress = config.gameAddress || ''; if (config.openList) openListState = { ...openListState, ...config.openList }; } catch { gameAddress = ''; }
+  $$('[data-game-address]').forEach(element => { element.textContent = gameAddress || '未配置连接地址'; });
   $('#copyAddress').disabled = !gameAddress;
+  renderOpenListStatus();
+  renderMaps(); renderOpenListMaps();
 }
 function icons() { if (window.lucide) lucide.createIcons(); }
 function toast(message) { $('#toast span').textContent = message; $('#toast').classList.add('show'); clearTimeout(toast.timer); toast.timer = setTimeout(() => $('#toast').classList.remove('show'), 3000); }
@@ -29,9 +36,11 @@ function renderCurrentMap(id = currentMap) {
 function navigate(view) {
   $$('.content').forEach(element => element.classList.toggle('hidden', element.id !== `${view}View`));
   $$('.nav-item').forEach(button => button.classList.toggle('active', button.dataset.view === view));
-  $('#pageTitle').textContent = { overview: '总览', maps: '地图管理', plugins: '插件管理', workshop: '内容下载', proxy: '代理管理', players: '在线玩家', logs: '操作日志', settings: '服务器设置' }[view];
+  $('#pageTitle').textContent = { overview: '总览', maps: '地图管理', plugins: '插件管理', diagnostics: '服务器自检', workshop: '内容下载', openlist: '云端地图', proxy: '代理管理', players: '在线玩家', logs: '操作日志', settings: '服务器设置' }[view];
   if (view === 'proxy') loadProxy();
+  if (view === 'players') loadPlayers();
   if (view === 'workshop') loadDownloads();
+  if (view === 'openlist') { loadOpenList(); startCloudPolling(); } else stopCloudPolling();
   $$('.nav-item').forEach(button => { if (button.dataset.view === view) button.setAttribute('aria-current', 'page'); else button.removeAttribute('aria-current'); });
   icons();
 }
@@ -65,7 +74,7 @@ function renderMaps() {
   const autoExpanded = new Set(query ? visible.filter(campaign => campaign.chapters.some(chapter => `${chapter.name} ${chapter.id}`.toLowerCase().includes(query))).map(campaign => campaign.id) : []);
   $('#mapRows').innerHTML = visible.map(campaign => {
     const expanded = expandedCampaigns.has(campaign.id) || autoExpanded.has(campaign.id);
-    return `<article class="campaign-card ${expanded ? 'expanded' : ''}"><button class="campaign-head" data-campaign-toggle="${escapeHtml(campaign.id)}" aria-expanded="${expanded}"><span class="campaign-head-copy"><strong>${escapeHtml(campaign.name)}</strong><span>${escapeHtml(campaign.english)}</span></span><span class="campaign-head-meta"><span class="campaign-count">${campaign.chapters.length} 章 · ${campaign.type === 'official' ? '官方' : campaign.type === 'custom' ? '自定义' : '其他'}</span><i data-lucide="${expanded ? 'chevron-up' : 'chevron-down'}"></i></span></button><div class="chapter-list ${expanded ? '' : 'hidden'}">${campaign.chapters.map(chapter => `<button class="chapter-row ${chapter.id === selectedMap ? 'selected' : ''}" data-map="${escapeHtml(chapter.id)}"><span class="chapter-number">${String(chapter.number).padStart(2, '0')}</span><span class="chapter-title"><strong>${escapeHtml(chapter.name)}</strong><small>${escapeHtml(chapter.id)}</small></span><span class="chapter-state ${chapter.id === currentMap ? 'current' : ''}">${chapter.id === currentMap ? '运行中' : '可切换'}</span><i data-lucide="chevron-right"></i></button>`).join('')}</div>${campaign.type === 'custom' && campaign.package ? `<div class="campaign-actions"><span title="${escapeHtml(campaign.package)}">${escapeHtml(campaign.package)}</span><div class="library-item-actions"><button class="secondary-button" data-export-map="${escapeHtml(campaign.package)}" ${libraryBusy ? 'disabled' : ''}><i data-lucide="download"></i>导出地图包</button><button class="danger-button" data-delete-map="${escapeHtml(campaign.package)}" ${libraryBusy ? 'disabled' : ''}><i data-lucide="trash-2"></i>删除地图包</button></div></div>` : ''}</article>`;
+    return `<article class="campaign-card ${expanded ? 'expanded' : ''}"><button class="campaign-head" data-campaign-toggle="${escapeHtml(campaign.id)}" aria-expanded="${expanded}"><span class="campaign-head-copy"><strong>${escapeHtml(campaign.name)}</strong><span>${escapeHtml(campaign.english)}</span></span><span class="campaign-head-meta"><span class="campaign-count">${campaign.chapters.length} 章 · ${campaign.type === 'official' ? '官方' : campaign.type === 'custom' ? '自定义' : '其他'}</span><i data-lucide="${expanded ? 'chevron-up' : 'chevron-down'}"></i></span></button><div class="chapter-list ${expanded ? '' : 'hidden'}">${campaign.chapters.map(chapter => `<button class="chapter-row ${chapter.id === selectedMap ? 'selected' : ''}" data-map="${escapeHtml(chapter.id)}"><span class="chapter-number">${String(chapter.number).padStart(2, '0')}</span><span class="chapter-title"><strong>${escapeHtml(chapter.name)}</strong><small>${escapeHtml(chapter.id)}</small></span><span class="chapter-state ${chapter.id === currentMap ? 'current' : ''}">${chapter.id === currentMap ? '运行中' : '可切换'}</span><i data-lucide="chevron-right"></i></button>`).join('')}</div>${campaign.type === 'custom' && campaign.package ? `<div class="campaign-actions"><span title="${escapeHtml(campaign.package)}">${escapeHtml(campaign.package)}</span><div class="library-item-actions"><button class="secondary-button" data-share-map="${escapeHtml(campaign.package)}" ${libraryBusy ? 'disabled' : ''}><i data-lucide="share-2"></i>分享地图</button><button class="secondary-button" data-export-map="${escapeHtml(campaign.package)}" ${libraryBusy ? 'disabled' : ''}><i data-lucide="download"></i>导出地图包</button><button class="danger-button" data-delete-map="${escapeHtml(campaign.package)}" ${libraryBusy ? 'disabled' : ''}><i data-lucide="trash-2"></i>删除地图包</button></div></div>` : ''}</article>`;
   }).join('') || '<div class="empty-state"><p>没有匹配的战役或章节</p></div>';
   renderDetail(); icons();
 }
@@ -92,9 +101,91 @@ async function loadMaps() {
     $('#customMapCount').textContent = campaigns.filter(item => item.type === 'custom').length;
     $('#otherMapCount').textContent = campaigns.filter(item => item.type === 'other').reduce((sum, item) => sum + item.chapters.length, 0);
     $('#mapCoverage').textContent = `已识别 ${campaigns.length} 个地图分组、${data.chapterCount} 个可切换地图；附加包 ${data.addonCount} 个。`;
-    renderMaps(); renderQuick();
+    renderMaps(); renderQuick(); renderOpenListMaps();
   } catch (error) { $('#mapCoverage').textContent = `读取地图失败：${error.message}`; $('#mapRows').innerHTML = '<div class="empty-state"><p>无法读取服务器地图</p></div>'; }
 }
+let cloudData = null, cloudTab = 'cloud', cloudLoading = false, cloudError = '', cloudTimer = null, cloudPolling = false, cloudActionBusy = false;
+let cloudBackup = { enabled: false, running: false, completed: 0, total: 0, results: [] };
+function cloudSize(value) { if (!Number.isFinite(Number(value))) return '—'; const n = Number(value); if (n < 1024) return `${n} B`; const units = ['KiB', 'MiB', 'GiB', 'TiB']; const rank = Math.min(3, Math.floor(Math.log(n) / Math.log(1024)) - 1); return `${(n / 1024 ** (rank + 1)).toFixed(rank > 0 ? 2 : 0)} ${units[rank]}`; }
+function renderOpenListStatus() {
+  const status = $('#openListStatus'); if (!status) return;
+  const nav = $('#openListNavState');
+  status.className = `openlist-status ${cloudError ? 'error' : openListState.enabled ? 'ready' : ''}`;
+  status.innerHTML = cloudError ? `<strong>暂时无法刷新云端文件</strong><span>${escapeHtml(cloudError)}${cloudData ? ' · 下方保留上次成功读取的列表。' : ''}</span>` : openListState.enabled ? `<strong>已连接专用地图目录</strong><span>${escapeHtml(openListState.mapsPath)} · 其他网盘文件夹不在此列表范围内</span>` : '<strong>尚未接入云端地图</strong><span>请在服务器配置 OpenList 地址和专用服务账号，令牌不会发送到浏览器。</span>';
+  if (nav) { nav.textContent = cloudData ? cloudData.files.length : openListState.enabled ? '云端' : '未配置'; nav.classList.toggle('nav-connected', openListState.enabled); }
+  $('#backupCloudMaps').disabled = !openListState.enabled || !openListState.upload || cloudBackup.running || cloudActionBusy;
+  $('#refreshCloudMaps').disabled = cloudLoading;
+  const settings = $('#openCloudSettings'); settings.hidden = !openListState.url; if (openListState.url) settings.href = openListState.url + '/@manage/storages';
+}
+function renderOpenListMaps() { renderCloudMaps(); }
+function renderCloudMaps() {
+  const target = $('#cloudMapList'); if (!target) return;
+  $('#cloudFileCount').textContent = cloudData ? cloudData.files.length : '—';
+  $('#cloudTotalSize').textContent = cloudData ? cloudSize(cloudData.totalBytes) : '—';
+  $('#cloudServerCount').textContent = cloudData ? cloudData.serverFiles.length : '—';
+  $('#cloudPendingCount').textContent = cloudData ? cloudData.serverFiles.filter(f => !f.backedUp).length : '—';
+  $('#cloudListTitle').textContent = cloudTab === 'cloud' ? '已存储的地图' : '服务器备份状态';
+  $('#cloudListTimestamp').textContent = cloudData ? `${cloudError ? '上次成功读取' : '更新于'} ${new Date(cloudData.checkedAt).toLocaleString()} · ${openListState.mapsPath}` : '只显示地图专用目录，不读取网盘其他文件夹。';
+  if (!cloudData) { target.innerHTML = `<div class="openlist-empty">${cloudError ? '读取失败，请点击刷新列表重试。' : openListState.enabled ? '正在加载专用地图目录…' : '配置完成后，云端地图会直接显示在这里。'}</div>`; return; }
+  const query = $('#cloudMapSearch').value.trim().toLowerCase();
+  const list = (cloudTab === 'cloud' ? cloudData.files : cloudData.serverFiles).filter(f => `${f.title} ${f.name}`.toLowerCase().includes(query));
+  target.innerHTML = list.length ? list.map(file => {
+    const local = cloudTab === 'server';
+    const result = local && cloudBackup.results?.find(r => r.name === file.name);
+    const active = local && cloudBackup.running && cloudBackup.current?.name === file.name;
+    const label = active ? '备份中' : local ? file.backedUp ? '已备份' : result?.status === 'failed' ? '需重试' : '待备份' : file.verified ? '服务器已备份' : file.onServer ? '云端已有文件' : '云端文件';
+    return `<article class="cloud-file-row"><div class="cloud-file-icon"><i data-lucide="${local ? 'hard-drive' : 'cloud'}"></i></div><div class="cloud-file-copy"><h3>${escapeHtml(file.title)}</h3><span title="${escapeHtml(file.name)}">${escapeHtml(file.name)}</span><p>${cloudSize(file.size)}${file.modified ? ` · ${escapeHtml(new Date(file.modified).toLocaleString())}` : ''}${result?.error ? ` · ${escapeHtml(result.error)}` : ''}</p></div><span class="cloud-file-badge ${active ? 'working' : local && !file.backedUp ? 'pending' : ''}">${label}</span>${local ? '' : `<button class="secondary-button" data-cloud-share="${escapeHtml(file.name)}"><i data-lucide="link"></i>复制分享链接</button>`}</article>`;
+  }).join('') : `<div class="openlist-empty">${query ? '没有匹配的地图。' : cloudTab === 'cloud' ? '专用目录还没有地图，点击“立即备份”即可保存服务器地图。' : '没有发现可备份的自定义 VPK。'}</div>`;
+  icons();
+}
+function renderCloudBackup() {
+  const b = cloudBackup, toggle = $('#toggleCloudBackup');
+  toggle.setAttribute('aria-checked', String(b.enabled)); toggle.textContent = b.enabled ? '自动备份已开启' : '开启自动备份'; toggle.classList.toggle('cloud-auto-on', b.enabled); toggle.disabled = !openListState.enabled || !openListState.upload || cloudActionBusy;
+  $('#stopCloudBackup').classList.toggle('hidden', !b.running); $('#stopCloudBackup').disabled = cloudActionBusy;
+  const phases = { idle: '等待备份', scanning: '正在扫描服务器地图', uploading: '正在备份到网盘', completed: '本轮备份完成', partial: '本轮部分文件需要重试', failed: '备份未完成', stopped: '本轮备份已停止' };
+  const stages = { checking: '检查文件指纹', uploading: '正在传输', confirming: '网盘正在确认保存', completed: '保存已确认' };
+  const progress = b.current;
+  const last = b.lastRun?.finishedAt ? `最近一轮：${new Date(b.lastRun.finishedAt).toLocaleString()}` : '尚未完成首轮备份';
+  const next = b.enabled ? b.nextRun ? `下次检查：${new Date(b.nextRun).toLocaleTimeString()}` : '本轮完成后继续定时检查' : '自动备份已关闭';
+  $('#cloudBackupProgress').innerHTML = `<div class="cloud-progress-heading"><strong>${phases[b.phase] || '等待备份'}</strong><span>${b.completed || 0} / ${b.total || 0} 个文件</span></div>${b.running && progress ? `<div class="cloud-current"><b>${escapeHtml(progress.name)}</b><span>${stages[progress.stage] || '准备中'} · ${cloudSize(progress.transferred)} / ${cloudSize(progress.size)}</span></div><progress max="100" value="${progress.percentage || 0}" aria-label="当前文件备份进度"></progress>` : ''}<p>本轮上传 ${b.uploaded || 0} · 跳过 ${b.skipped || 0} · 失败 ${b.failed || 0}</p>${b.error ? `<p class="cloud-error">${escapeHtml(b.error)}</p>` : ''}<small>${last} · ${next}</small>`;
+  renderOpenListStatus();
+}
+async function loadOpenList(refresh = false) {
+  if (cloudLoading) return;
+  cloudLoading = true; renderOpenListStatus();
+  try {
+    openListState = { ...openListState, ...(await api('/api/openlist')) };
+    cloudBackup = await api('/api/openlist/backup'); renderCloudBackup();
+    if (openListState.enabled) { cloudData = await api(`/api/openlist/maps${refresh ? '?refresh=1' : ''}`); cloudError = ''; }
+    else { cloudData = null; cloudError = ''; }
+  } catch (error) { cloudError = error.message; }
+  finally { cloudLoading = false; renderOpenListStatus(); renderCloudMaps(); }
+}
+function stopCloudPolling() { clearInterval(cloudTimer); cloudTimer = null; }
+function startCloudPolling() {
+  stopCloudPolling();
+  cloudTimer = setInterval(async () => {
+    if (cloudPolling || document.hidden) return;
+    cloudPolling = true;
+    try { const before = cloudBackup; cloudBackup = await api('/api/openlist/backup'); renderCloudBackup(); if (before.completed !== cloudBackup.completed || before.running && !cloudBackup.running) await loadOpenList(true); }
+    catch (error) { $('#cloudBackupProgress').textContent = `读取备份进度失败：${error.message}`; }
+    finally { cloudPolling = false; }
+  }, 2000);
+}
+async function cloudAction(route, payload = {}) {
+  if (cloudActionBusy) return;
+  cloudActionBusy = true; renderCloudBackup();
+  try { cloudBackup = await post(route, payload); renderCloudBackup(); startCloudPolling(); }
+  catch (error) { toast(error.message); }
+  finally { cloudActionBusy = false; renderCloudBackup(); }
+}
+async function shareMap(packageName, button) {
+  if (button) button.disabled = true;
+  try { const result = await post('/api/openlist/share-map', { package: packageName }); try { await navigator.clipboard.writeText(result.openUrl); toast('分享链接已复制'); } catch { window.prompt('复制地图分享链接', result.openUrl); } }
+  catch (error) { navigate('openlist'); toast(error.message); }
+  finally { if (button?.isConnected) button.disabled = false; }
+}
+
 function renderPlugins() {
   const query = $('#pluginSearch').value.trim().toLowerCase();
   const filtered = plugins.filter(item => (pluginFilter === 'all' || item.type === pluginFilter) && (!query || `${item.name} ${item.id}`.toLowerCase().includes(query)));
@@ -225,12 +316,50 @@ async function syncStatus() {
   try { const data = await api('/api/status'); document.body.dataset.serverState = data.online ? 'online' : 'offline'; currentMap = data.currentMap || ''; renderCurrentMap(currentMap); $('#serverStatus strong').textContent = data.online ? '服务器运行正常' : '游戏进程未运行'; $('#serverStatus span:not(.latency)').textContent = `同步于 ${new Date(data.lastSync || Date.now()).toLocaleTimeString()}`; $('#serverStatus .latency').lastChild.textContent = data.online ? '在线' : '离线'; $('#overviewState').textContent = data.online ? '在线' : '离线'; $('#sidebarState').textContent = data.online ? '在线' : '离线'; renderMaps(); }
   catch (error) { document.body.dataset.serverState = 'offline'; $('#serverStatus strong').textContent = '无法连接服务器'; $('#serverStatus span:not(.latency)').textContent = error.message; $('#serverStatus .latency').lastChild.textContent = '离线'; $('#overviewState').textContent = '离线'; $('#sidebarState').textContent = '离线'; }
 }
+const runtimeLabels = {
+  loaded: ['已加载', 'good'], error: ['加载报错', 'bad'], 'not-found': ['未加载', 'warn'],
+  unknown: ['待确认', 'neutral'], disabled: ['已停用 · 未加载', 'neutral'],
+  'unexpected-loaded': ['文件已停用，但仍在内存中', 'warn'], paused: ['已暂停', 'warn']
+};
+function renderDiagnostics(data) {
+  const maps = data.maps, runtime = data.plugins;
+  const mapTone = !maps.available || !maps.scannedPackages ? 'neutral' : maps.conflictCount || maps.partial ? 'warn' : 'good';
+  const mapTitle = !maps.available ? '地图检查不可用' : maps.conflictCount ? `${maps.conflictCount} 条潜在重叠路径` : maps.partial ? '已扫描部分未发现重叠' : maps.scannedPackages ? '已扫描地图包未发现重叠' : '未找到可检查的地图包';
+  $('#mapDiagnostics').innerHTML = `<div class="diagnostic-result ${mapTone}"><strong>${escapeHtml(mapTitle)}</strong><p>已扫描 ${maps.scannedPackages} 个地图包 · 跳过 ${maps.ignoredPackages || 0} 个非地图包或分卷</p></div><p>${escapeHtml(maps.scope || '')}</p><p>同路径仅表示可能覆盖；共享素材也会重叠，并不一定导致故障。包自身的 addoninfo 与预览图不计入冲突。</p>${maps.reason ? `<p class="diagnostic-note">${escapeHtml(maps.reason)}</p>` : ''}${maps.unreadablePackages.length ? `<details class="diagnostic-details" open><summary>未完成检查的包或目录 · ${maps.unreadablePackages.length}</summary>${maps.unreadablePackages.map(item => `<div class="diagnostic-row"><strong>${escapeHtml(item.name)}</strong><span>${escapeHtml(item.reason)}</span></div>`).join('')}</details>` : ''}${maps.conflicts.length ? `<details class="diagnostic-details"><summary>查看重叠路径与涉及的地图包</summary>${maps.conflicts.map(item => `<div class="diagnostic-row"><code>${escapeHtml(item.path)}</code><span>${item.packages.map(escapeHtml).join(' · ')}</span></div>`).join('')}</details>` : ''}${maps.truncated ? '<p class="diagnostic-note">为保持页面流畅，仅展示前 200 条；上方数量包含本次扫描发现的全部重叠路径。</p>' : ''}`;
+  const warnings = runtime.counts['not-found'] + runtime.counts['unexpected-loaded'] + runtime.counts.paused;
+  const tone = runtime.counts.error ? 'bad' : warnings ? 'warn' : !runtime.available || runtime.partial || runtime.counts.unknown ? 'neutral' : 'good';
+  const title = !runtime.available ? '运行状态暂时无法确认' : runtime.counts.error ? `${runtime.counts.error} 个插件加载报错` : warnings ? `${warnings} 个插件需要留意` : runtime.partial || runtime.counts.unknown ? '部分插件状态待确认' : '插件运行状态已核验';
+  $('#pluginDiagnostics').innerHTML = `<div class="diagnostic-result ${tone}"><strong>${escapeHtml(title)}</strong><p>已确认加载 ${runtime.counts.loaded} · 报错 ${runtime.counts.error} · 待确认 ${runtime.counts.unknown}</p></div><p>文件启用不等于加载成功。通过 SourceMod 报告的文件名对应；未知、截断或变化中的响应不会被判为正常。</p>${runtime.reason ? `<p class="diagnostic-note">${escapeHtml(runtime.reason)}</p>` : ''}${['error', 'not-found', 'unexpected-loaded', 'paused', 'unknown', 'loaded', 'disabled'].map(state => {
+    const items = runtime.plugins.filter(item => item.runtimeStatus === state);
+    if (!items.length) return '';
+    const [label, color] = runtimeLabels[state];
+    return `<details class="diagnostic-details" ${['error', 'not-found', 'unexpected-loaded', 'paused'].includes(state) ? 'open' : ''}><summary><span class="diagnostic-badge ${color}">${label}</span> ${items.length} 个</summary>${items.map(item => `<div class="diagnostic-row"><strong>${escapeHtml(item.name)}</strong><code>${escapeHtml(item.id)}.smx</code><span>文件：${item.enabled ? '启用目录' : '停用目录'}${item.runtimeName ? ' · 游戏内名称：' + escapeHtml(item.runtimeName) : ''}</span>${item.detail ? `<p class="diagnostic-error">${escapeHtml(item.detail)}</p>` : ''}</div>`).join('')}</details>`;
+  }).join('')}${runtime.runtimeOnly.length ? `<details class="diagnostic-details"><summary>其他运行条目 · ${runtime.runtimeOnly.length}</summary><p>不在当前管理清单中，或未取得文件名；不据此判断加载失败。</p>${runtime.runtimeOnly.map(item => `<div class="diagnostic-row"><strong>${escapeHtml(item.name)}</strong><code>${escapeHtml(item.filename || '文件名待确认')}</code><span>${escapeHtml(runtimeLabels[item.state]?.[0] || '待确认')}</span></div>`).join('')}</details>` : ''}`;
+}
+async function runDiagnostics() {
+  if (diagnosticsBusy) return;
+  diagnosticsBusy = true;
+  const button = $('#runDiagnostics'); button.disabled = true; button.setAttribute('aria-busy', 'true');
+  $('#diagnosticsTimestamp').textContent = '正在读取地图索引和本次游戏响应，请稍候…';
+  $('#mapDiagnostics').innerHTML = '<div class="diagnostics-empty">正在检查地图包…</div>';
+  $('#pluginDiagnostics').innerHTML = '<div class="diagnostics-empty">正在核对运行状态…</div>';
+  try {
+    const data = await api('/api/diagnostics'); renderDiagnostics(data);
+    $('#diagnosticsTimestamp').textContent = `检查完成于 ${new Date(data.completedAt).toLocaleString()} · 结果为本次快照，安装、启停插件或切图后请重新检查`;
+    record('完成服务器只读自检');
+  } catch (error) {
+    $('#diagnosticsTimestamp').textContent = `检查失败：${error.message}`;
+    $('#mapDiagnostics').innerHTML = $('#pluginDiagnostics').innerHTML = '<div class="diagnostics-empty">未取得本次结果，请重试。</div>';
+  } finally { diagnosticsBusy = false; button.disabled = false; button.removeAttribute('aria-busy'); }
+}
+$('#runDiagnostics').onclick = runDiagnostics;
+
 $$('.nav-item,[data-view]').forEach(button => button.onclick = () => navigate(button.dataset.view));
 $$('.nav-item').forEach(button => { button.title = button.textContent.trim(); });
 $('#mapSearch').oninput = renderMaps; $('#pluginSearch').oninput = renderPlugins;
 $$('#mapFilters button').forEach(button => button.onclick = () => { $$('#mapFilters button').forEach(item => item.classList.remove('active')); button.classList.add('active'); mapFilter = button.dataset.filter; renderMaps(); });
 $$('#pluginFilters button').forEach(button => button.onclick = () => { $$('#pluginFilters button').forEach(item => item.classList.remove('active')); button.classList.add('active'); pluginFilter = button.dataset.filter; renderPlugins(); });
-$('#mapRows').onclick = event => { const exp = event.target.closest('[data-export-map]'); if (exp) { exportLibraryItem('maps', exp.dataset.exportMap, exp); return; } const remove = event.target.closest('[data-delete-map]'); if (remove) { deleteLibraryItem('maps', remove.dataset.deleteMap); return; } const toggle = event.target.closest('[data-campaign-toggle]'); if (toggle) { const id = toggle.dataset.campaignToggle; if (expandedCampaigns.has(id)) expandedCampaigns.delete(id); else expandedCampaigns.add(id); renderMaps(); return; } const button = event.target.closest('[data-map]'); if (button) selectMap(button.dataset.map); };
+$('#mapRows').onclick = event => { const share = event.target.closest('[data-share-map]'); if (share) { shareMap(share.dataset.shareMap, share); return; } const exp = event.target.closest('[data-export-map]'); if (exp) { exportLibraryItem('maps', exp.dataset.exportMap, exp); return; } const remove = event.target.closest('[data-delete-map]'); if (remove) { deleteLibraryItem('maps', remove.dataset.deleteMap); return; } const toggle = event.target.closest('[data-campaign-toggle]'); if (toggle) { const id = toggle.dataset.campaignToggle; if (expandedCampaigns.has(id)) expandedCampaigns.delete(id); else expandedCampaigns.add(id); renderMaps(); return; } const button = event.target.closest('[data-map]'); if (button) selectMap(button.dataset.map); };
 $('#quickMaps').onclick = event => { const button = event.target.closest('[data-map]'); if (button) selectMap(button.dataset.map); };
 $('#randomMapBtn').onclick = () => { const chapters = allChapters(); if (chapters.length) selectMap(chapters[Math.floor(Math.random() * chapters.length)].id); else toast('还没有可用地图'); };
 $('#quickMapBtn').onclick = () => { $('#modalMapList').innerHTML = campaigns.map(campaign => `<div class="modal-campaign"><strong>${escapeHtml(campaign.name)}</strong>${campaign.chapters.map(chapter => `<button data-map="${escapeHtml(chapter.id)}">${escapeHtml(chapter.name)}<small>${escapeHtml(chapter.id)}</small></button>`).join('')}</div>`).join(''); openMapDialog(); };
@@ -262,6 +391,8 @@ $('#copyProxyController').onclick = async () => { try { await navigator.clipboar
 $('#updateProxySubscriptions').onclick = async () => { const button = $('#updateProxySubscriptions'); button.disabled = true; $('#proxyStatus').textContent = '正在更新订阅…'; try { proxyState = await post('/api/proxy/update', {}); renderProxy(); record('更新代理订阅'); toast('订阅已更新'); } catch (error) { $('#proxyStatus').textContent = error.message; toast(`更新失败：${error.message}`); } finally { button.disabled = false; } };
 $('#importNodes').onclick = async () => { const button = $('#importNodes'); button.disabled = true; try { proxyState = await post('/api/proxy/import', { links: $('#proxyLinks').value }); $('#proxyLinks').value = ''; renderProxy(); record('导入代理节点'); toast('节点已导入'); } catch (error) { toast(`导入失败：${error.message}`); } finally { button.disabled = false; } };
 $('#proxyList').onclick = async event => { const switchButton = event.target.closest('[data-proxy-switch]'); const deleteButton = event.target.closest('[data-proxy-delete]'); const button = switchButton || deleteButton; if (!button) return; const node = proxyState.nodes.find(item => item.id === (switchButton?.dataset.proxySwitch || deleteButton?.dataset.proxyDelete)); if (!node) return; if (!confirm(`${switchButton ? '切换到' : '删除'}节点“${node.name}”？`)) return; button.disabled = true; $('#proxyStatus').textContent = switchButton ? '正在校验并切换节点…' : '正在删除节点…'; try { proxyState = await post(`/api/proxy/${switchButton ? 'switch' : 'delete'}`, { id: node.id }); renderProxy(); record(`${switchButton ? '切换' : '删除'}代理节点 ${node.name}`); toast(switchButton ? '节点已切换，创意工坊连通正常' : '节点已删除'); } catch (error) { $('#proxyStatus').textContent = error.message; toast(`操作失败：${error.message}`); button.disabled = false; } };
+$('#openListFromMaps').onclick = () => navigate('openlist');
+
 $('#exportNodes').onclick = async () => { try { const content = await api('/api/proxy/export'); const link = document.createElement('a'); link.href = URL.createObjectURL(new Blob([content], { type: 'text/plain;charset=utf-8' })); link.download = proxyState.engine === 'mihomo' ? 'workshop nodes.yaml' : 'workshop nodes.txt'; link.click(); setTimeout(() => URL.revokeObjectURL(link.href), 1000); toast('节点已导出'); } catch (error) { toast(`导出失败：${error.message}`); } };
 $('#workshopSearch').oninput = renderWorkshop; $('#workshopSearch').onkeydown = event => { if (event.key === 'Enter') searchWorkshop(); };
 $('#searchWorkshop').onclick = () => searchWorkshop(); $('#openWorkshop').onclick = () => searchWorkshop('');
@@ -314,7 +445,7 @@ setInterval(() => { if (themeMode === 'auto') applyTheme('auto'); }, 15 * 60 * 1
 function libraryControls(busy) {
   libraryBusy = busy;
   for (const id of ['importMaps', 'importPlugins', 'reloadPlugins']) $('#' + id).disabled = busy;
-  for (const button of $$('[data-delete-map],[data-delete-plugin],[data-export-map],[data-export-plugin],[data-plugin]')) button.disabled = busy;
+  for (const button of $$('[data-delete-map],[data-delete-plugin],[data-export-map],[data-export-plugin],[data-share-map],[data-plugin]')) button.disabled = busy;
 }
 function uploadLibraryFile(kind, file, onProgress) {
   return new Promise((resolve, reject) => {
@@ -378,3 +509,11 @@ async function exportLibraryItem(kind, id, button) {
   } catch (error) { toast('导出失败：' + error.message); }
   finally { button.disabled = libraryBusy; }
 }
+
+$('#refreshCloudMaps').onclick = () => loadOpenList(true);
+$('#backupCloudMaps').onclick = () => cloudAction('/api/openlist/backup');
+$('#toggleCloudBackup').onclick = () => cloudAction('/api/openlist/backup/settings', { enabled: !cloudBackup.enabled });
+$('#stopCloudBackup').onclick = () => cloudAction('/api/openlist/backup/stop');
+$('#cloudMapSearch').oninput = renderCloudMaps;
+$('#cloudMapTabs').onclick = event => { const button = event.target.closest('[data-cloud-tab]'); if (!button) return; cloudTab = button.dataset.cloudTab; $$('#cloudMapTabs button').forEach(b => b.classList.toggle('active', b === button)); renderCloudMaps(); };
+$('#cloudMapList').onclick = async event => { const button = event.target.closest('[data-cloud-share]'); if (!button || button.disabled) return; button.disabled = true; try { const result = await post('/api/openlist/share-cloud', { name: button.dataset.cloudShare }); try { await navigator.clipboard.writeText(result.openUrl); toast('地图分享链接已复制'); } catch { window.prompt('复制地图分享链接', result.openUrl); } record(`生成云端地图分享链接 ${button.dataset.cloudShare}`); } catch (error) { toast(error.message); } finally { if (button.isConnected) button.disabled = false; } };

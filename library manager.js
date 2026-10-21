@@ -7,7 +7,7 @@ const VPK = require('valve-vpk').default;
 const { validateVpk, unpackZip } = require('./download manager');
 const { mapInventory, pluginInventory } = require('./inventory');
 
-const corePlugins = new Set(['admin-flatfile', 'adminmenu', 'basecommands', 'basechat']);
+const corePlugins = new Set(['admin-flatfile', 'adminmenu', 'basecommands', 'basechat', 'l4d2 control players']);
 function fail(message, status = 400) { throw Object.assign(new Error(message), { status }); }
 function safeName(name, expression) {
   if (typeof name !== 'string' || name.length > 180 || /[\\/\x00-\x1f]/.test(name) || name === '.' || name === '..' || !expression.test(name)) fail('文件名或文件类型不支持');

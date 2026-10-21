@@ -23,6 +23,7 @@ Server details in these previews are redacted; the project does not include a re
 | Maps | Scan the base game, DLC and custom VPKs; collapsible campaigns and chapters; change maps; import VPK/ZIP; export original VPKs; delete custom packages |
 | Plugins | Functional categories, enable/disable, SMX import/export and deletion; imported plugins start disabled; core administrative plugins are protected |
 | Downloads | In-panel Steam Workshop and GameMaps search and installation, byte progress, cancellation, retry and task-record deletion |
+| File sharing | Optional OpenList entry; upload VPKs to your configured cloud-drive storage before sharing; the token stays server-side |
 | Content proxy | Mihomo node/subscription import, node export, deletion, switching and subscription refresh; optional MetaCubeXD dashboard |
 | Interface | Light/dark themes, user-defined sunrise/sunset schedule, readable labels and mobile layouts |
 
@@ -61,12 +62,18 @@ The default URL is `http://127.0.0.1:4174`, reachable only on the server itself.
 | `WORKSHOP_PROXY_ENGINE` | `mihomo`, or empty for the legacy Xray adapter; both need separate setup |
 | `STEAMCMD_PATH` | SteamCMD launcher; default `/opt/steamcmd/steamcmd.sh` |
 | `GAMEMAPS_BROWSER_BIN` | Optional Chrome executable; headless Linux hosts also need Xvfb |
+| `OPENLIST_URL` | Optional OpenList web address; only credential-free HTTPS URLs are accepted; empty disables sharing |
+| `OPENLIST_SHARE_TOKEN` | Dedicated OpenList account token scoped to the map storage; kept only in the server environment and never returned to the browser |
+| `OPENLIST_MAPS_PATH` | Public path of the OpenList map storage, default `/l4d2-maps`; upload mode requires a writable cloud-drive storage |
+| `OPENLIST_UPLOAD` | `true`/`1` enables manual and automatic VPK backup; `false` only browses and shares existing cloud files |
 
 `.env.example` contains no real credentials. Mihomo, MetaCubeXD, Chrome, the game, plugins and subscriptions are not bundled. `private: true` in package.json prevents accidental npm publication; it does not control GitHub visibility.
 
 ## Behavior and limitations
 
 - Map export returns the original VPK with all packaged chapters. Plugin export returns only the SMX, not configuration, translations, gamedata or extensions.
+- Back up files in Cloud Maps before creating single-file shares. Only recorded, unchanged successful backups are reused; unknown same-name files produce separate fingerprinted versions and are never overwritten. Initial backup uses the server uplink.
+- Whether friends bypass the game server depends on the cloud driver exposing a direct link and OpenList proxy-download settings. Prefer direct-link mode and test the share in a logged-out window.
 - Map/content installation accepts VPK/ZIP, not RAR/7z, split VPKs or executable installers. Paths, headers, sizes and filename conflicts are checked.
 - Official maps and custom packages containing the confirmed running map cannot be deleted. Removed files are retained in a private recovery directory for manual restoration.
 - Installation is serialized. Unknown totals use indeterminate progress. Interrupted jobs become failed after restart; there is no automatic partial-download resumption or game restart.
@@ -89,3 +96,33 @@ Existing internal state names, including `~/.local/state/dead-air-panel/` and `~
 ## Credits
 
 Visual guidance from [COUI](https://github.com/suqi8/coui), without using its Compose components. Icons use [Lucide](https://lucide.dev/), currently loaded from unpkg. Steam and GameMaps are independent third-party services; this is not an official product of either provider.
+
+## Read-only diagnostics
+
+Open **服务器自检** (Server diagnostics) and select **开始检查** (Run check). Results are timestamped snapshots; run the check again after changing content or plugin state.
+
+- Map checks compare VPK directory paths in `addons` and its `workshop` subdirectory, considering packages containing BSP maps. They do not load resource payloads, extract or back up maps. Base-game archives, loose resources, other directories, actual mount state and precedence are outside this check. Shared paths indicate potential overrides, not proven faults; addon metadata and preview images are excluded.
+- SourceMod checks use fresh `sm plugins list` and `sm plugins info` responses and match filenames to the managed plugin/disabled directories. Loaded, failed, paused, absent, still-loaded disabled files and unknown states are distinct. Other runtime entries are shown separately. The panel needs local Linux mode and access to the game's GNU screen session under the same account. Missing or changing responses are not treated as success.
+- Nothing is automatically fixed, disabled or restarted. Bounds are 8 MiB of directory index and 100,000 entries per VPK, 512 packages and 250,000 map-package paths per scan, 200 displayed overlaps, and 256 runtime plugin entries. Unreadable or oversized inputs are marked incomplete. Map results remain available when the game console cannot be queried.
+
+### In-console cloud maps and automatic backup
+
+Cloud Maps lists VPKs from the dedicated OpenList folder without leaving the console. Search files, inspect capacity and per-server backup status, or copy a single-file share link. Advanced storage configuration remains in OpenList.
+
+Enabling automatic backup starts an incremental scan every five minutes on the server. It includes VPKs in `addons` and its `workshop` directory, including map resource parts, but excludes the base game and plugins. Files stream sequentially. Completion is recorded only after upload and remote-size validation; unchanged recorded files are skipped. Changes and name collisions create fingerprinted versions without overwriting or propagating deletion. Closing the browser does not stop the worker; the Stop action aborts the current run and disables the schedule.
+
+Use a dedicated GENERAL account based at `/l4d2-maps`, with write-content and share permissions only. Keep guest access disabled. Configure `OPENLIST_USER` and `OPENLIST_PASSWORD` in the private server environment and set `OPENLIST_API_PATH=/` relative to that account; retain `OPENLIST_MAPS_PATH=/l4d2-maps` as the public mount path. Restart the panel after configuration. Existing `OPENLIST_SHARE_TOKEN` authentication also works, but its scope must be restricted by the operator. Private incremental records can be relocated with `CLOUD_MAPS_STATE_DIR`. Never commit credentials or backup records. Initial uploads still use the game server uplink; direct downloads depend on the cloud driver and proxy settings.
+
+For co-located OpenList, optional `OPENLIST_CONNECT_ADDRESS=127.0.0.1` uses loopback uploads while validating the original HTTPS identity. The cloud-save stage means OpenList has received the file; completion is only recorded after the cloud provider finishes. For slow Baidu uploads, consider one upload thread, 4 MiB slices, and a 600-second per-slice timeout in the driver; the panel does not automatically change these provider settings.
+
+## Players and in-game administrators
+
+Online Players shows real human/bot counts, team, latency, connected duration, and exact SteamID2/3/64 values, with search, copy-ID, history and administrator tabs. Server Diagnostics is in the System sidebar section.
+
+Install the read-only SourceMod bridge from `sourcemod/L4D2 Control Players.sp` as described in the deployment guide. History starts when the bridge is enabled, is not retrospective and excludes IP addresses. Snapshots older than 20 seconds show unknown status and disable permission editing.
+
+Grant, adjust or revoke panel-owned SourceMod permissions by SteamID. Presets: plugin administrator `bfn`, game moderator `bcdfgjk`, or custom flags `a–t` / `z`. Root requires separate confirmation. Use `!admin` / `/admin` for an installed admin menu; each plugin still determines its own command and flag requirements. Permissions do not install plugins.
+
+Only the `L4D2 CONTROL MANAGED ADMINS` block in `admins_simple.ini` is managed. Existing external configuration and runtime permissions from other sources are read-only. Saving reloads the admin cache and checks effective permissions for online players; failure restores the prior file. Offline grants are reported as saved/reloaded, not runtime-verified. No real player is granted access automatically.
+
+Only the latest pre-edit admin configuration is retained, not a whole-server backup. Never commit player history, audit records or administrator configuration.

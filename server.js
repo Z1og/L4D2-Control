@@ -7,11 +7,16 @@ const os = require('os');
 const { execFile } = require('child_process');
 const { Client } = require('ssh2');
 const { mapInventory, pluginInventory } = require('./inventory');
+const { scanVpkConflicts, collectPluginRuntime, inspectPluginRuntime, extractConsoleFrame } = require('./diagnostics');
 const proxyManager = require(process.env.WORKSHOP_PROXY_ENGINE === 'mihomo' ? './mihomo manager' : './proxy manager');
 const { createSource } = require('./content sources');
 const { createSource: createSteamSource, parseSearch: parseSteamSearch, buildSearchUrl } = require('./steam source');
 const { createManager } = require('./download manager');
 const { createLibrary } = require('./library manager');
+const { PROJECT_URL, parseConfig: parseOpenListConfig, createManager: createOpenListManager } = require('./openlist manager');
+
+const { createCloudMaps } = require('./cloud maps');
+const { createPlayerManager } = require('./player manager');
 
 const root = __dirname;
 const port = Number(process.env.PORT || 4174);
@@ -36,6 +41,14 @@ const steamcmdPath = process.env.STEAMCMD_PATH || '/opt/steamcmd/steamcmd.sh';
 const workshopAddonDir = process.env.WORKSHOP_ADDON_DIR || `${serverRoot}/left4dead2/addons`;
 const workshopStageDir = process.env.WORKSHOP_STAGE_DIR || '/tmp/dead-air-workshop';
 const downloads = createManager({ addonDir: workshopAddonDir, steamcmdPath, workshopProxy, localMode, gameMapsSource: gameMaps, steamSource });
+const openList = createOpenListManager({ serverRoot, addonDir: workshopAddonDir, config: parseOpenListConfig() });
+const cloudMaps = createCloudMaps({ addonDir: workshopAddonDir, stateDir: process.env.CLOUD_MAPS_STATE_DIR || path.join(os.homedir(), '.local', 'state', 'dead-air-panel', 'cloud maps'), inventory: () => mapInventory(serverRoot) });
+async function refreshPlayerSnapshot(reload = false) {
+  const nonce = crypto.randomBytes(12).toString('hex');
+  const output = await captureDiagnosticConsole([...(reload ? ['sm_reloadadmins'] : []), `l4d2_control_players ${nonce}`]);
+  if (!output.includes('L4D2CONTROL_SNAPSHOT ' + nonce) || /Unknown command.*sm_reloadadmins/i.test(output)) throw new Error('SourceMod 未确认玩家状态更新');
+}
+const playerManager = createPlayerManager({ serverRoot, stateDir: process.env.PLAYER_STATE_DIR || path.join(os.homedir(), '.local', 'state', 'dead-air-panel', 'players'), reloadAdmins: () => refreshPlayerSnapshot(true), refreshSnapshot: () => refreshPlayerSnapshot() });
 const sshConfig = {
   host: process.env.L4D2_SSH_HOST || '',
   port: Number(process.env.L4D2_SSH_PORT || 22),
@@ -112,6 +125,54 @@ async function status() {
   const adminMenuMatch = result.output.match(/[^\n]*Admin Menu[^\n]*/i);
   state.lastSync = new Date().toISOString();
   return { mapConfirmed: !!mapMatch, connected: true, host: gameHost, port: gamePort, currentMap: state.currentMap, online: /srcds_linux/.test(result.output), adminMenuStatus: adminMenuMatch?.[0]?.trim() || 'not present in console buffer', controlMode: executionMode, lastSync: state.lastSync };
+}
+
+// A fresh nonce frame excludes old scrollback, while bounded retries allow a busy game tick.
+async function captureDiagnosticConsole(commands) {
+  const id = crypto.randomBytes(8).toString('hex');
+  const begin = `L4D2CHECK_BEGIN_${id}`, end = `L4D2CHECK_END_${id}`;
+  const consoleDir = path.join(os.homedir(), '.local', 'state', 'dead-air-panel', 'console');
+  await fs.promises.mkdir(consoleDir, { recursive: true, mode: 0o700 });
+  const file = path.join(consoleDir, `${crypto.randomUUID()}.txt`);
+  try {
+    await runCommand(screenCommand([`echo ${begin}`, ...commands, `echo ${end}`].join('\r')));
+    for (let attempt = 0; attempt < 10; attempt++) {
+      await new Promise(resolve => setTimeout(resolve, 200));
+      await runCommand(`screen -S ${shellQuote(screenSession)} -p 0 -X hardcopy -h ${shellQuote(file)}`);
+      let handle;
+      try { handle = await fs.promises.open(file, 'r'); }
+      catch (error) { if (error.code === 'ENOENT') continue; throw error; }
+      let output;
+      try {
+        const size = (await handle.stat()).size;
+        if (size > 1024 * 1024) throw new Error('Console snapshot exceeds limit');
+        output = await handle.readFile('utf8');
+      } finally { await handle.close(); }
+      const frame = extractConsoleFrame(output, begin, end);
+      if (frame !== null) return frame;
+    }
+    throw new Error('Fresh console response timed out');
+  } finally { await fs.promises.rm(file, { force: true }); }
+}
+
+let diagnosticsPending;
+function diagnostics() {
+  if (diagnosticsPending) return diagnosticsPending;
+  diagnosticsPending = (async () => {
+    const checkedAt = new Date().toISOString();
+    let plugins;
+    const maps = await scanVpkConflicts(workshopAddonDir);
+    try {
+      if (!fs.statSync(pluginPath).isDirectory()) throw new Error('Plugin directory missing');
+      const disk = pluginInventory(pluginPath);
+      plugins = await collectPluginRuntime(disk, captureDiagnosticConsole);
+      if (JSON.stringify(disk) !== JSON.stringify(pluginInventory(pluginPath))) {
+        plugins = inspectPluginRuntime(pluginInventory(pluginPath), { available: false, entries: [], partial: true, reason: '检查期间插件文件状态发生变化，请重新检查' });
+      }
+    } catch { plugins = inspectPluginRuntime([], { available: false, entries: [], partial: true, reason: '无法读取插件目录，请检查服务器路径和读取权限' }); }
+    return { checkedAt, completedAt: new Date().toISOString(), maps, plugins };
+  })().finally(() => { diagnosticsPending = null; });
+  return diagnosticsPending;
 }
 
 function pluginFile(name) {
@@ -231,8 +292,53 @@ async function handleApi(req, res, body) {
       if (pathname === '/api/proxy/delete') { res.end(JSON.stringify(await proxyManager.deleteNode(payload.id))); return; }
       res.statusCode = 404; res.end(JSON.stringify({ error: 'not found' })); return;
     }
-    if (req.method === 'GET' && req.url === '/api/config') { res.end(JSON.stringify({ gameAddress })); return; }
+    if (req.method === 'GET' && req.url === '/api/config') { res.end(JSON.stringify({ gameAddress, openList: cloudMaps.publicConfig() })); return; }
+    if (req.method === 'GET' && pathname === '/api/openlist') {
+      res.end(JSON.stringify(cloudMaps.publicConfig()));
+      return;
+    }
+    if (pathname.startsWith('/api/openlist/') && !localMode) throw Object.assign(new Error('云端地图需要在游戏服务器本机运行面板'), { status: 400 });
+    if (req.method === 'GET' && pathname === '/api/openlist/maps') {
+      const refresh = new URL(req.url, 'http://localhost').searchParams.get('refresh') === '1';
+      res.end(JSON.stringify(await cloudMaps.listMaps(refresh))); return;
+    }
+    if (req.method === 'GET' && pathname === '/api/openlist/backup') { res.end(JSON.stringify(cloudMaps.getStatus())); return; }
+    if (req.method === 'POST' && pathname === '/api/openlist/backup') { res.statusCode = 202; res.end(JSON.stringify(cloudMaps.startBackup())); return; }
+    if (req.method === 'POST' && pathname === '/api/openlist/backup/settings') {
+      const payload = body ? JSON.parse(body) : {}; res.end(JSON.stringify(cloudMaps.setEnabled(payload.enabled))); return;
+    }
+    if (req.method === 'POST' && pathname === '/api/openlist/backup/stop') { res.end(JSON.stringify(cloudMaps.stopBackup())); return; }
+    if (req.method === 'POST' && pathname === '/api/openlist/share-cloud') {
+      const payload = body ? JSON.parse(body) : {}; res.end(JSON.stringify(await cloudMaps.shareCloud(payload.name))); return;
+    }
+    if (req.method === 'GET' && pathname === '/api/openlist/upload-status') {
+      const packageName = new URL(req.url, 'http://localhost').searchParams.get('package');
+      res.end(JSON.stringify(openList.getUploadStatus(packageName)));
+      return;
+    }
+    if (req.method === 'POST' && pathname === '/api/openlist/share-map') {
+      if (!localMode) throw Object.assign(new Error('地图分享需要在游戏服务器本机运行面板'), { status: 400 });
+      const payload = body ? JSON.parse(body) : {};
+      const listing = await cloudMaps.listMaps();
+      const file = listing.files.find(item => item.serverId === payload.package && item.verified);
+      if (!file) throw Object.assign(new Error('请先在云端地图完成备份，再生成分享链接'), { status: 409 });
+      res.end(JSON.stringify(await cloudMaps.shareCloud(file.name)));
+      return;
+    }
     if (req.method === 'GET' && req.url === '/api/status') { res.end(JSON.stringify(await status())); return; }
+    if (pathname.startsWith('/api/players')) {
+      if (!localMode) throw Object.assign(new Error('玩家管理需要在游戏服务器本机运行面板'), { status: 400 });
+      if (req.method === 'GET' && pathname === '/api/players') { res.end(JSON.stringify(await playerManager.list())); return; }
+      if (req.method === 'POST' && pathname === '/api/players/permissions') {
+        const payload = body ? JSON.parse(body) : {};
+        res.end(JSON.stringify(await playerManager.update(payload, panelUser))); return;
+      }
+      res.statusCode = 404; res.end(JSON.stringify({ error: 'not found' })); return;
+    }
+    if (req.method === 'GET' && pathname === '/api/diagnostics') {
+      if (!localMode) throw Object.assign(new Error('服务器自检需要在游戏服务器本机运行面板'), { status: 400 });
+      res.end(JSON.stringify(await diagnostics())); return;
+    }
     if (req.method === 'GET' && pathname === '/api/maps') {
       if (!localMode) throw new Error('map inventory requires local mode');
       res.end(JSON.stringify(await mapInventory(serverRoot))); return;
@@ -310,6 +416,7 @@ async function handleApi(req, res, body) {
     }
     if (req.url === '/api/plugin') {
       if (!localMode) throw new Error('plugin management requires local mode');
+      if (String(payload.id).toLowerCase() === 'l4d2 control players') throw new Error('protected core plugin');
       if (typeof payload.id !== 'string' || !/^[a-z0-9_-]{1,128}$/i.test(payload.id) || typeof payload.enabled !== 'boolean') throw new Error('invalid plugin');
       await library.exclusive(async () => {
       const item = pluginInventory(pluginPath).find(plugin => plugin.id === payload.id);
@@ -331,7 +438,7 @@ async function handleApi(req, res, body) {
     if (req.url === '/api/plugins/reload') { await library.exclusive(() => runCommand(screenCommand('sm plugins refresh'))); res.end(JSON.stringify({ ok: true })); return; }
     res.statusCode = 404; res.end(JSON.stringify({ error: 'not found' }));
   } catch (error) {
-    const badRequest = /^(invalid map|map not installed|invalid plugin|protected core plugin|invalid workshop query|invalid workshop id|invalid gamemaps query|invalid download|invalid origin|proxy manager requires HTTPS|proxy manager requires local mode|内容导出需要|只能导出|文件名或文件类型|插件不存在|不支持的导出类型|节点不存在|请先切换|请导入|仅支持|节点链接)/.test(error.message) || error instanceof SyntaxError || error.code === 'STEAM_IDENTITY_MISMATCH';
+    const badRequest = /^(invalid map|map not installed|invalid plugin|protected core plugin|invalid workshop query|invalid workshop id|invalid gamemaps query|invalid download|invalid origin|proxy manager requires HTTPS|proxy manager requires local mode|内容导出需要|只能导出|文件名或文件类型|插件不存在|不支持的导出类型|节点不存在|请先切换|请导入|仅支持|节点链接|OpenList 已存在同名)/.test(error.message) || error instanceof SyntaxError || error.code === 'STEAM_IDENTITY_MISMATCH';
     res.statusCode = error.status || (['ENOENT', 'ENOTDIR'].includes(error.code) ? 404 : badRequest ? 400 : 502);
     res.end(JSON.stringify({ error: error instanceof SyntaxError ? 'invalid json' : error.message }));
   }
@@ -379,7 +486,7 @@ function serveFile(req, res) {
     fs.createReadStream(file).pipe(res); return;
   }
   const relative = requestPath === '/' ? 'index.html' : requestPath.replace(/^\/+/, '');
-  if (!['index.html', 'app.js', 'styles.css'].includes(relative)) { res.statusCode = 404; res.end('Not found'); return; }
+  if (!['index.html', 'app.js', 'players.js', 'styles.css'].includes(relative)) { res.statusCode = 404; res.end('Not found'); return; }
   const filePath = path.resolve(root, relative);
   const relativeToRoot = path.relative(root, filePath);
   if (relativeToRoot.startsWith('..') || path.isAbsolute(relativeToRoot) || !fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) { res.statusCode = 404; res.end('Not found'); return; }
@@ -443,3 +550,5 @@ server.on('upgrade', (req, socket, head) => {
   proxyManager.upgrade(req, socket, head, req.url.slice('/mihomo'.length));
 });
 server.listen(port, bindHost, () => console.log(`L4D2-Control listening on ${useTls ? 'https' : 'http'}://${bindHost}:${server.address().port} (${localMode ? 'local control' : 'ssh control'})`));
+
+process.once('SIGTERM', () => { cloudMaps.close(); server.close(() => process.exit(0)); setTimeout(() => process.exit(0), 8000).unref(); });

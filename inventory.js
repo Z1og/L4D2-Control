@@ -115,6 +115,7 @@ async function mapInventory(serverRoot) {
 }
 
 const pluginLabels = {
+  'l4d2 control players': ['面板玩家采集', 'players'],
   adminmenu: ['管理菜单', 'admin'], adminhelp: ['管理员帮助', 'admin'], 'admin-flatfile': ['管理员权限', 'admin'],
   basecommands: ['基础命令', 'admin'], basebans: ['封禁管理', 'admin'], basecomm: ['聊天限制', 'admin'],
   basechat: ['基础聊天', 'admin'], basevotes: ['基础投票', 'vote'], funvotes: ['娱乐投票', 'vote'],

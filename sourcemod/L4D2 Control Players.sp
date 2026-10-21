@@ -1,0 +1,90 @@
+#pragma semicolon 1
+#pragma newdecls required
+#include <sourcemod>
+
+public Plugin myinfo = {
+    name = "L4D2 Control Players", author = "L4D2-Control",
+    description = "Server-local player identity and permission snapshot; no player IPs or credentials",
+    version = "1.0.0", url = ""
+};
+KeyValues gHistory;
+char gSnapshotPath[PLATFORM_MAX_PATH];
+char gHistoryPath[PLATFORM_MAX_PATH];
+bool gHistoryDirty;
+int gLastSave;
+
+public void OnPluginStart() {
+    char privateDir[PLATFORM_MAX_PATH];
+    BuildPath(Path_SM, privateDir, sizeof(privateDir), "data/l4d2 control");
+    int privateMode = FPERM_U_READ | FPERM_U_WRITE | FPERM_U_EXEC;
+    if (!DirExists(privateDir) && !CreateDirectory(privateDir, privateMode)) SetFailState("Cannot create private player data directory");
+    if (!SetFilePermissions(privateDir, privateMode)) SetFailState("Cannot protect private player data directory");
+    BuildPath(Path_SM, gSnapshotPath, sizeof(gSnapshotPath), "data/l4d2 control/players.txt");
+    BuildPath(Path_SM, gHistoryPath, sizeof(gHistoryPath), "data/l4d2 control/history.txt");
+    gHistory = new KeyValues("PanelPlayerHistory");
+    gHistory.SetEscapeSequences(true);
+    if (FileExists(gHistoryPath) && !gHistory.ImportFromFile(gHistoryPath)) SetFailState("Player history cannot be read; preserving the original file");
+    RegServerCmd("l4d2_control_players", CommandSnapshot);
+    CreateTimer(5.0, TimerSnapshot, _, TIMER_REPEAT);
+    for (int client = 1; client <= MaxClients; client++) if (IsClientInGame(client) && !IsFakeClient(client)) Remember(client);
+    WriteSnapshot(); SaveHistory();
+}
+public void OnClientPostAdminCheck(int client) { Remember(client); WriteSnapshot(); SaveHistory(); }
+public void OnClientDisconnect(int client) { Remember(client); SaveHistory(); }
+public void OnClientDisconnect_Post(int client) { WriteSnapshot(); }
+public void OnPluginEnd() { SaveHistory(); if (FileExists(gSnapshotPath)) DeleteFile(gSnapshotPath); }
+public void OnMapEnd() { SaveHistory(); }
+
+void Remember(int client) {
+    if (!IsClientConnected(client) || IsFakeClient(client) || !IsClientAuthorized(client)) return;
+    char steam2[32], name[MAX_NAME_LENGTH];
+    if (!GetClientAuthId(client, AuthId_Steam2, steam2, sizeof(steam2), true)) return;
+    GetClientName(client, name, sizeof(name));
+    gHistory.Rewind(); gHistory.JumpToKey(steam2, true);
+    if (!gHistory.GetNum("firstSeen")) gHistory.SetNum("firstSeen", GetTime());
+    gHistory.SetNum("lastSeen", GetTime()); gHistory.SetString("name", name);
+    gHistory.Rewind(); gHistoryDirty = true;
+}
+bool ExportAtomic(KeyValues kv, const char[] destination) {
+    char temp[PLATFORM_MAX_PATH]; Format(temp, sizeof(temp), "%s.new", destination);
+    kv.Rewind(); if (!kv.ExportToFile(temp)) return false;
+    if (!SetFilePermissions(temp, FPERM_U_READ | FPERM_U_WRITE)) return false;
+    return RenameFile(destination, temp);
+}
+void SaveHistory() {
+    if (gHistoryDirty && ExportAtomic(gHistory, gHistoryPath)) { gHistoryDirty = false; gLastSave = GetTime(); }
+}
+bool WriteSnapshot() {
+    KeyValues snapshot = new KeyValues("PanelPlayers");
+    snapshot.SetEscapeSequences(true);
+    snapshot.SetNum("version", 1); snapshot.SetNum("updated", GetTime());
+    int bots;
+    for (int client = 1; client <= MaxClients; client++) if (IsClientInGame(client) && IsFakeClient(client)) bots++;
+    snapshot.SetNum("bots", bots); snapshot.JumpToKey("players", true);
+    for (int client = 1; client <= MaxClients; client++) {
+        if (!IsClientInGame(client) || IsFakeClient(client) || !IsClientAuthorized(client)) continue;
+        char steam2[32], steam64[32], name[MAX_NAME_LENGTH], key[16], flags[32];
+        if (!GetClientAuthId(client, AuthId_Steam2, steam2, sizeof(steam2), true) || !GetClientAuthId(client, AuthId_SteamID64, steam64, sizeof(steam64), true)) continue;
+        IntToString(GetClientUserId(client), key, sizeof(key)); GetClientName(client, name, sizeof(name));
+        FlagBitsToString(GetUserFlagBits(client), flags, sizeof(flags));
+        snapshot.JumpToKey(key, true);
+        snapshot.SetString("steam2", steam2); snapshot.SetString("steam64", steam64); snapshot.SetString("name", name);
+        snapshot.SetNum("userid", GetClientUserId(client)); snapshot.SetNum("team", GetClientTeam(client));
+        snapshot.SetNum("ping", RoundToNearest(GetClientAvgLatency(client, NetFlow_Both) * 1000.0));
+        snapshot.SetNum("connected", RoundToFloor(GetClientTime(client))); snapshot.SetString("flags", flags);
+        AdminId admin = GetUserAdmin(client); snapshot.SetNum("immunity", admin == INVALID_ADMIN_ID ? 0 : GetAdminImmunityLevel(admin));
+        snapshot.GoBack(); Remember(client);
+    }
+    bool written = ExportAtomic(snapshot, gSnapshotPath);
+    if (!written) LogError("Unable to write player snapshot");
+    delete snapshot;
+    return written;
+}
+public Action TimerSnapshot(Handle timer) { WriteSnapshot(); if (GetTime() - gLastSave >= 60) SaveHistory(); return Plugin_Continue; }
+public Action CommandSnapshot(int args) {
+    char nonce[40]; GetCmdArg(1, nonce, sizeof(nonce));
+    bool written = WriteSnapshot(); SaveHistory();
+    if (written) PrintToServer("L4D2CONTROL_SNAPSHOT %s", nonce);
+    else PrintToServer("L4D2CONTROL_ERROR snapshot write failed");
+    return Plugin_Handled;
+}

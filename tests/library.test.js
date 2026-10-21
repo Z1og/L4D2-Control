@@ -153,14 +153,32 @@ test('deleting active task waits for abort cleanup, queued task never starts', {
 });
 test('HTTP uploads enforce login and origin, show maps, and import/delete disabled plugins', async t => {
   const f=fixture(t), {spawn}=require('node:child_process');
-  const child=spawn(process.execPath,[path.join(__dirname,'..','server.js')],{env:{...process.env,PORT:'0',BIND_HOST:'127.0.0.1',L4D2_EXEC_MODE:'local',L4D2_SERVER_ROOT:f.root,L4D2_PLUGIN_PATH:f.pluginPath,WORKSHOP_ADDON_DIR:f.addonDir,DOWNLOAD_STATE_DIR:path.join(f.root,'downloads'),LIBRARY_STATE_DIR:path.join(f.root,'state'),PANEL_PASSWORD:'fixture',PANEL_USER:'admin',PANEL_AUTH_TOKEN:'',L4D2_GAME_HOST:'game.example',L4D2_GAME_PORT:'27016',PANEL_TLS_KEY:path.join(f.root,'absent-key'),PANEL_TLS_CERT:path.join(f.root,'absent-cert')},stdio:['ignore','pipe','pipe']});
+  const child=spawn(process.execPath,[path.join(__dirname,'..','server.js')],{env:{...process.env,PORT:'0',BIND_HOST:'127.0.0.1',L4D2_EXEC_MODE:'local',L4D2_SERVER_ROOT:f.root,L4D2_PLUGIN_PATH:f.pluginPath,WORKSHOP_ADDON_DIR:f.addonDir,DOWNLOAD_STATE_DIR:path.join(f.root,'downloads'),LIBRARY_STATE_DIR:path.join(f.root,'state'),PANEL_PASSWORD:'fixture',PANEL_USER:'admin',PANEL_AUTH_TOKEN:'',L4D2_GAME_HOST:'game.example',L4D2_GAME_PORT:'27016',OPENLIST_URL:'https://files.example/openlist',OPENLIST_SHARE_TOKEN:'fixture-secret-token',OPENLIST_MAPS_PATH:'/l4d2-maps',PANEL_TLS_KEY:path.join(f.root,'absent-key'),PANEL_TLS_CERT:path.join(f.root,'absent-cert')},stdio:['ignore','pipe','pipe']});
   t.after(async()=>{const exit=new Promise(resolve=>child.once('exit',resolve));child.kill();await exit;});
-  const port=await new Promise((resolve,reject)=>{let output='';const timer=setTimeout(()=>reject(new Error('server startup timeout')),5000);child.stdout.on('data',bytes=>{output+=bytes;const match=output.match(/127\.0\.0\.1:(\d+)/);if(match){clearTimeout(timer);resolve(match[1]);}});child.once('error',reject);});
+  const port=await new Promise((resolve,reject)=>{
+    let output='',stderr='';
+    const timer=setTimeout(()=>reject(new Error('server startup timeout: '+stderr)),15000);
+    child.stderr.on('data',bytes=>{stderr+=bytes;});
+    child.stdout.on('data',bytes=>{output+=bytes;const match=output.match(/127\.0\.0\.1:(\d+)/);if(match){clearTimeout(timer);resolve(match[1]);}});
+    child.once('error',error=>{clearTimeout(timer);reject(error);});
+    child.once('exit',code=>{clearTimeout(timer);reject(new Error(`server exited ${code}: ${stderr}`));});
+  });
   const base=`http://127.0.0.1:${port}`,authorization='Basic '+Buffer.from('admin:fixture').toString('base64');
   assert.equal((await fetch(base+'/api/config')).status,401);
+  assert.equal((await fetch(base+'/api/diagnostics')).status,401);
+  const diagnostics=await fetch(base+'/api/diagnostics',{headers:{authorization}});
+  assert.equal(diagnostics.status,200);
+  const report=await diagnostics.json();assert.equal(report.maps.conflictCount,0);assert.equal(report.plugins.available,false);
+  assert.equal((await fetch(base+'/api/diagnostics',{method:'POST',headers:{authorization,'content-type':'application/json'},body:'{}'})).status,404);
   const config = await fetch(base+'/api/config',{headers:{authorization}});
   assert.equal(config.status,200);
-  assert.equal((await config.json()).gameAddress,'game.example:27016');
+  const configBody=await config.text();
+  assert.equal(configBody.includes('fixture-secret-token'),false);
+  const configData=JSON.parse(configBody);
+  assert.equal(configData.gameAddress,'game.example:27016');
+  assert.deepEqual(configData.openList,{enabled:true,url:'https://files.example/openlist',projectUrl:'https://github.com/OpenListTeam/OpenList',mapsPath:'/l4d2-maps',upload:false});
+  const openListConfig=await fetch(base+'/api/openlist',{headers:{authorization}});
+  assert.deepEqual(await openListConfig.json(),configData.openList);
   const upload=(endpoint,bytes,headers={})=>fetch(base+endpoint,{method:'POST',headers:{authorization,'content-type':'application/octet-stream',...headers},body:bytes});
   assert.equal((await upload('/api/maps/import?name=a.vpk',vpk(),{authorization:''})).status,401);
   assert.equal((await upload('/api/maps/import?name=a.vpk',vpk(),{origin:'https://other.example'})).status,403);
