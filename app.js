@@ -7,7 +7,8 @@ const categories = { admin: '管理权限', vote: '地图与投票', players: '�
 let campaigns = [], plugins = [], currentMap = '', selectedMap = '', mapFilter = 'all', pluginFilter = 'all';
 const expandedCampaigns = new Set();
 let proxyState = { activeId: null, nodes: [] }, workshopPage = 1, workshopQuery = '', workshopResults = [];
-let contentSource = 'steam-workshop', downloadJobs = [], searchVersion = 0, searchController = null, hasMoreResults = false, downloadsBusy = false;
+let contentSection = 'maps', contentSource = 'steam-workshop', downloadJobs = [], searchVersion = 0, searchController = null, hasMoreResults = false, downloadsBusy = false;
+let pluginStorePage = 1, pluginStoreQuery = '', pluginStoreCategory = 'all', pluginStoreResults = [], pluginStoreTotal = 0, pluginStoreHasMore = false, pluginStoreBusy = false, pluginStoreLoaded = false, pluginStoreSyncing = false;
 let openListState = { enabled: false, url: '', upload: false, projectUrl: 'https://github.com/OpenListTeam/OpenList', mapsPath: '/l4d2-maps' };
 let openListUploadTimer = null;
 const activities = [];
@@ -193,7 +194,7 @@ function renderPlugins() {
   icons();
 }
 async function loadPlugins() {
-  try { const data = await api('/api/plugins'); plugins = data.plugins; $('#navPluginCount').textContent = plugins.length; $('#overviewPluginCount').textContent = plugins.length; $('#pluginTotal').textContent = plugins.length; $('#pluginEnabled').textContent = plugins.filter(item => item.enabled).length; renderPlugins(); }
+  try { const data = await api('/api/plugins'); plugins = data.plugins; $('#navPluginCount').textContent = plugins.length; $('#overviewPluginCount').textContent = plugins.length; $('#pluginTotal').textContent = plugins.length; $('#pluginEnabled').textContent = plugins.filter(item => item.enabled).length; renderPlugins(); if (pluginStoreLoaded) renderPluginStoreResults(); }
   catch (error) { $('#pluginGrid').innerHTML = `<div class="empty-state"><p>读取插件失败：${escapeHtml(error.message)}</p></div>`; }
 }
 function renderProxy() {
@@ -238,6 +239,52 @@ function renderWorkshopResults() {
     return `<article class="workshop-result">${item.image ? `<img src="${escapeHtml(item.image)}" alt="" loading="lazy" referrerpolicy="no-referrer">` : '<div class="result-placeholder"><i data-lucide="image"></i></div>'}<div class="workshop-result-body"><h3>${escapeHtml(item.title)}</h3><span>${contentSource === 'gamemaps' ? 'GameMaps' : 'Workshop'} ID · ${escapeHtml(item.id)}</span><div><button class="primary-button workshop-install ${installed ? 'is-installed' : ''}" data-install-workshop="${escapeHtml(item.id)}" ${installed || pending ? 'disabled' : ''}><i data-lucide="${installed ? 'check' : pending ? 'loader-circle' : 'download'}"></i>${installed ? '本次已安装' : pending ? job.phase : '安装到服务器'}</button><button class="text-button" data-copy-id="${escapeHtml(item.id)}"><i data-lucide="copy"></i>复制 ID</button></div></div></article>`;
   }).join('') || '<div class="workshop-empty"><p>没有匹配项目，请更换关键词</p></div>'; icons();
 }
+function renderPluginStoreResults() {
+  $('#pluginStorePage').textContent = `第 ${pluginStorePage} 页`;
+  $('#pluginStorePrev').disabled = pluginStoreBusy || pluginStorePage <= 1;
+  $('#pluginStoreNext').disabled = pluginStoreBusy || !pluginStoreHasMore;
+  $('#pluginStoreResultMeta').textContent = pluginStoreBusy ? '正在读取仓库目录…' : pluginStoreLoaded ? `共 ${pluginStoreTotal} 个插件 · 当前 ${pluginStoreResults.length} 个` : '尚未载入';
+  $('#pluginStoreResults').innerHTML = pluginStoreBusy && !pluginStoreResults.length ? '<div class="workshop-empty"><i data-lucide="loader-circle"></i><p>正在同步插件目录</p></div>' : pluginStoreResults.map(item => {
+    const job = [...downloadJobs].sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt)).find(job => job.source === 'plugin-store' && job.itemId === item.id);
+    const targetId = item.fileName.replace(/\.smx$/i, '').replace(/[^A-Za-z0-9_-]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 118) || `plugin-${item.id.slice(0, 12)}`;
+    const exists = plugins.some(plugin => plugin.id.toLowerCase() === targetId.toLowerCase());
+    const installed = job?.status === 'completed' || exists, pending = job && !['completed', 'failed', 'cancelled'].includes(job.status);
+    const label = exists && job?.status !== 'completed' ? '服务器已存在' : installed ? '已导入 · 默认停用' : pending ? escapeHtml(job.phase) : '下载并导入';
+    return `<article class="plugin-store-card"><div class="plugin-store-card-icon"><i data-lucide="puzzle"></i></div><div class="plugin-store-card-body"><div class="plugin-store-card-heading"><h3>${escapeHtml(item.title)}</h3><span class="plugin-store-badge">${escapeHtml(item.category)}</span></div><span class="plugin-store-file" title="${escapeHtml(item.fileName)}">${escapeHtml(item.fileName)}</span><small>${bytesLabel(item.size)} · ${escapeHtml(item.id.slice(0, 12))}</small><div class="plugin-store-card-actions"><button class="primary-button workshop-install ${installed ? 'is-installed' : ''}" data-install-plugin-store="${escapeHtml(item.id)}" ${installed || pending || pluginStoreSyncing ? 'disabled' : ''}><i data-lucide="${installed ? 'check' : pending ? 'loader-circle' : 'download'}"></i>${label}</button><a class="text-button" href="${escapeHtml(item.repoUrl)}" target="_blank" rel="noopener noreferrer"><i data-lucide="external-link"></i>查看仓库说明</a></div></div></article>`;
+  }).join('') || `<div class="workshop-empty"><i data-lucide="search"></i><p>${pluginStoreLoaded ? '没有找到符合条件的插件，换个关键词或分类试试。' : '插件目录尚未同步。点击右上角刷新重试。'}</p></div>`;
+  icons();
+}
+async function searchPluginStore(query = $('#pluginStoreSearch').value.trim(), reset = true) {
+  if (pluginStoreBusy) return;
+  if (reset) pluginStorePage = 1;
+  pluginStoreQuery = query; $('#pluginStoreSearch').value = query;
+  pluginStoreBusy = true; renderPluginStoreResults();
+  try {
+    const data = await api(`/api/plugin-store?query=${encodeURIComponent(query)}&category=${encodeURIComponent(pluginStoreCategory)}&page=${pluginStorePage}`);
+    pluginStoreResults = data.items || []; pluginStoreTotal = Number(data.total) || 0; pluginStoreHasMore = Boolean(data.hasMore); pluginStoreLoaded = !data.unavailable;
+    const state = $('#pluginStoreStatus');
+    state.classList.toggle('error', Boolean(data.unavailable || data.error));
+    const last = data.lastSyncAt ? new Date(data.lastSyncAt).toLocaleString() : '尚无成功同步记录';
+    state.querySelector('span').textContent = data.unavailable ? `${data.error || '暂时无法连接插件仓库'} · 可尝试刷新` : `${data.error ? `同步异常，正在使用缓存 · ${data.error} · ` : ''}${pluginStoreTotal} 个插件 · 最近同步 ${last} · 每 ${Math.round((data.refreshIntervalSeconds || 21600) / 3600)} 小时更新`;
+  } catch (error) {
+    pluginStoreResults = []; pluginStoreTotal = 0; pluginStoreHasMore = false;
+    $('#pluginStoreStatus').classList.add('error'); $('#pluginStoreStatus').querySelector('span').textContent = `读取插件目录失败：${error.message}`;
+  } finally { pluginStoreBusy = false; renderPluginStoreResults(); }
+}
+async function refreshPluginStore() {
+  if (pluginStoreSyncing) return;
+  pluginStoreSyncing = true;
+  const button = $('#refreshPluginStore'); button.disabled = true; button.setAttribute('aria-busy', 'true');
+  $('#pluginStoreStatus').querySelector('span').textContent = '正在从 GitHub 同步插件文件到服务器缓存…';
+  try {
+    const result = await post('/api/plugin-store/sync', {});
+    const state = $('#pluginStoreStatus'); state.classList.toggle('error', Boolean(result.error));
+    state.querySelector('span').textContent = result.error ? `目录刷新失败，保留上次缓存：${result.error}` : `已同步 ${result.count} 个插件到服务器缓存 · ${new Date(result.lastSyncAt).toLocaleString()} · 每 6 小时自动更新`;
+    pluginStoreLoaded = !result.error || result.count > 0;
+    await searchPluginStore(pluginStoreQuery, false);
+  } catch (error) { $('#pluginStoreStatus').classList.add('error'); $('#pluginStoreStatus').querySelector('span').textContent = `同步失败：${error.message}`; }
+  finally { pluginStoreSyncing = false; button.disabled = false; button.removeAttribute('aria-busy'); renderPluginStoreResults(); }
+}
 async function searchWorkshop(query = $('#workshopSearch').value.trim(), reset = true) {
   searchController?.abort(); searchController = new AbortController(); const version = ++searchVersion;
   if (reset) workshopPage = 1; workshopQuery = query; workshopResults = []; hasMoreResults = false; $('#workshopSearch').value = query; const button = $('#searchWorkshop'); button.disabled = true; $('#workshopPrev').disabled = true; $('#workshopNext').disabled = true; $('#workshopResultMeta').textContent = `正在搜索 ${contentSource === 'gamemaps' ? 'GameMaps' : 'Steam'}…`; $('#workshopResults').innerHTML = '<div class="workshop-empty"><i data-lucide="loader-circle"></i><p>正在读取项目</p></div>'; icons();
@@ -250,22 +297,24 @@ function renderDownloads() {
   const expandedErrors = new Set($$('#downloadList .download-error-details[open]').map(element => element.dataset.job));
   const historyOpen = !!$('#downloadHistory')?.open;
   const isDone = job => ['completed', 'failed', 'cancelled'].includes(job.status);
-  const sourceJobs = downloadJobs.filter(job => job.source === contentSource).sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
+  const activeSource = contentSection === 'plugins' ? 'plugin-store' : contentSource;
+  const sourceJobs = downloadJobs.filter(job => job.source === activeSource).sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
   const activeJobs = sourceJobs.filter(job => !isDone(job)), history = sourceJobs.filter(isDone);
-  const otherActive = downloadJobs.filter(job => job.source !== contentSource && !isDone(job)).length;
-  $('#downloadCount').textContent = `${contentSource === 'gamemaps' ? 'GameMaps' : 'Steam'} · ${activeJobs.length} 个进行中${otherActive ? ` · 另一来源 ${otherActive} 个进行中` : ''}`;
+  const otherActive = downloadJobs.filter(job => job.source !== activeSource && !isDone(job)).length;
+  $('#downloadCount').textContent = `${activeSource === 'plugin-store' ? '插件商店' : contentSource === 'gamemaps' ? 'GameMaps' : 'Steam'} · ${activeJobs.length} 个进行中${otherActive ? ` · 另一板块 ${otherActive} 个进行中` : ''}`;
   const renderJob = job => {
     const done = ['completed', 'failed', 'cancelled'].includes(job.status), completed = job.status === 'completed';
     const mismatch = job.errorCode === 'STEAM_IDENTITY_MISMATCH' || /项目名称与 Steam 官方编号不一致/.test(job.error || '');
     const percentage = completed ? 100 : job.totalBytes && job.status === 'downloading' ? Math.min(100, Math.floor(job.receivedBytes / job.totalBytes * 100)) : null;
     const value = percentage !== null ? ` value="${percentage}"` : done ? ' value="0"' : '';
     const error = String(job.error || '').replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, '').trim();
-    const detail = completed ? `${job.alreadyInstalled ? '文件已存在' : '已安装'} · 重启游戏服务器后生效` : /No Connection/i.test(error) ? 'Steam 下载连接失败，请检查代理节点后重试' : error.length > 180 ? error.slice(0, 180) + '…' : error || `${bytesLabel(job.receivedBytes)}${job.totalBytes ? ` / ${bytesLabel(job.totalBytes)}` : ' · 总大小未知'}${percentage !== null ? ` · ${percentage}%` : ''}`;
+    const detail = completed ? job.source === 'plugin-store' ? '已导入至停用目录 · 可在“插件管理”检查后启用' : `${job.alreadyInstalled ? '文件已存在' : '已安装'} · 重启游戏服务器后生效` : /No Connection/i.test(error) ? 'Steam 下载连接失败，请检查代理节点后重试' : error.length > 180 ? error.slice(0, 180) + '…' : error || `${bytesLabel(job.receivedBytes)}${job.totalBytes ? ` / ${bytesLabel(job.totalBytes)}` : ' · 总大小未知'}${percentage !== null ? ` · ${percentage}%` : ''}`;
     const errorDetails = error && error !== detail ? `<details class="download-error-details" data-job="${escapeHtml(job.id)}"${expandedErrors.has(job.id) ? ' open' : ''}><summary>错误详情</summary><p>${escapeHtml(error)}</p></details>` : '';
     const progress = `<div class="download-progress${percentage === null && !done ? ' indeterminate' : ''}"><progress max="100"${value} aria-label="${escapeHtml(job.title)}：${escapeHtml(job.phase)}"></progress></div>`;
     const action = !done ? `<button class="icon-button" data-cancel-download="${job.id}" title="取消下载" aria-label="取消 ${escapeHtml(job.title)}"><i data-lucide="x"></i></button>` : mismatch ? `<button class="secondary-button" data-search-download="${job.id}">重新搜索</button>` : !completed && job.retryable !== false ? `<button class="icon-button" data-retry-download="${job.id}" title="重试下载" aria-label="重试 ${escapeHtml(job.title)}"><i data-lucide="rotate-cw"></i></button>` : '';
     const dismiss = `<button class="danger-button" data-delete-download="${escapeHtml(job.id)}" title="${done ? '删除任务记录，保留已安装文件' : '终止下载并删除任务'}" ${deletingDownloads.has(job.id) ? 'disabled' : ''}><i data-lucide="trash-2"></i>${deletingDownloads.has(job.id) ? '删除中…' : '删除任务'}</button>`;
-    return `<article class="download-task ${job.status}"><div class="download-task-heading"><div><h3>${escapeHtml(job.title)}</h3><span>${job.source === 'gamemaps' ? 'GameMaps' : 'Steam Workshop'} · ${escapeHtml(job.itemId)}</span></div><strong>${mismatch ? '需要重新搜索' : escapeHtml(job.phase)}</strong>${action}${dismiss}</div>${done && !completed ? '' : progress}<p>${escapeHtml(detail)}</p>${errorDetails}</article>`;
+    const sourceName = job.source === 'plugin-store' ? '插件商店' : job.source === 'gamemaps' ? 'GameMaps' : 'Steam Workshop';
+    return `<article class="download-task ${job.status}"><div class="download-task-heading"><div><h3>${escapeHtml(job.title)}</h3><span>${sourceName} · ${escapeHtml(job.itemId)}</span></div><strong>${mismatch ? '需要重新搜索' : escapeHtml(job.phase)}</strong>${action}${dismiss}</div>${done && !completed ? '' : progress}<p>${escapeHtml(detail)}</p>${errorDetails}</article>`;
   };
   $('#downloadList').innerHTML = (activeJobs.map(renderJob).join('') || '<div class="download-empty">当前来源没有进行中的下载</div>') + (history.length ? `<details id="downloadHistory" class="download-history"${historyOpen ? ' open' : ''}><summary>历史记录 · ${history.length} 条（${history.filter(job => job.status === 'failed').length} 条失败）</summary><div class="download-history-list">${history.map(renderJob).join('')}</div></details>` : ''); icons();
 }
@@ -281,6 +330,17 @@ function selectContentSource(source, query = $('#workshopSearch').value.trim()) 
   renderDownloads(); renderWorkshopResults(); renderWorkshop();
   return searchWorkshop(query);
 }
+function selectContentSection(section) {
+  contentSection = section;
+  $$('#contentSections button').forEach(button => { const active = button.dataset.contentSection === section; button.classList.toggle('active', active); button.setAttribute('aria-selected', String(active)); });
+  $('#mapDownloadSection').classList.toggle('hidden', section !== 'maps');
+  $('#pluginStoreSection').classList.toggle('hidden', section !== 'plugins');
+  $('#openWorkshop').classList.toggle('hidden', section !== 'maps');
+  $('#downloadHeading').childNodes[0].textContent = section === 'plugins' ? '插件下载任务 ' : '地图下载任务 ';
+  renderDownloads();
+  if (section === 'plugins' && !pluginStoreLoaded && !pluginStoreBusy) searchPluginStore();
+  if (section === 'maps' && !workshopResults.length) searchWorkshop($('#workshopSearch').value.trim());
+}
 async function loadDownloads() {
   if (downloadsBusy) return; downloadsBusy = true;
   try {
@@ -288,15 +348,17 @@ async function loadDownloads() {
     const previous = new Map(downloadJobs.map(job => [job.id, job.status]));
     downloadJobs = data.jobs || []; $('#downloadConnection').textContent = '';
     renderDownloads();
-    for (const job of downloadJobs) if (previous.has(job.id) && previous.get(job.id) !== job.status && job.status === 'completed') { record(`安装 ${job.source === 'gamemaps' ? 'GameMaps' : '创意工坊'}项目 ${job.itemId}`); toast('安装完成，重启游戏服务器后生效'); loadMaps(); }
+    for (const job of downloadJobs) if (previous.has(job.id) && previous.get(job.id) !== job.status && job.status === 'completed') { record(job.source === 'plugin-store' ? `导入插件 ${job.title}` : `安装 ${job.source === 'gamemaps' ? 'GameMaps' : '创意工坊'}项目 ${job.itemId}`); if (job.source === 'plugin-store') { toast('插件已导入到停用目录'); loadPlugins(); renderPluginStoreResults(); } else { toast('安装完成，重启游戏服务器后生效'); loadMaps(); } }
     if (workshopResults.length) renderWorkshopResults();
+    if (pluginStoreLoaded) renderPluginStoreResults();
   } catch (error) { $('#downloadConnection').textContent = `任务状态暂时无法同步：${error.message}`; }
   finally { downloadsBusy = false; }
 }
 async function startDownload(source, id, title) {
-  const data = await post(`/api/${source === 'gamemaps' ? 'gamemaps' : 'workshop'}/install`, { id, title });
+  const endpoint = source === 'plugin-store' ? '/api/plugin-store/install' : `/api/${source === 'gamemaps' ? 'gamemaps' : 'workshop'}/install`;
+  const data = await post(endpoint, { id, title });
   if (!downloadJobs.some(job => job.id === data.job.id)) downloadJobs.push(data.job);
-  renderDownloads(); if (workshopResults.length) renderWorkshopResults(); toast('已加入下载队列');
+  renderDownloads(); if (workshopResults.length) renderWorkshopResults(); if (pluginStoreLoaded) renderPluginStoreResults(); toast('已加入下载队列');
 }
 let themeMode = ['auto', 'light', 'dark'].includes(localStorage.getItem('deadAirTheme')) ? localStorage.getItem('deadAirTheme') : 'auto';
 function autoTheme() { const now = new Date(); const minutes = now.getHours() * 60 + now.getMinutes(); const toMinutes = value => { const [h, m] = value.split(':').map(Number); return h * 60 + m; }; const rise = toMinutes($('#sunriseTime').value), set = toMinutes($('#sunsetTime').value); return rise < set ? minutes >= rise && minutes < set : minutes >= rise || minutes < set; }
@@ -401,6 +463,20 @@ $('#workshopNext').onclick = () => { workshopPage++; searchWorkshop(workshopQuer
 $('#workshopGrid').onclick = event => { const button = event.target.closest('[data-workshop]'); if (button) searchWorkshop(button.dataset.workshop); };
 $('#workshopResults').onclick = async event => { if (event.target.closest('[data-open-proxy]')) { navigate('proxy'); return; } if (event.target.closest('[data-search-steam]')) { await selectContentSource('steam-workshop', workshopQuery); return; } const install = event.target.closest('[data-install-workshop]'); const copy = event.target.closest('[data-copy-id]'); if (install && !install.disabled) { const id = install.dataset.installWorkshop; install.disabled = true; try { await startDownload(contentSource, id, workshopResults.find(item => item.id === id)?.title); } catch (error) { toast(`安装失败：${error.message}`); install.disabled = false; } } if (copy) { try { await navigator.clipboard.writeText(copy.dataset.copyId); toast('项目 ID 已复制'); } catch { toast('复制失败'); } } };
 $('#contentSources').onclick = event => { const button = event.target.closest('[data-source]'); if (button && button.dataset.source !== contentSource) selectContentSource(button.dataset.source); };
+$('#contentSections').onclick = event => { const button = event.target.closest('[data-content-section]'); if (button && button.dataset.contentSection !== contentSection) selectContentSection(button.dataset.contentSection); };
+$('#pluginStoreResults').onclick = async event => {
+  const button = event.target.closest('[data-install-plugin-store]'); if (!button || button.disabled) return;
+  const item = pluginStoreResults.find(candidate => candidate.id === button.dataset.installPluginStore); if (!item) return;
+  button.disabled = true;
+  try { await startDownload('plugin-store', item.id, item.title); }
+  catch (error) { toast(`插件导入失败：${error.message}`); button.disabled = false; }
+};
+$('#pluginStoreSearch').onkeydown = event => { if (event.key === 'Enter') searchPluginStore(); };
+$('#searchPluginStore').onclick = () => searchPluginStore();
+$('#refreshPluginStore').onclick = refreshPluginStore;
+$('#pluginStorePrev').onclick = () => { if (pluginStorePage > 1) { pluginStorePage--; searchPluginStore(pluginStoreQuery, false); } };
+$('#pluginStoreNext').onclick = () => { if (pluginStoreHasMore) { pluginStorePage++; searchPluginStore(pluginStoreQuery, false); } };
+$('#pluginStoreFilters').onclick = event => { const button = event.target.closest('[data-plugin-category]'); if (!button || button.dataset.pluginCategory === pluginStoreCategory) return; pluginStoreCategory = button.dataset.pluginCategory; $$('#pluginStoreFilters button').forEach(item => item.classList.toggle('active', item === button)); searchPluginStore(pluginStoreQuery); };
 $('#downloadList').onclick = async event => {
   const button = event.target.closest('[data-cancel-download],[data-retry-download],[data-search-download],[data-delete-download]');
   if (!button || button.disabled) return;
@@ -415,7 +491,7 @@ $('#downloadList').onclick = async event => {
       const active = !['completed', 'failed', 'cancelled'].includes(job.status);
       if (!confirm(`${active ? '终止下载并删除任务' : '删除任务记录'}“${job.title}”？\n已安装的地图或模组会保留。`)) return;
       deletingDownloads.add(id); renderDownloads();
-      try { await post('/api/downloads/delete', { id }); downloadJobs = downloadJobs.filter(item => item.id !== id); renderDownloads(); renderWorkshopResults(); record(`删除下载任务 ${job.title}`); toast('任务已删除，已安装文件保留'); }
+      try { await post('/api/downloads/delete', { id }); downloadJobs = downloadJobs.filter(item => item.id !== id); renderDownloads(); renderWorkshopResults(); renderPluginStoreResults(); record(`删除下载任务 ${job.title}`); toast('任务已删除，已安装文件保留'); }
       finally { deletingDownloads.delete(id); renderDownloads(); }
     }
     else if (button.hasAttribute('data-cancel-download')) await post('/api/downloads/cancel', { id });

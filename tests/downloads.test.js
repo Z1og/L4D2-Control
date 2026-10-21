@@ -9,6 +9,8 @@ const yazl = require('yazl');
 const { createManager, validateVpk, unpackZip } = require('../download manager');
 const { parseSearch, officialUrl } = require('../content sources');
 const { createSource } = require('../content sources');
+const { createLibrary } = require('../library manager');
+const { pluginInventory } = require('../inventory');
 const https = require('node:https');
 const net = require('node:net');
 const { EventEmitter } = require('node:events');
@@ -29,6 +31,11 @@ const ended = job => ['completed', 'failed', 'cancelled'].includes(job.status);
 async function zip(file, files) { const archive = new yazl.ZipFile(); for (const [name, buffer] of files) archive.addBuffer(buffer, name); const output = pipeline(archive.outputStream, fs.createWriteStream(file)); archive.end(); await output; }
 function manager(root, source) { return createManager({ addonDir: path.join(root, 'addons'), steamcmdPath: '/missing', workshopProxy: '', localMode: true, stateDir: path.join(root, 'state'), gameMapsSource: source }); }
 function response(buffer, total = buffer.length) { const stream = Readable.from([buffer]); stream.headers = { 'content-length': String(total) }; return stream; }
+function smx() {
+  const image = Buffer.alloc(44); image.writeUInt32LE(0x53504646); image.writeUInt16LE(0x107, 4);
+  image.writeUInt32LE(image.length, 7); image.writeUInt32LE(image.length, 11); image[15] = 1;
+  image.writeUInt32LE(36, 16); image.writeUInt32LE(40, 20); image.writeUInt32LE(40, 28); image.writeUInt32LE(4, 32); Buffer.from('abc\0').copy(image, 36); return image;
+}
 
 test('GameMaps parser uses structured data and rejects unrelated links', () => {
   const html = `<article data-info='{"url":"/details/9406","image":"/img/a.jpg","title":"Admin System"}'></article><article class="list-item-file"><a href="/details/25"><img src="/img/b.jpg"></a><div class="title">Map B</div></article><article data-info='{"url":"https://evil.example/details/3","title":"bad"}'></article>`;
@@ -177,6 +184,22 @@ test('Linux restart marks interrupted jobs failed instead of showing false progr
 test('Linux installs all VPKs in ZIP, omitting other downloaded files', { skip: process.platform === 'win32' }, async t => {
   const root = fixture(t), file = path.join(root, 'maps.zip'); await zip(file, [['a.vpk', vpk('a')], ['b.vpk', vpk('b')], ['x.exe', Buffer.from('do not execute')]]);
   const m = manager(root, { download: async () => response(fs.readFileSync(file)) }); const job = m.start('gamemaps', '23'); const done = await waitFor(m, job.id, ended); assert.equal(done.status, 'completed'); assert.equal(done.installedFiles.length, 2); assert.equal(fs.readdirSync(path.join(root, 'addons')).length, 2);
+});
+test('cached plugin store content installs through SMX validation into the disabled directory', async t => {
+  const root = fixture(t), bytes = smx(), cached = path.join(root, 'cached.smx'), id = 'a'.repeat(40);
+  fs.writeFileSync(cached, bytes);
+  const addonDir = path.join(root, 'addons'), pluginPath = path.join(addonDir, 'sourcemod', 'plugins');
+  fs.mkdirSync(pluginPath, { recursive: true });
+  const library = createLibrary({ serverRoot: root, addonDir, pluginPath, stateDir: path.join(root, 'library'), currentMap: async () => 'c1m1_hotel', unloadPlugin: async () => {} });
+  const item = { id, group: '自选-插件测试', fileName: 'sample plug.smx', size: bytes.length };
+  const pluginStoreSource = { get: value => value === id ? item : undefined, fileFor: async value => { assert.equal(value, id); return { item, file: cached }; } };
+  const manager = createManager({ addonDir, steamcmdPath: '/missing', workshopProxy: '', localMode: true, platform: 'linux', stateDir: path.join(root, 'downloads'), pluginStoreSource, pluginInstaller: (name, stream) => library.importFile('plugins', name, stream) });
+  const job = manager.start('plugin-store', id, item.group), done = await waitFor(manager, job.id, ended);
+  assert.equal(done.status, 'completed');
+  assert.equal(done.installedFiles[0], 'sample_plug.smx');
+  assert.equal(done.requiresRestart, false);
+  assert.equal(pluginInventory(pluginPath)[0].enabled, false);
+  assert.equal(fs.existsSync(path.join(pluginPath, 'disabled', 'sample_plug.smx')), true);
 });
 test('Linux SteamCMD fixture uses staging and installs without network access', { skip: process.platform === 'win32' }, async t => {
   const root = fixture(t), script = path.join(root, 'fake steamcmd.sh'); fs.writeFileSync(path.join(root, 'sample.vpk'), vpk());

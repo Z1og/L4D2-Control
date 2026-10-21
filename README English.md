@@ -22,7 +22,7 @@ Server details in these previews are redacted; the project does not include a re
 | --- | --- |
 | Maps | Scan the base game, DLC and custom VPKs; collapsible campaigns and chapters; change maps; import VPK/ZIP; export original VPKs; delete custom packages |
 | Plugins | Functional categories, enable/disable, SMX import/export and deletion; imported plugins start disabled; core administrative plugins are protected |
-| Downloads | In-panel Steam Workshop and GameMaps search and installation, byte progress, cancellation, retry and task-record deletion |
+| Downloads | Separate **Map downloads** and **Plugin downloads** sections; search Steam Workshop, GameMaps and the LaoYutang plugin store, with byte progress, cancel/retry/history deletion; the plugin catalog and compiled SMX files sync to the server every six hours by default |
 | File sharing | Optional OpenList entry; upload VPKs to your configured cloud-drive storage before sharing; the token stays server-side |
 | Content proxy | Mihomo node/subscription import, node export, deletion, switching and subscription refresh; optional MetaCubeXD dashboard |
 | Interface | Light/dark themes, user-defined sunrise/sunset schedule, readable labels and mobile layouts |
@@ -62,6 +62,9 @@ The default URL is `http://127.0.0.1:4174`, reachable only on the server itself.
 | `WORKSHOP_PROXY_ENGINE` | `mihomo`, or empty for the legacy Xray adapter; both need separate setup |
 | `STEAMCMD_PATH` | SteamCMD launcher; default `/opt/steamcmd/steamcmd.sh` |
 | `GAMEMAPS_BROWSER_BIN` | Optional Chrome executable; headless Linux hosts also need Xvfb |
+| `PLUGIN_STORE_REFRESH_SECONDS` | Plugin catalog and SMX synchronization interval; default 21600 seconds (six hours), accepted range 60 seconds to seven days |
+| `PLUGIN_STORE_SYNC_ENABLED` | Startup and scheduled sync switch; defaults to `true`; manual refresh remains available |
+| `PLUGIN_STORE_CACHE_DIR` | Private plugin-store cache; defaults to `~/.local/state/dead-air-panel/plugin store` |
 | `OPENLIST_URL` | Optional OpenList web address; only credential-free HTTPS URLs are accepted; empty disables sharing |
 | `OPENLIST_SHARE_TOKEN` | Dedicated OpenList account token scoped to the map storage; kept only in the server environment and never returned to the browser |
 | `OPENLIST_MAPS_PATH` | Public path of the OpenList map storage, default `/l4d2-maps`; upload mode requires a writable cloud-drive storage |
@@ -79,6 +82,8 @@ The default URL is `http://127.0.0.1:4174`, reachable only on the server itself.
 - Installation is serialized. Unknown totals use indeterminate progress. Interrupted jobs become failed after restart; there is no automatic partial-download resumption or game restart.
 - Steam prefers official HTTPS files, falling back to SteamCMD anonymous downloads only when metadata lacks a public file URL. Some items do not permit anonymous downloads.
 - GameMaps verification, rate limits and proxy availability can cause failures; the optional browser adapter does not guarantee access.
+- The plugin store syncs compiled `.smx` files from enabled plugin folders in the selected GitHub repository. Git blob hashes and file sizes are checked; the last successful catalog is retained if the upstream is unavailable. Installation imports only the `.smx` to SourceMod's disabled folder; configs, translations, gamedata, extensions and other dependencies are not installed automatically. Read the upstream notes before enabling. The server must reach `api.github.com` and `raw.githubusercontent.com`; this sync does not use the Workshop/GameMaps-only content proxy.
+- OpenList is a virtual cloud-drive layer, not a speed booster. If a download is proxied through OpenList, throughput is bounded by the slowest of Baidu's upstream, the OpenList host's outbound link and the client's route. Data can bypass the OpenList host only when the driver returns a usable direct/302 link and the client can reach it. The first map backup still uses the game server's uplink; a server cache can avoid repeated upstream reads, not accelerate the first Baidu transfer.
 - Configured content requests do not fall back to direct connections when the proxy fails. System, game and SSH traffic are not redirected. Subscription retrieval uses a separate HTTPS connection, not the content SOCKS proxy.
 - Origin validation uses the request's actual TLS state. Direct HTTPS is recommended; a basic HTTPS-to-HTTP reverse proxy can break write operations.
 - Bilingual documentation is not a UI language switch. The players view and activity feed are not a full player-management or persistent audit system.

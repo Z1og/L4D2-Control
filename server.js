@@ -12,6 +12,7 @@ const proxyManager = require(process.env.WORKSHOP_PROXY_ENGINE === 'mihomo' ? '.
 const { createSource } = require('./content sources');
 const { createSource: createSteamSource, parseSearch: parseSteamSearch, buildSearchUrl } = require('./steam source');
 const { createManager } = require('./download manager');
+const { createPluginStore } = require('./plugin store');
 const { createLibrary } = require('./library manager');
 const { PROJECT_URL, parseConfig: parseOpenListConfig, createManager: createOpenListManager } = require('./openlist manager');
 
@@ -40,7 +41,7 @@ const steamSource = createSteamSource(workshopProxy, { search: fetchSteamWorksho
 const steamcmdPath = process.env.STEAMCMD_PATH || '/opt/steamcmd/steamcmd.sh';
 const workshopAddonDir = process.env.WORKSHOP_ADDON_DIR || `${serverRoot}/left4dead2/addons`;
 const workshopStageDir = process.env.WORKSHOP_STAGE_DIR || '/tmp/dead-air-workshop';
-const downloads = createManager({ addonDir: workshopAddonDir, steamcmdPath, workshopProxy, localMode, gameMapsSource: gameMaps, steamSource });
+const pluginStore = createPluginStore();
 const openList = createOpenListManager({ serverRoot, addonDir: workshopAddonDir, config: parseOpenListConfig() });
 const cloudMaps = createCloudMaps({ addonDir: workshopAddonDir, stateDir: process.env.CLOUD_MAPS_STATE_DIR || path.join(os.homedir(), '.local', 'state', 'dead-air-panel', 'cloud maps'), inventory: () => mapInventory(serverRoot) });
 async function refreshPlayerSnapshot(reload = false) {
@@ -64,6 +65,8 @@ const state = { currentMap: 'c5m1_waterfront', lastSync: null };
 const library = createLibrary({ serverRoot, addonDir: workshopAddonDir, pluginPath,
   currentMap: async () => { const live = await status(); if (!live.mapConfirmed) throw Object.assign(new Error('无法确认当前地图，请稍后重试'), { status: 409 }); return live.currentMap; },
   unloadPlugin: id => runCommand(screenCommand(`sm plugins unload ${id}`)) });
+const downloads = createManager({ addonDir: workshopAddonDir, steamcmdPath, workshopProxy, localMode, gameMapsSource: gameMaps, steamSource,
+  pluginStoreSource: pluginStore, pluginInstaller: (name, stream) => library.importFile('plugins', name, stream) });
 
 function shellQuote(value) {
   return `'${String(value).replace(/'/g, `'\\''`)}'`;
@@ -377,6 +380,21 @@ async function handleApi(req, res, body) {
     if (req.method === 'GET' && pathname === '/api/downloads') { res.end(JSON.stringify({ jobs: downloads.list() })); return; }
     if (req.method === 'POST' && pathname === '/api/downloads/cancel') { const payload = body ? JSON.parse(body) : {}; res.end(JSON.stringify(downloads.cancel(payload.id))); return; }
     if (req.method === 'POST' && pathname === '/api/downloads/dismiss') { const payload = body ? JSON.parse(body) : {}; res.end(JSON.stringify(downloads.dismiss(payload.id))); return; }
+    if (req.method === 'GET' && pathname === '/api/plugin-store') {
+      const requestUrl = new URL(req.url, 'http://localhost');
+      const query = (requestUrl.searchParams.get('query') || '').trim();
+      const category = requestUrl.searchParams.get('category') || 'all';
+      const page = Number(requestUrl.searchParams.get('page') || 1);
+      if (query.length > 120 || !Number.isInteger(page) || page < 1 || page > 100) throw new Error('invalid plugin store query');
+      try { res.end(JSON.stringify(await pluginStore.search(query, category, page, AbortSignal.timeout(30000)))); }
+      catch (error) { res.end(JSON.stringify({ query, category, page, items: [], source: 'plugin-store', unavailable: true, error: error.message })); }
+      return;
+    }
+    if (req.method === 'POST' && pathname === '/api/plugin-store/sync') {
+      if (!localMode) throw Object.assign(new Error('插件商店同步需要在游戏服务器本机运行面板'), { status: 400 });
+      await pluginStore.sync(true, AbortSignal.timeout(120000));
+      res.end(JSON.stringify(pluginStore.snapshot())); return;
+    }
     if (req.method === 'GET' && pathname === '/api/gamemaps') {
       const requestUrl = new URL(req.url, 'http://localhost');
       const query = (requestUrl.searchParams.get('query') || '').trim();
@@ -398,10 +416,11 @@ async function handleApi(req, res, body) {
       }
       return;
     }
-    if (req.method === 'POST' && ['/api/workshop/install', '/api/gamemaps/install'].includes(pathname)) {
+    if (req.method === 'POST' && ['/api/workshop/install', '/api/gamemaps/install', '/api/plugin-store/install'].includes(pathname)) {
       const payload = body ? JSON.parse(body) : {};
       res.statusCode = 202;
-      res.end(JSON.stringify({ ok: true, job: downloads.start(pathname === '/api/gamemaps/install' ? 'gamemaps' : 'steam-workshop', payload.id, payload.title) }));
+      const source = pathname === '/api/gamemaps/install' ? 'gamemaps' : pathname === '/api/plugin-store/install' ? 'plugin-store' : 'steam-workshop';
+      res.end(JSON.stringify({ ok: true, job: downloads.start(source, payload.id, payload.title) }));
       return;
     }
     if (req.method !== 'POST') { res.statusCode = 405; res.end(JSON.stringify({ error: 'method not allowed' })); return; }
@@ -438,7 +457,7 @@ async function handleApi(req, res, body) {
     if (req.url === '/api/plugins/reload') { await library.exclusive(() => runCommand(screenCommand('sm plugins refresh'))); res.end(JSON.stringify({ ok: true })); return; }
     res.statusCode = 404; res.end(JSON.stringify({ error: 'not found' }));
   } catch (error) {
-    const badRequest = /^(invalid map|map not installed|invalid plugin|protected core plugin|invalid workshop query|invalid workshop id|invalid gamemaps query|invalid download|invalid origin|proxy manager requires HTTPS|proxy manager requires local mode|内容导出需要|只能导出|文件名或文件类型|插件不存在|不支持的导出类型|节点不存在|请先切换|请导入|仅支持|节点链接|OpenList 已存在同名)/.test(error.message) || error instanceof SyntaxError || error.code === 'STEAM_IDENTITY_MISMATCH';
+    const badRequest = /^(invalid map|map not installed|invalid plugin|protected core plugin|invalid workshop query|invalid workshop id|invalid gamemaps query|invalid plugin store query|invalid download|invalid origin|proxy manager requires HTTPS|proxy manager requires local mode|内容导出需要|只能导出|文件名或文件类型|插件不存在|不支持的导出类型|节点不存在|请先切换|请导入|仅支持|节点链接|OpenList 已存在同名|插件商店)/.test(error.message) || error instanceof SyntaxError || error.code === 'STEAM_IDENTITY_MISMATCH';
     res.statusCode = error.status || (['ENOENT', 'ENOTDIR'].includes(error.code) ? 404 : badRequest ? 400 : 502);
     res.end(JSON.stringify({ error: error instanceof SyntaxError ? 'invalid json' : error.message }));
   }

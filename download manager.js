@@ -91,7 +91,7 @@ async function unpackZip(file, folder, signal) {
     if (signal.aborted) abort(); else zip.readEntry();
   });
 }
-function createManager({ addonDir, steamcmdPath, workshopProxy, localMode, stateDir = process.env.DOWNLOAD_STATE_DIR || path.join(os.homedir(), '.local', 'state', 'dead-air-panel', 'downloads'), gameMapsSource = gameMaps, steamSource, steamTransferLimit = maxBytes }) {
+function createManager({ addonDir, steamcmdPath, workshopProxy, localMode, stateDir = process.env.DOWNLOAD_STATE_DIR || path.join(os.homedir(), '.local', 'state', 'dead-air-panel', 'downloads'), gameMapsSource = gameMaps, steamSource, pluginStoreSource, pluginInstaller, steamTransferLimit = maxBytes, platform = process.platform }) {
   fs.mkdirSync(stateDir, { recursive: true, mode: 0o700 });
   const store = path.join(stateDir, 'jobs.json');
   let jobs = [], active = null;
@@ -200,10 +200,30 @@ function createManager({ addonDir, steamcmdPath, workshopProxy, localMode, state
     const folder = path.join(stage, 'unpacked'); fs.mkdirSync(folder);
     await unpackZip(file, folder, signal); return vpkFiles(folder);
   }
+  async function installPluginStore(job, stage, signal) {
+    if (!pluginStoreSource || typeof pluginStoreSource.fileFor !== 'function' || typeof pluginInstaller !== 'function') throw new Error('插件商店下载暂不可用');
+    update(job, { status: 'connecting', phase: '读取服务器插件缓存' });
+    const { item, file } = await pluginStoreSource.fileFor(job.itemId, signal);
+    signal.throwIfAborted();
+    const info = fs.lstatSync(file);
+    if (!info.isFile() || info.isSymbolicLink() || info.size !== item.size) throw new Error('插件缓存文件状态异常');
+    let name = path.basename(item.fileName)
+      .replace(/\.smx$/i, '')
+      .replace(/[^A-Za-z0-9_-]+/g, '_')
+      .replace(/^_+|_+$/g, '')
+      .slice(0, 118);
+    if (!name) name = `plugin-${item.id.slice(0, 12)}`;
+    name += '.smx';
+    update(job, { title: item.group, status: 'installing', phase: '导入插件（默认停用）', receivedBytes: info.size, totalBytes: info.size });
+    const result = await pluginInstaller(name, fs.createReadStream(file));
+    update(job, { title: item.group, status: 'completed', phase: '已导入（默认停用）', receivedBytes: info.size, totalBytes: info.size,
+      installedFiles: result.files || [name], alreadyInstalled: false, requiresRestart: false, error: null });
+  }
   async function execute(job, signal) {
     const stage = fs.mkdtempSync(path.join(os.tmpdir(), 'dead-air-download-')); fs.chmodSync(stage, 0o700);
     const created = [], temporary = [];
     try {
+      if (job.source === 'plugin-store') { await installPluginStore(job, stage, signal); return; }
       const files = await (job.source === 'gamemaps' ? gamemaps(job, stage, signal) : workshop(job, stage, signal));
       signal.throwIfAborted(); update(job, { status: 'validating', phase: '校验 VPK' });
       if (!files.length || files.length > 128) throw new Error('下载包中没有 VPK 或文件数量超过限制');
@@ -252,8 +272,9 @@ function createManager({ addonDir, steamcmdPath, workshopProxy, localMode, state
     }).finally(() => { clearTimeout(timeout); active = null; pump(); });
   }
   function start(source, itemId, title = '') {
-    if (!localMode || process.platform === 'win32') throw new Error('下载任务需要在 Linux 游戏服务器上运行面板');
-    if (!['steam-workshop', 'gamemaps'].includes(source) || typeof itemId !== 'string' || !/^\d{1,20}$/.test(itemId)) throw new Error('invalid download source or id');
+    if (!localMode || platform === 'win32') throw new Error('下载任务需要在 Linux 游戏服务器上运行面板');
+    if (!['steam-workshop', 'gamemaps', 'plugin-store'].includes(source) || typeof itemId !== 'string' || (source === 'plugin-store' ? !/^[a-f0-9]{40}$/.test(itemId) : !/^\d{1,20}$/.test(itemId))) throw new Error('invalid download source or id');
+    if (source === 'plugin-store' && (!pluginStoreSource || !pluginStoreSource.get(itemId))) throw new Error('插件商店项目不存在，请刷新目录后重试');
     if (jobs.some(job => mismatched(job) && job.source === source && job.itemId === itemId && normalizeTitle(job.title) === normalizeTitle(title))) throw Object.assign(new Error(mismatchMessage), { code: 'STEAM_IDENTITY_MISMATCH' });
     const existing = jobs.find(item => item.source === source && item.itemId === itemId && !terminal.has(item.status)); if (existing) return { ...existing };
     if (jobs.filter(item => !terminal.has(item.status)).length >= 10) throw new Error('下载队列已满，请等待现有任务完成');

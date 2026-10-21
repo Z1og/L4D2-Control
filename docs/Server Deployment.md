@@ -80,9 +80,14 @@ PANEL_TLS_KEY=/etc/l4d2-control/tls/key.pem
 PANEL_TLS_CERT=/etc/l4d2-control/tls/fullchain.pem
 STEAMCMD_PATH=/opt/steamcmd/steamcmd.sh
 GAMEMAPS_BROWSER_BIN=/usr/bin/google-chrome-stable
+PLUGIN_STORE_REFRESH_SECONDS=21600
+PLUGIN_STORE_SYNC_ENABLED=true
+PLUGIN_STORE_CACHE_DIR=
 ~~~
 
 L4D2_GAME_HOST 仅供界面显示/复制，不会更改游戏监听地址。首次本机测试可用 BIND_HOST=127.0.0.1 并清空 TLS 路径。公网运行必须设置 PANEL_PASSWORD 或 PANEL_AUTH_TOKEN，并启用 HTTPS。不要把配置文件或密码放入 Git。
+
+插件下载使用 LaoYutang/l4d2-plugins-store 的启用目录中的已编译 `.smx`。服务启动及每 6 小时（可用 `PLUGIN_STORE_REFRESH_SECONDS` 配置）从 `api.github.com` 与 `raw.githubusercontent.com` 同步目录和文件到私有服务器缓存；无需手动把插件放进仓库。初次同步大约只拉取数 MiB，但服务器必须能访问 GitHub API 与 Raw 域名。安装只导入所选 `.smx`，并放入停用目录；依赖扩展、配置、翻译不会自动安装，需查看上游说明后手动确认启用。可用 `PLUGIN_STORE_SYNC_ENABLED=false` 关闭自动同步，仍可手动刷新；`PLUGIN_STORE_CACHE_DIR` 可改私有缓存目录。
 
 ### 4. 配置 HTTPS
 
@@ -270,9 +275,14 @@ PANEL_TLS_KEY=/etc/l4d2-control/tls/key.pem
 PANEL_TLS_CERT=/etc/l4d2-control/tls/fullchain.pem
 STEAMCMD_PATH=/opt/steamcmd/steamcmd.sh
 GAMEMAPS_BROWSER_BIN=/usr/bin/google-chrome-stable
+PLUGIN_STORE_REFRESH_SECONDS=21600
+PLUGIN_STORE_SYNC_ENABLED=true
+PLUGIN_STORE_CACHE_DIR=
 ~~~
 
 L4D2_GAME_HOST is only displayed/copied in the UI. For an initial local-only test use BIND_HOST=127.0.0.1, clear the TLS paths, then run node --env-file=/etc/l4d2-control.env /opt/L4D2-Control/server.js. Public access requires authentication and HTTPS. Never commit this file.
+
+Plugin downloads use compiled `.smx` files from enabled folders in `LaoYutang/l4d2-plugins-store`. On startup and every six hours (configurable with `PLUGIN_STORE_REFRESH_SECONDS`), the server syncs the catalog and files from `api.github.com` and `raw.githubusercontent.com` into a private cache. The first sync is only a few MiB, but the server needs outbound access to both GitHub hosts. Installation imports only the selected `.smx` into SourceMod's disabled folder; extensions, configs and translations are not installed automatically. Read upstream notes before enabling. Set `PLUGIN_STORE_SYNC_ENABLED=false` to disable automatic sync while retaining manual refresh, or set `PLUGIN_STORE_CACHE_DIR` to choose another private cache location.
 
 ### 4. HTTPS certificate
 

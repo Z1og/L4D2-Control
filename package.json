@@ -5,7 +5,7 @@
   "description": "L4D2 server control panel",
   "scripts": {
     "start": "node server.js",
-    "test": "node --test tests/downloads.test.js tests/steam.test.js tests/mihomo.test.js tests/library.test.js tests/diagnostics.test.js tests/openlist.test.js \"tests/cloud maps.test.js\" \"tests/players.test.js\""
+    "test": "node --test tests/downloads.test.js tests/steam.test.js tests/mihomo.test.js tests/library.test.js tests/diagnostics.test.js tests/openlist.test.js \"tests/cloud maps.test.js\" \"tests/players.test.js\" \"tests/plugin store.test.js\""
   },
   "dependencies": {
     "@node-steam/vdf": "^2.2.0",
