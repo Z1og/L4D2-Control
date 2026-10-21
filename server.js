@@ -17,6 +17,7 @@ const { createLibrary } = require('./library manager');
 const { PROJECT_URL, parseConfig: parseOpenListConfig, createManager: createOpenListManager } = require('./openlist manager');
 
 const { createCloudMaps } = require('./cloud maps');
+const { createCloudDownloads } = require('./cloud downloads');
 const { createPlayerManager } = require('./player manager');
 
 const root = __dirname;
@@ -44,6 +45,7 @@ const workshopStageDir = process.env.WORKSHOP_STAGE_DIR || '/tmp/dead-air-worksh
 const pluginStore = createPluginStore();
 const openList = createOpenListManager({ serverRoot, addonDir: workshopAddonDir, config: parseOpenListConfig() });
 const cloudMaps = createCloudMaps({ addonDir: workshopAddonDir, stateDir: process.env.CLOUD_MAPS_STATE_DIR || path.join(os.homedir(), '.local', 'state', 'dead-air-panel', 'cloud maps'), inventory: () => mapInventory(serverRoot) });
+const cloudDownloads = createCloudDownloads({ cloudMaps, openListUrl: cloudMaps.config.url });
 async function refreshPlayerSnapshot(reload = false) {
   const nonce = crypto.randomBytes(12).toString('hex');
   const output = await captureDiagnosticConsole([...(reload ? ['sm_reloadadmins'] : []), `l4d2_control_players ${nonce}`]);
@@ -304,6 +306,14 @@ async function handleApi(req, res, body) {
     if (req.method === 'GET' && pathname === '/api/openlist/maps') {
       const refresh = new URL(req.url, 'http://localhost').searchParams.get('refresh') === '1';
       res.end(JSON.stringify(await cloudMaps.listMaps(refresh))); return;
+    }
+    if (['GET', 'HEAD'].includes(req.method) && pathname === '/api/openlist/download') {
+      if (req.headers['sec-fetch-site'] === 'cross-site' || req.headers.origin && req.headers.origin !== `${req.socket.encrypted ? 'https' : 'http'}://${req.headers.host}`) throw Object.assign(new Error('跨站下载请求已拒绝'), { status: 403 });
+      await cloudDownloads.relay(req, res, new URL(req.url, 'http://localhost').searchParams.get('name')); return;
+    }
+    if (req.method === 'POST' && pathname === '/api/openlist/download-info') {
+      const payload = body ? JSON.parse(body) : {};
+      res.end(JSON.stringify(await cloudDownloads.info(payload.name))); return;
     }
     if (req.method === 'GET' && pathname === '/api/openlist/backup') { res.end(JSON.stringify(cloudMaps.getStatus())); return; }
     if (req.method === 'POST' && pathname === '/api/openlist/backup') { res.statusCode = 202; res.end(JSON.stringify(cloudMaps.startBackup())); return; }

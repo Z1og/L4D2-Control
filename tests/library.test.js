@@ -165,6 +165,11 @@ test('HTTP uploads enforce login and origin, show maps, and import/delete disabl
   });
   const base=`http://127.0.0.1:${port}`,authorization='Basic '+Buffer.from('admin:fixture').toString('base64');
   assert.equal((await fetch(base+'/api/config')).status,401);
+  assert.equal((await fetch(base+'/api/openlist/download?name=map.vpk')).status,401);
+  assert.equal((await fetch(base+'/api/openlist/download-info',{method:'POST',body:'{}'})).status,401);
+  assert.equal((await fetch(base+'/api/openlist/download?name=map.vpk',{headers:{authorization,'sec-fetch-site':'cross-site'}})).status,403);
+  assert.equal((await fetch(base+'/api/openlist/download-info',{method:'POST',headers:{authorization,origin:'https://other.example','content-type':'application/json'},body:'{}'})).status,400);
+  assert.equal((await fetch(base+'/api/openlist/download-info',{method:'POST',headers:{authorization,'content-type':'application/json'},body:JSON.stringify({name:'../private.vpk'})})).status,400);
   assert.equal((await fetch(base+'/api/diagnostics')).status,401);
   const diagnostics=await fetch(base+'/api/diagnostics',{headers:{authorization}});
   assert.equal(diagnostics.status,200);

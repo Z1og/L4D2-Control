@@ -176,9 +176,19 @@ function createCloudMaps({ addonDir, config = cloudConfig(), stateDir = path.joi
   function setEnabled(enabled) { if (typeof enabled !== 'boolean') throw fail('自动备份开关必须为布尔值'); requireConfig(); if (enabled && !config.upload) throw fail('服务器尚未启用云端上传', 403); saved.enabled = enabled; persist(); if (enabled) startBackup(); else schedule(); return getStatus(); }
   function stopBackup() { saved.enabled = false; persist(); clearTimeout(timer); nextRun = null; abort?.abort(); return getStatus(); }
   async function shareCloud(name) { safeName(name); const files = await remoteFiles(); if (!files.some(f => f.name === name && !f.is_dir)) throw fail('云端地图不存在', 404); const sharePath = config.mapsPath.replace(/\/+$/, '') + '/' + name; const result = await api('/api/share/create', { files: [sharePath], pwd: '', max_accessed: 0, disabled: false, remark: 'L4D2 地图：' + name }); const id = result?.id || result?.sharing?.id; if (typeof id !== 'string' || !/^[\w\p{Script=Han}-]{1,64}$/u.test(id)) throw fail('云端未返回有效的分享编号', 502); return { openUrl: config.url + '/@s/' + encodeURIComponent(id), name }; }
+  async function downloadInfo(name, { signal } = {}) {
+    safeName(name);
+    const files = await remoteFiles(false, signal);
+    const listed = files.find(file => file.name === name && !file.is_dir);
+    if (!listed) throw fail('云端地图不存在', 404);
+    const meta = await api('/api/fs/get', { path: cloudPath(name), refresh: true }, { signal });
+    const size = Number(meta?.size);
+    if (meta?.is_dir || !Number.isSafeInteger(size) || size <= 0 || size !== Number(listed.size) || typeof meta?.raw_url !== 'string') throw fail('云端文件状态已变化，请刷新列表后重试', 409);
+    return { name, size, url: meta.raw_url, provider: meta.provider || '' };
+  }
   function close() { clearTimeout(timer); abort?.abort(); }
   async function waitForIdle() { if (operation) await operation; return getStatus(); }
   schedule();
-  return { config, publicConfig, listMaps, getStatus, startBackup, setEnabled, stopBackup, shareCloud, waitForIdle, close };
+  return { config, publicConfig, listMaps, getStatus, startBackup, setEnabled, stopBackup, shareCloud, downloadInfo, waitForIdle, close };
 }
 module.exports = { createCloudMaps, cloudConfig, safeName, uploadRequest, uploadFailure };

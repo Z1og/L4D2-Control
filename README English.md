@@ -131,3 +131,9 @@ Grant, adjust or revoke panel-owned SourceMod permissions by SteamID. Presets: p
 Only the `L4D2 CONTROL MANAGED ADMINS` block in `admins_simple.ini` is managed. Existing external configuration and runtime permissions from other sources are read-only. Saving reloads the admin cache and checks effective permissions for online players; failure restores the prior file. Offline grants are reported as saved/reloaded, not runtime-verified. No real player is granted access automatically.
 
 Only the latest pre-edit admin configuration is retained, not a whole-server backup. Never commit player history, audit records or administrator configuration.
+
+### Cloud map downloads
+
+**Download to computer** streams the file to the browser with the required Baidu User-Agent (`pan.baidu.com`), without staging it on the server disk. It supports single byte ranges and resume, limits concurrent transfers to two, and aborts upstream work when the client disconnects. Use the browser download list for progress and pause controls.
+
+Browser downloads pass through the game server and are limited by its bandwidth. **Direct downloader** generates a PowerShell command for Windows curl or aria2 with the required header. Run it on your own computer for direct delivery. Temporary links can expire; reopen the dialog for a fresh link. Existing OpenList storage settings are preserved.

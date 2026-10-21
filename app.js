@@ -136,7 +136,7 @@ function renderCloudMaps() {
     const result = local && cloudBackup.results?.find(r => r.name === file.name);
     const active = local && cloudBackup.running && cloudBackup.current?.name === file.name;
     const label = active ? '备份中' : local ? file.backedUp ? '已备份' : result?.status === 'failed' ? '需重试' : '待备份' : file.verified ? '服务器已备份' : file.onServer ? '云端已有文件' : '云端文件';
-    return `<article class="cloud-file-row"><div class="cloud-file-icon"><i data-lucide="${local ? 'hard-drive' : 'cloud'}"></i></div><div class="cloud-file-copy"><h3>${escapeHtml(file.title)}</h3><span title="${escapeHtml(file.name)}">${escapeHtml(file.name)}</span><p>${cloudSize(file.size)}${file.modified ? ` · ${escapeHtml(new Date(file.modified).toLocaleString())}` : ''}${result?.error ? ` · ${escapeHtml(result.error)}` : ''}</p></div><span class="cloud-file-badge ${active ? 'working' : local && !file.backedUp ? 'pending' : ''}">${label}</span>${local ? '' : `<button class="secondary-button" data-cloud-share="${escapeHtml(file.name)}"><i data-lucide="link"></i>复制分享链接</button>`}</article>`;
+    return `<article class="cloud-file-row"><div class="cloud-file-icon"><i data-lucide="${local ? 'hard-drive' : 'cloud'}"></i></div><div class="cloud-file-copy"><h3>${escapeHtml(file.title)}</h3><span title="${escapeHtml(file.name)}">${escapeHtml(file.name)}</span><p>${cloudSize(file.size)}${file.modified ? ` · ${escapeHtml(new Date(file.modified).toLocaleString())}` : ''}${result?.error ? ` · ${escapeHtml(result.error)}` : ''}</p></div><span class="cloud-file-badge ${active ? 'working' : local && !file.backedUp ? 'pending' : ''}">${label}</span>${local ? '' : `<div class="cloud-file-actions"><button class="primary-button" data-cloud-download="${escapeHtml(file.name)}"><i data-lucide="download"></i>下载到电脑</button><button class="secondary-button" data-cloud-direct="${escapeHtml(file.name)}"><i data-lucide="zap"></i>下载器直连</button><button class="text-button" data-cloud-share="${escapeHtml(file.name)}"><i data-lucide="link"></i>复制分享链接</button></div>`}</article>`;
   }).join('') : `<div class="openlist-empty">${query ? '没有匹配的地图。' : cloudTab === 'cloud' ? '专用目录还没有地图，点击“立即备份”即可保存服务器地图。' : '没有发现可备份的自定义 VPK。'}</div>`;
   icons();
 }
@@ -598,4 +598,47 @@ $('#toggleCloudBackup').onclick = () => cloudAction('/api/openlist/backup/settin
 $('#stopCloudBackup').onclick = () => cloudAction('/api/openlist/backup/stop');
 $('#cloudMapSearch').oninput = renderCloudMaps;
 $('#cloudMapTabs').onclick = event => { const button = event.target.closest('[data-cloud-tab]'); if (!button) return; cloudTab = button.dataset.cloudTab; $$('#cloudMapTabs button').forEach(b => b.classList.toggle('active', b === button)); renderCloudMaps(); };
-$('#cloudMapList').onclick = async event => { const button = event.target.closest('[data-cloud-share]'); if (!button || button.disabled) return; button.disabled = true; try { const result = await post('/api/openlist/share-cloud', { name: button.dataset.cloudShare }); try { await navigator.clipboard.writeText(result.openUrl); toast('地图分享链接已复制'); } catch { window.prompt('复制地图分享链接', result.openUrl); } record(`生成云端地图分享链接 ${button.dataset.cloudShare}`); } catch (error) { toast(error.message); } finally { if (button.isConnected) button.disabled = false; } };
+let cloudDirectInfo = null, cloudDirectController = null;
+const cloudDownloadDialog = $('#cloudDownloadDialog');
+function updateCloudDownloadCommand() {
+  if (!cloudDirectInfo) return;
+  const quote = value => "'" + String(value).replace(/'/g, "''") + "'";
+  const name = cloudDirectInfo.name.replace(/[<>:"/\\|?*]/g, '-');
+  const ua = quote(cloudDirectInfo.userAgent), url = quote(cloudDirectInfo.url), output = quote(name);
+  $('#cloudDownloadCommand').value = $('#cloudDownloadTool').value === 'aria2' ? 'aria2c --continue=true --split=4 --max-connection-per-server=4 --user-agent=' + ua + ' --out=' + output + ' -- ' + url : 'curl.exe --fail --location --retry 2 --user-agent ' + ua + ' --continue-at - --output ' + output + ' -- ' + url;
+}
+$('#cloudDownloadTool').onchange = updateCloudDownloadCommand;
+$('#closeCloudDownload').onclick = () => cloudDownloadDialog.close();
+cloudDownloadDialog.addEventListener('close', () => { cloudDirectController?.abort(); cloudDirectInfo = null; $('#cloudDownloadCommand').value = ''; });
+$('#copyCloudDownloadCommand').onclick = async () => { if (!cloudDirectInfo) return; try { await navigator.clipboard.writeText($('#cloudDownloadCommand').value); toast('下载命令已复制，粘贴到电脑的 PowerShell 执行'); } catch { $('#cloudDownloadCommand').focus(); $('#cloudDownloadCommand').select(); toast('请复制已选中的下载命令'); } };
+$('#cloudMapList').onclick = async event => {
+  const button = event.target.closest('[data-cloud-download], [data-cloud-direct], [data-cloud-share]');
+  if (!button || button.disabled) return;
+  button.disabled = true;
+  try {
+    if (button.dataset.cloudDownload !== undefined) {
+      const url = '/api/openlist/download?name=' + encodeURIComponent(button.dataset.cloudDownload);
+      const response = await fetch(url, { method: 'HEAD' });
+      if (!response.ok) throw new Error(response.status === 429 ? '已有两个地图正在下载，请稍后再试' : '暂时无法开始下载，请刷新列表或使用下载器直连');
+      const anchor = document.createElement('a'); anchor.href = url; anchor.download = button.dataset.cloudDownload; document.body.append(anchor); anchor.click(); anchor.remove();
+      toast('下载已交给浏览器，进度与暂停请查看浏览器下载列表');
+    } else if (button.dataset.cloudDirect !== undefined) {
+      cloudDirectController?.abort(); cloudDirectController = new AbortController();
+      const controller = cloudDirectController;
+      cloudDirectInfo = null; $('#cloudDownloadName').textContent = button.dataset.cloudDirect;
+      $('#cloudDownloadMessage').textContent = '正在生成临时下载链接…'; $('#cloudDownloadCommand').value = ''; $('#copyCloudDownloadCommand').disabled = true;
+      cloudDownloadDialog.showModal();
+      try {
+        const info = await api('/api/openlist/download-info', { method: 'POST', body: JSON.stringify({ name: button.dataset.cloudDirect }), signal: controller.signal });
+        if (controller.signal.aborted) return;
+        cloudDirectInfo = info; updateCloudDownloadCommand(); $('#copyCloudDownloadCommand').disabled = false;
+        $('#cloudDownloadMessage').textContent = info.direct ? '直连网盘，不经过游戏服务器。链接有时效，失效后关闭并重新打开即可。' : '当前 OpenList 返回的是中转链接，速度仍受服务器带宽限制。';
+      } catch (error) { if (error.name !== 'AbortError') $('#cloudDownloadMessage').textContent = error.message; }
+    } else {
+      const result = await post('/api/openlist/share-cloud', { name: button.dataset.cloudShare });
+      try { await navigator.clipboard.writeText(result.openUrl); toast('地图分享链接已复制'); } catch { window.prompt('复制地图分享链接', result.openUrl); }
+      record(`生成云端地图分享链接 ${button.dataset.cloudShare}`);
+    }
+  } catch (error) { toast(error.message); }
+  finally { if (button.isConnected) button.disabled = false; }
+};

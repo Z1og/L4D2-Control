@@ -450,3 +450,6 @@ The bridge writes snapshots every five seconds and persists identity history on 
 安装后检查“在线玩家”显示实时更新时间；无真人时显示 0，不用机器人伪造玩家。为离线玩家授权时可直接输入 SteamID。修改权限需要 `basecommands`（提供 `sm_reloadadmins`）与 `admin-flatfile` 正常运行。`bfn` 不保证能调用所有第三方插件；根据插件文档设置最小必要权限，避免默认授予 `z`。出现重载/实际权限不匹配时自动恢复原文件。历史或采集不可读时请查看 SourceMod 错误日志及目录权限。
 
 Verify a fresh timestamp in Online Players; zero humans remains zero. An offline player can be configured by SteamID. Permission changes require working `basecommands` (`sm_reloadadmins`) and `admin-flatfile`. `bfn` does not unlock every third-party plugin; choose the least required flags rather than defaulting to `z`. Reload/effective-permission failures restore the previous file. For unreadable history or missing snapshots, inspect SourceMod logs and private-directory permissions.
+
+### 云端地图一键下载 / One-click cloud downloads
+无需新增端口或安装 aria2 服务端。面板登录后可在云端地图使用浏览器流式下载；该方式消耗服务器出站带宽。下载器直连命令应在下载者电脑运行，已包含百度请求头。当前下载地址仅接受已配置的 OpenList 或百度域名；不会转发 OpenList 账号令牌。 / No additional port or server-side aria2 is required. Browser downloads use server egress. Run direct downloader commands on the client computer. OpenList service credentials are never forwarded to download hosts.

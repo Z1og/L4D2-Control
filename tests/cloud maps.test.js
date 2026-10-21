@@ -66,6 +66,17 @@ test('share only accepts a map confirmed inside the dedicated cloud folder', asy
   f.remote.set('map.vpk', { name: 'map.vpk', size: 1 }); const share = await f.manager.shareCloud('map.vpk'); assert.equal(share.openUrl, 'https://files.example/@s/map-share'); assert.deepEqual(f.calls.at(-1).body.files, ['/l4d2-maps/map.vpk']);
 });
 
+test('download info stays scoped, refreshes metadata, and omits cloud credentials', async t => {
+  const f = fixture(t);
+  f.remote.set('地图.vpk', { name: '地图.vpk', size: 12, provider: 'BaiduNetdisk', raw_url: 'https://cdn.baidupcs.com/file?sign=fixture', header: { authorization: 'private-token' } });
+  const info = await f.manager.downloadInfo('地图.vpk');
+  assert.equal(info.provider, 'BaiduNetdisk'); assert.equal(info.size, 12);
+  assert.equal(JSON.stringify(info).includes('private-token'), false);
+  assert.deepEqual(f.calls.at(-1).body, { path: '/地图.vpk', refresh: true });
+  await assert.rejects(() => f.manager.downloadInfo('../private.vpk'));
+  await assert.rejects(() => f.manager.downloadInfo('absent.vpk'), { status: 404 });
+});
+
 test('upload diagnostics expose numeric codes without provider URLs or credentials', () => {
   const e = uploadFailure(200, { code: 500, message: 'timeout https://cloud.example?access_token=SECRET errno: 31326' });
   assert.match(e.message, /HTTP 200 \/ OpenList 500 \/ 上游 31326/);
