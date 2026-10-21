@@ -9,6 +9,7 @@ const expandedCampaigns = new Set();
 let proxyState = { activeId: null, nodes: [] }, workshopPage = 1, workshopQuery = '', workshopResults = [];
 let contentSection = 'maps', contentSource = 'steam-workshop', downloadJobs = [], searchVersion = 0, searchController = null, hasMoreResults = false, downloadsBusy = false;
 let pluginStorePage = 1, pluginStoreQuery = '', pluginStoreCategory = 'all', pluginStoreResults = [], pluginStoreTotal = 0, pluginStoreHasMore = false, pluginStoreBusy = false, pluginStoreLoaded = false, pluginStoreSyncing = false;
+let pluginStoreSearchVersion = 0, pluginStoreSearchController = null, pluginInventoryLoaded = false;
 let openListState = { enabled: false, url: '', upload: false, projectUrl: 'https://github.com/OpenListTeam/OpenList', mapsPath: '/l4d2-maps' };
 let openListUploadTimer = null;
 const activities = [];
@@ -194,7 +195,7 @@ function renderPlugins() {
   icons();
 }
 async function loadPlugins() {
-  try { const data = await api('/api/plugins'); plugins = data.plugins; $('#navPluginCount').textContent = plugins.length; $('#overviewPluginCount').textContent = plugins.length; $('#pluginTotal').textContent = plugins.length; $('#pluginEnabled').textContent = plugins.filter(item => item.enabled).length; renderPlugins(); if (pluginStoreLoaded) renderPluginStoreResults(); }
+  try { const data = await api('/api/plugins'); plugins = data.plugins; pluginInventoryLoaded = true; $('#navPluginCount').textContent = plugins.length; $('#overviewPluginCount').textContent = plugins.length; $('#pluginTotal').textContent = plugins.length; $('#pluginEnabled').textContent = plugins.filter(item => item.enabled).length; renderPlugins(); if (pluginStoreLoaded) renderPluginStoreResults(); }
   catch (error) { $('#pluginGrid').innerHTML = `<div class="empty-state"><p>读取插件失败：${escapeHtml(error.message)}</p></div>`; }
 }
 function renderProxy() {
@@ -247,33 +248,38 @@ function renderPluginStoreResults() {
   $('#pluginStoreResults').innerHTML = pluginStoreBusy && !pluginStoreResults.length ? '<div class="workshop-empty"><i data-lucide="loader-circle"></i><p>正在同步插件目录</p></div>' : pluginStoreResults.map(item => {
     const job = [...downloadJobs].sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt)).find(job => job.source === 'plugin-store' && job.itemId === item.id);
     const targetId = item.fileName.replace(/\.smx$/i, '').replace(/[^A-Za-z0-9_-]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 118) || `plugin-${item.id.slice(0, 12)}`;
-    const exists = plugins.some(plugin => plugin.id.toLowerCase() === targetId.toLowerCase());
-    const installed = job?.status === 'completed' || exists, pending = job && !['completed', 'failed', 'cancelled'].includes(job.status);
-    const label = exists && job?.status !== 'completed' ? '服务器已存在' : installed ? '已导入 · 默认停用' : pending ? escapeHtml(job.phase) : '下载并导入';
+    const existing = plugins.find(plugin => plugin.id.toLowerCase() === targetId.toLowerCase());
+    const installed = Boolean(existing) || (!pluginInventoryLoaded && job?.status === 'completed'), pending = job && !['completed', 'failed', 'cancelled'].includes(job.status);
+    const label = existing ? existing.enabled ? '服务器已启用' : '已导入 · 停用' : installed ? '已导入 · 待核验' : pending ? escapeHtml(job.phase) : '下载并导入';
     return `<article class="plugin-store-card"><div class="plugin-store-card-icon"><i data-lucide="puzzle"></i></div><div class="plugin-store-card-body"><div class="plugin-store-card-heading"><h3>${escapeHtml(item.title)}</h3><span class="plugin-store-badge">${escapeHtml(item.category)}</span></div><span class="plugin-store-file" title="${escapeHtml(item.fileName)}">${escapeHtml(item.fileName)}</span><small>${bytesLabel(item.size)} · ${escapeHtml(item.id.slice(0, 12))}</small><div class="plugin-store-card-actions"><button class="primary-button workshop-install ${installed ? 'is-installed' : ''}" data-install-plugin-store="${escapeHtml(item.id)}" ${installed || pending || pluginStoreSyncing ? 'disabled' : ''}><i data-lucide="${installed ? 'check' : pending ? 'loader-circle' : 'download'}"></i>${label}</button><a class="text-button" href="${escapeHtml(item.repoUrl)}" target="_blank" rel="noopener noreferrer"><i data-lucide="external-link"></i>查看仓库说明</a></div></div></article>`;
   }).join('') || `<div class="workshop-empty"><i data-lucide="search"></i><p>${pluginStoreLoaded ? '没有找到符合条件的插件，换个关键词或分类试试。' : '插件目录尚未同步。点击右上角刷新重试。'}</p></div>`;
   icons();
 }
 async function searchPluginStore(query = $('#pluginStoreSearch').value.trim(), reset = true) {
-  if (pluginStoreBusy) return;
+  pluginStoreSearchController?.abort();
+  pluginStoreSearchController = new AbortController();
+  const version = ++pluginStoreSearchVersion;
   if (reset) pluginStorePage = 1;
   pluginStoreQuery = query; $('#pluginStoreSearch').value = query;
-  pluginStoreBusy = true; renderPluginStoreResults();
+  pluginStoreBusy = true; pluginStoreResults = []; renderPluginStoreResults();
   try {
-    const data = await api(`/api/plugin-store?query=${encodeURIComponent(query)}&category=${encodeURIComponent(pluginStoreCategory)}&page=${pluginStorePage}`);
+    const data = await api(`/api/plugin-store?query=${encodeURIComponent(query)}&category=${encodeURIComponent(pluginStoreCategory)}&page=${pluginStorePage}`, { signal: pluginStoreSearchController.signal });
+    if (version !== pluginStoreSearchVersion) return;
     pluginStoreResults = data.items || []; pluginStoreTotal = Number(data.total) || 0; pluginStoreHasMore = Boolean(data.hasMore); pluginStoreLoaded = !data.unavailable;
     const state = $('#pluginStoreStatus');
     state.classList.toggle('error', Boolean(data.unavailable || data.error));
     const last = data.lastSyncAt ? new Date(data.lastSyncAt).toLocaleString() : '尚无成功同步记录';
     state.querySelector('span').textContent = data.unavailable ? `${data.error || '暂时无法连接插件仓库'} · 可尝试刷新` : `${data.error ? `同步异常，正在使用缓存 · ${data.error} · ` : ''}${pluginStoreTotal} 个插件 · 最近同步 ${last} · 每 ${Math.round((data.refreshIntervalSeconds || 21600) / 3600)} 小时更新`;
   } catch (error) {
+    if (version !== pluginStoreSearchVersion || error.name === 'AbortError') return;
     pluginStoreResults = []; pluginStoreTotal = 0; pluginStoreHasMore = false;
     $('#pluginStoreStatus').classList.add('error'); $('#pluginStoreStatus').querySelector('span').textContent = `读取插件目录失败：${error.message}`;
-  } finally { pluginStoreBusy = false; renderPluginStoreResults(); }
+  } finally { if (version === pluginStoreSearchVersion) { pluginStoreBusy = false; renderPluginStoreResults(); } }
 }
 async function refreshPluginStore() {
   if (pluginStoreSyncing) return;
   pluginStoreSyncing = true;
+  renderPluginStoreResults();
   const button = $('#refreshPluginStore'); button.disabled = true; button.setAttribute('aria-busy', 'true');
   $('#pluginStoreStatus').querySelector('span').textContent = '正在从 GitHub 同步插件文件到服务器缓存…';
   try {
