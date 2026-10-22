@@ -24,15 +24,15 @@ Server details in these previews are redacted; the project does not include a re
 
 | Login | Gameplay |
 | --- | --- |
-| ![Login](docs/Project%20Preview/Login.png) | ![Gameplay](docs/Project%20Preview/Gameplay.png) |
+| ![Login](https://raw.githubusercontent.com/Z1og/L4D2-Control/793f96b31fb4f850f895460b391b8c71fea33f8d/docs/Project%20Preview/Login.png) | ![Gameplay](https://raw.githubusercontent.com/Z1og/L4D2-Control/793f96b31fb4f850f895460b391b8c71fea33f8d/docs/Project%20Preview/Gameplay.png) |
 
 | Overview | Map management |
 | --- | --- |
-| ![Overview](https://raw.githubusercontent.com/Z1og/L4D2-Control/647db7a87df4d731e2168d00117d50695278cb0c/docs/Project%20Preview/Overview.png) | ![Map management](https://raw.githubusercontent.com/Z1og/L4D2-Control/c5e295112d77ab696e363cfd41b64343a9736644/docs/Project%20Preview/Maps.png) |
+| ![Overview](https://raw.githubusercontent.com/Z1og/L4D2-Control/793f96b31fb4f850f895460b391b8c71fea33f8d/docs/Project%20Preview/Overview.png) | ![Map management](https://raw.githubusercontent.com/Z1og/L4D2-Control/793f96b31fb4f850f895460b391b8c71fea33f8d/docs/Project%20Preview/Maps.png) |
 
 | Plugin management | Content downloads |
 | --- | --- |
-| ![Plugin management](https://raw.githubusercontent.com/Z1og/L4D2-Control/4131b3917d552be06b09acc44d4b14ab036f5c09/docs/Project%20Preview/Plugins.png) | ![Content downloads](https://raw.githubusercontent.com/Z1og/L4D2-Control/4131b3917d552be06b09acc44d4b14ab036f5c09/docs/Project%20Preview/Downloads.png) |
+| ![Plugin management](https://raw.githubusercontent.com/Z1og/L4D2-Control/793f96b31fb4f850f895460b391b8c71fea33f8d/docs/Project%20Preview/Plugins.png) | ![Content downloads](https://raw.githubusercontent.com/Z1og/L4D2-Control/793f96b31fb4f850f895460b391b8c71fea33f8d/docs/Project%20Preview/Downloads.png) |
 
 ## Features
 

@@ -34,15 +34,15 @@
 
 | 普通 / 授权登录 | 游戏模式 |
 | --- | --- |
-| ![普通 / 授权登录](docs/Project%20Preview/Login.png) | ![游戏模式](docs/Project%20Preview/Gameplay.png) |
+| ![普通 / 授权登录](https://raw.githubusercontent.com/Z1og/L4D2-Control/793f96b31fb4f850f895460b391b8c71fea33f8d/docs/Project%20Preview/Login.png) | ![游戏模式](https://raw.githubusercontent.com/Z1og/L4D2-Control/793f96b31fb4f850f895460b391b8c71fea33f8d/docs/Project%20Preview/Gameplay.png) |
 
 | 总览 | 地图管理 |
 | --- | --- |
-| ![总览](https://raw.githubusercontent.com/Z1og/L4D2-Control/647db7a87df4d731e2168d00117d50695278cb0c/docs/Project%20Preview/Overview.png) | ![地图管理](https://raw.githubusercontent.com/Z1og/L4D2-Control/c5e295112d77ab696e363cfd41b64343a9736644/docs/Project%20Preview/Maps.png) |
+| ![总览](https://raw.githubusercontent.com/Z1og/L4D2-Control/793f96b31fb4f850f895460b391b8c71fea33f8d/docs/Project%20Preview/Overview.png) | ![地图管理](https://raw.githubusercontent.com/Z1og/L4D2-Control/793f96b31fb4f850f895460b391b8c71fea33f8d/docs/Project%20Preview/Maps.png) |
 
 | 插件管理 | 内容下载 |
 | --- | --- |
-| ![插件管理](https://raw.githubusercontent.com/Z1og/L4D2-Control/4131b3917d552be06b09acc44d4b14ab036f5c09/docs/Project%20Preview/Plugins.png) | ![内容下载](https://raw.githubusercontent.com/Z1og/L4D2-Control/4131b3917d552be06b09acc44d4b14ab036f5c09/docs/Project%20Preview/Downloads.png) |
+| ![插件管理](https://raw.githubusercontent.com/Z1og/L4D2-Control/793f96b31fb4f850f895460b391b8c71fea33f8d/docs/Project%20Preview/Plugins.png) | ![内容下载](https://raw.githubusercontent.com/Z1og/L4D2-Control/793f96b31fb4f850f895460b391b8c71fea33f8d/docs/Project%20Preview/Downloads.png) |
 
 ---
 
