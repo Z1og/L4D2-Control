@@ -1,3 +1,4 @@
+// L4D2-Control project identity: l4d2-control-bf312edc896c79baad5c | SPDX-License-Identifier: LicenseRef-L4D2-Control-NonCommercial-1.0
 const isGuest = document.body.dataset.panelRole === 'guest';
 const panelCsrf = document.body.dataset.panelCsrf || '';
 const $ = selector => document.querySelector(selector);

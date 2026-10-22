@@ -1,0 +1,63 @@
+L4D2-Control Non-Commercial License 1.0
+SPDX-License-Identifier: LicenseRef-L4D2-Control-NonCommercial-1.0
+Copyright 2026 Z1og and original contributors
+
+中文条款
+
+1. 适用范围
+本许可适用于随本文件发布的 L4D2-Control 项目原创代码、界面及文档；
+仅在相应权利人拥有授权权利的范围内授予许可。
+第三方软件、依赖、插件、游戏资源、商标及图片中的第三方内容仍适用各自条款。
+
+2. 非商业许可
+允许为个人、学习、研究及其他非商业目的使用、复制、修改和分发本项目。
+分发原版或修改版时，须保留本许可、版权声明、项目来源及 NOTICE.md，
+并明确标注修改，不得将修改版冒充为官方发布。
+
+3. 商业使用须事先授权
+未经相应权利人事先书面许可，不得销售本项目或其修改版，提供收费授权，
+或将本项目作为收费托管、收费面板、付费部署服务或其他商业产品的组成部分。
+商业授权请通过官方仓库 https://github.com/Z1og/L4D2-Control 联系维护者。
+
+4. 来源标识
+分发和对外提供本项目界面时，应保留清晰可见的项目名称、来源和许可声明。
+不得为冒充原创、掩盖来源或规避商业授权而删除或伪造版权与项目身份标识。
+合法修改可以重新生成构建指纹，但须保留原项目身份并标注修改来源。
+
+5. 权利保留与无担保
+未明确授予的权利由相应权利人保留。本项目按“现状”提供，不作任何担保。
+在适用法律允许的范围内，权利人不承担因使用本项目产生的损失责任。
+本许可不撤销此前版本已经有效授予的权利，不授予任何第三方商标或资源的权利。
+
+English terms
+
+1. Scope. This license applies to the original code, interface, and documentation
+of L4D2-Control distributed with this file, only to the extent that the relevant
+rights holders are entitled to grant these permissions. Third-party software,
+dependencies, plugins, game resources, trademarks, and third-party image content
+remain subject to their own terms.
+
+2. Non-commercial permission. Use, copying, modification, and distribution are
+permitted for personal, educational, research, and other non-commercial purposes.
+Redistributions must retain this license, copyright notices, project attribution,
+and NOTICE.md. Changes must be identified, and modified versions must not be
+represented as official releases.
+
+3. Commercial permission. Prior written permission from the relevant rights
+holders is required for selling this project or modified versions, paid licensing,
+paid hosting, paid control panels, paid deployment services, or incorporating it
+into other commercial products. Contact the maintainers through the official
+repository: https://github.com/Z1og/L4D2-Control.
+
+4. Attribution. Distributed code and publicly provided interfaces must retain
+clear project attribution and license notices. Copyright and project identity
+markers must not be removed or falsified to misrepresent authorship, conceal
+origin, or evade commercial authorization. Legitimate modifications may rebuild
+the fingerprint while retaining the original project identity and identifying
+the modified source.
+
+5. Reserved rights and warranty. Rights not expressly granted are reserved.
+The project is provided AS IS, without warranties. To the extent permitted by
+applicable law, the rights holders are not liable for losses arising from use.
+This license does not revoke rights validly granted for earlier versions and
+does not grant rights to third-party trademarks or resources.

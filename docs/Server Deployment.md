@@ -571,8 +571,10 @@ Browsing state uses per-tab `sessionStorage`, separated by ordinary/authorized r
 ## 普通账号密码管理
 
 - 普通用户登录后，可点击面板顶部的“修改密码”，输入当前密码并两次确认新密码。
-- 授权管理员可在“在线玩家 → 面板账号”找到玩家，点击“重置面板密码”，填写新密码并勾选确认；重置不修改 Steam 密码，也不解除拉黑。
-- 修改或重置成功后，该 SteamID 的全部现有面板登录失效；其他账号保持登录。新密码为 8–128 个字符，仅保存加盐哈希，不写入操作日志。
-- 忘记密码需联系服主重置。登录页的“首次使用？设置面板密码”使用醒目按钮进入注册。
+- 授权管理员可在“在线玩家 → 面板账号”找到玩家，点击“清除面板密码”并勾选确认。清除后本人需使用同一 SteamID 重新注册；昵称、玩家记录、备注、游戏权限和拉黑状态继续保留。
+- 修改或清除成功后，该 SteamID 的全部现有面板登录失效；其他账号保持登录。新密码为 8–128 个字符，仅保存加盐哈希，不写入操作日志。
+- 忘记密码需联系服主清除密码后重新注册。登录页的“首次使用？设置面板密码”使用醒目按钮进入注册。
 
 Existing accounts migrate without manual edits: credential versions are added when passwords change. Keep the private account directory across deployments. No new environment variables or dependencies are required.
+
+普通登录页提供已隐去示例账号信息的 Steam 资料链接图示。清除密码会删除 salt/hash 凭据，不设置临时密码；重新注册后保存新的随机盐 scrypt 哈希，保留原账号记录。项目指纹只识别核心代码与页面，不识别访客设备；公开源码中的标记仍可被移除。

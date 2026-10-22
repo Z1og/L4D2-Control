@@ -1,5 +1,8 @@
 # L4D2-Control · 今天一定要活下去
 
+> Original project contributions are available for non-commercial use. Commercial use requires written authorization. See [LICENSE](LICENSE) and [project provenance](docs/Project%20Provenance.md).
+
+
 > [!IMPORTANT]
 > **如果本项目对你有帮助别忘了点一下star⭐**
 > If this project helps you, please click **Star ⭐** in the upper-right corner of this repository.
@@ -200,6 +203,8 @@ Changes require confirmation and read-back; mismatches restore previous values. 
 ## Ordinary account passwords
 
 - Signed-in ordinary users can choose “Change password” in the panel header, supply their current password, and confirm the new one twice.
-- Authorized administrators can open Online Players → Panel Accounts and choose “Reset panel password”, enter and confirm a replacement, then explicitly confirm the reset. This does not alter Steam credentials or remove bans.
-- Both operations invalidate all existing panel sessions for that SteamID while preserving other accounts. Passwords are 8–128 characters, stored only as salted hashes, and never included in audit events.
-- Forgotten passwords require a server-owner reset. A prominent first-time registration button is available on the login page.
+- Authorized administrators can open Online Players → Panel Accounts and choose “Clear panel password” and explicitly confirm. The player must register again using the same SteamID; account history, name, notes, game permissions and bans remain intact.
+- Password changes and clears invalidate all existing panel sessions for that SteamID while preserving other accounts. Passwords are 8–128 characters, stored only as salted hashes, and never included in audit events.
+- Forgotten passwords require a server-owner clear followed by re-registration. A prominent first-time registration button is available on the login page.
+
+The ordinary login page includes a sanitized Steam profile-link guide. Password clears remove the salt and hash instead of assigning a temporary password. Re-registration writes a fresh salted scrypt hash and retains the account record. Project fingerprints identify selected source files, never visitors or devices; they do not prevent removal of publicly available source markers.

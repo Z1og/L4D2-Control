@@ -1,3 +1,4 @@
+// L4D2-Control project identity: l4d2-control-bf312edc896c79baad5c | SPDX-License-Identifier: LicenseRef-L4D2-Control-NonCommercial-1.0
 const $=selector=>document.querySelector(selector);let registering=false,busy=false;
 try{const mode=localStorage.getItem('deadAirTheme')||'auto',hour=new Date().getHours();document.documentElement.dataset.theme=mode==='dark'||mode==='auto'&&(hour<7||hour>=19)?'dark':'light';}catch{}
 function tab(admin){if(busy)return;$('#ordinaryTab').setAttribute('aria-selected',String(!admin));$('#authorizedTab').setAttribute('aria-selected',String(admin));$('#ordinaryPanel').hidden=admin;$('#authorizedPanel').hidden=!admin;$('#loginMessage').textContent='';}
@@ -8,3 +9,5 @@ $('#ordinaryForm').onsubmit=event=>{event.preventDefault();if(registering&&$('#o
 $('#authorizedForm').onsubmit=event=>{event.preventDefault();submit('/api/auth/login',{username:$('#adminUsername').value.trim(),password:$('#adminPassword').value});};
 
 if(new URLSearchParams(location.search).get('password')==='changed'){$('#loginMessage').textContent='密码修改成功，请使用新密码登录。';$('#loginMessage').classList.add('success');}
+
+$('#openProfileGuide').onclick=()=>$('#profileGuideDialog').showModal();$('#closeProfileGuide').onclick=()=>$('#profileGuideDialog').close();$('#profileGuideDialog').addEventListener('close',()=>$('#openProfileGuide').focus());

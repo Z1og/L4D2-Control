@@ -1,0 +1,79 @@
+{
+  "schema": 1,
+  "projectId": "l4d2-control-bf312edc896c79baad5c",
+  "fingerprint": "248edd929db1e9a5cd318b08e0cb992aae1cef5bdd9be034619884f181b3f06f",
+  "files": [
+    {
+      "path": "Build project fingerprint.js",
+      "sha256": "c06b5f506191577cc517b1fba2d53b73cf2a2c2cbec7847b084a6d088a3d228c"
+    },
+    {
+      "path": "LICENSE",
+      "sha256": "e7effa981e745e8d22b1f4d0dab46814aa83471ef7d0caaec1317be20438f0d3"
+    },
+    {
+      "path": "NOTICE.md",
+      "sha256": "81c12ace93a11dc80b65c588d8c6e7fa61b2a9243393b1d5a296221fc96bdbf4"
+    },
+    {
+      "path": "Project identity.json",
+      "sha256": "51bfaa76a45a5a38321a2447c73643596efafeae154fe841ca43debb8f8ef08d"
+    },
+    {
+      "path": "access control.js",
+      "sha256": "c7a422c4a49a3de4c45185019d086ac9ec2fc925f5256834ffa51810ddaee0cb"
+    },
+    {
+      "path": "account password.js",
+      "sha256": "c0fc3ba473b7d0ef6301f56391561ff1c8c67900e9f336b64b752933372176e3"
+    },
+    {
+      "path": "app.js",
+      "sha256": "b3e941ac8e25f7a32eb75d4e62bf51123fb0acaf05a5d9344f316b6c6a7a4fb8"
+    },
+    {
+      "path": "assets/Steam profile guide.png",
+      "sha256": "605e4529626ab39546cd79312138bd475067b9dc1e882c64d9a3585863fd68fc"
+    },
+    {
+      "path": "index.html",
+      "sha256": "b7d76ee4c7b439e0131f2b4f8079df1628ecfb390cb301a5e704fa826a4a431a"
+    },
+    {
+      "path": "login.css",
+      "sha256": "fd4468b6333523b8276b3359991610137e2d590d709ed746598ce17c55ece0dc"
+    },
+    {
+      "path": "login.html",
+      "sha256": "ec4f8116cb5bc51c2233836752045b80a1a280585418e3ffa9bf3a91fd3448eb"
+    },
+    {
+      "path": "login.js",
+      "sha256": "1335808ed411c27eb502e8c4f396ace3d3a4b2b0c81f14f6434d7fdaa4e1abe9"
+    },
+    {
+      "path": "package.json",
+      "sha256": "9559d27ab5564d4c184942d4a6c06b7d6357a3234e67808538b4e1c95cd61592"
+    },
+    {
+      "path": "panel accounts.js",
+      "sha256": "a492457b5b305ed87326ad584cadadd417fae3ef7a45f362210cb14973bac1dd"
+    },
+    {
+      "path": "players.js",
+      "sha256": "47bbac2a0523361a095aa28d38c94ddcf928b21b1166e44bd579ffb33e400dc7"
+    },
+    {
+      "path": "project fingerprint.js",
+      "sha256": "45c0207eaa8ce58746f83eb3b1b839fe11101d90ca7f4e056e8126ae97986d5d"
+    },
+    {
+      "path": "server.js",
+      "sha256": "ca939c712f73dd14ab75a9650b6804f94d7d4ee2b240016bd889fdcbf1b44535"
+    },
+    {
+      "path": "styles.css",
+      "sha256": "7712106a00ba322cdc2481dca86e114519f251a3a94e0f86e9febd0f1d96c259"
+    }
+  ]
+}

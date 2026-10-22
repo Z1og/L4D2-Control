@@ -1,9 +1,10 @@
+// L4D2-Control project identity: l4d2-control-bf312edc896c79baad5c | SPDX-License-Identifier: LicenseRef-L4D2-Control-NonCommercial-1.0
 const crypto = require('node:crypto');
 const { requestIP } = require('./ip regions');
 
 const GUEST_READ = new Set(['/api/config', '/api/status', '/api/maps', '/api/plugins']);
 const GUEST_WRITE = new Set(['/api/openlist/map-download-info']);
-const PUBLIC_FILES = new Set(['/login', '/login.html', '/login.js', '/login.css']);
+const PUBLIC_FILES = new Set(['/login', '/login.html', '/login.js', '/login.css', '/assets/Steam%20profile%20guide.png', '/assets/Steam profile guide.png', '/project-license']);
 const PANEL_FILES = new Set(['/', '/index.html', '/app.js', '/account password.js', '/account%20password.js', '/panel state.js', '/panel%20state.js', '/players.js', '/gameplay.js', '/styles.css', '/downloads/baidu-download-helper.zip', '/downloads/baidu-download-helper-guide']);
 const COOKIE = 'l4d2-session';
 const fail = (message, status = 403) => Object.assign(new Error(message), { status });
@@ -80,7 +81,7 @@ function createAccess({ username = 'admin', password = '', token = '', authentic
       const current = identify(req), reset = pathname.endsWith('/reset-password');
       if (!current) throw fail('请先登录', 401);
       checkMutation(req, current, pathname);
-      if (reset ? current.role !== 'admin' : current.role !== 'guest') throw fail(reset ? '只有授权管理员可以重置普通账号密码' : '此入口仅用于修改普通账号密码');
+      if (reset ? current.role !== 'admin' : current.role !== 'guest') throw fail(reset ? '只有授权管理员可以清除普通账号密码' : '此入口仅用于修改普通账号密码');
       if (!reset && (await isBanned(current.steam64) || !await validateGuestSession(current))) { sessions.delete(current.id); throw fail('登录已失效，请重新登录', 401); }
       if (reset ? !resetGuestPassword : !changeGuestPassword) throw fail('密码管理暂不可用', 503);
       prune();
@@ -89,12 +90,12 @@ function createAccess({ username = 'admin', password = '', token = '', authentic
       if (!reset) { if (!entry && attempts.size >= 5000) throw fail('请求较多，请稍后再试',429); attempts.set(key,{count:(entry?.count||0)+1,until:entry?.until||now()+15*60000}); }
       let result;
       try { result = reset ? await resetGuestPassword(body.steamId,body) : await changeGuestPassword(current.steam64,body); }
-      catch (error) { await audit({actor:current.name,role:current.role,steam64:current.steam64 || '',action:reset?'password-reset-denied':'password-change-denied',ok:false,ip}).catch(()=>{}); throw error; }
+      catch (error) { await audit({actor:current.name,role:current.role,steam64:current.steam64 || '',action:reset?'password-clear-denied':'password-change-denied',ok:false,ip}).catch(()=>{}); throw error; }
       for (const [id,session] of sessions) if (session.role === 'guest' && session.steam64 === result.steam64) sessions.delete(id);
       attempts.delete('password:' + result.steam64);
       if (!reset) res.setHeader('set-cookie',cookie(req,'signed-out',86400));
-      await audit({actor:current.name,role:current.role,steam64:current.steam64 || '',target:result.steam64,action:reset?'password-reset':'password-change',ok:true,ip}).catch(()=>{});
-      return {ok:true,reauthenticate:!reset,message:reset?'普通账号密码已重置，该账号的现有登录已失效':'密码已修改，请使用新密码重新登录'};
+      await audit({actor:current.name,role:current.role,steam64:current.steam64 || '',target:result.steam64,action:reset?'password-clear':'password-change',ok:true,ip}).catch(()=>{});
+      return {ok:true,reauthenticate:!reset,registrationRequired:reset,message:reset?'密码已清除，玩家记录与权限已保留；请使用同一 SteamID 重新注册':'密码已修改，请使用新密码重新登录'};
     }
     if (pathname === '/api/auth/logout') { const current = identify(req, false); if (current) checkMutation(req, current, pathname); const id = sessionCookie(req); if (id) sessions.delete(id); res.setHeader('set-cookie', cookie(req, 'signed-out', 86400)); return { ok: true }; }
     throw fail('接口不存在', 404);

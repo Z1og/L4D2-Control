@@ -1,3 +1,4 @@
+// L4D2-Control project identity: l4d2-control-bf312edc896c79baad5c | SPDX-License-Identifier: LicenseRef-L4D2-Control-NonCommercial-1.0
 const http = require('http');
 const https = require('https');
 const fs = require('fs');
@@ -25,6 +26,8 @@ const { createRestartController, inspectGame } = require('./server controls');
 const { createGameplayController } = require('./gameplay controls');
 const { createAccess, sameOrigin, PUBLIC_FILES } = require('./access control');
 const { createAccounts } = require('./panel accounts');
+const { inspectFingerprint } = require('./project fingerprint');
+const projectProvenance = inspectFingerprint(__dirname);
 const { createRegions, requestIP } = require('./ip regions');
 
 const root = __dirname;
@@ -423,7 +426,7 @@ async function handleApi(req, res, body) {
       if (req.method === 'GET' && pathname === '/api/players') {
         const data = await playerManager.list();
         const registered = await accounts.list(), players = new Map(data.players.map(player => [player.steam64, player]));
-        for (const account of registered) { const old = players.get(account.steam64); players.set(account.steam64, { flags:'', permissionSource:'none', readOnly:false, online:false, firstSeen:account.createdAt, lastSeen:null, ...account, ...old, panelAccount:true, panelName:account.name, lastLoginAt:account.lastLoginAt, lastLoginIp:account.lastLoginIp, lastLoginRegion:account.lastLoginRegion, loginCount:account.loginCount, identityVerified:false }); }
+        for (const account of registered) { const old = players.get(account.steam64); players.set(account.steam64, { flags:'', permissionSource:'none', readOnly:false, online:false, firstSeen:account.createdAt, lastSeen:null, ...account, ...old, panelAccount:true, panelName:account.name, lastLoginAt:account.lastLoginAt, lastLoginIp:account.lastLoginIp, lastLoginRegion:account.lastLoginRegion, loginCount:account.loginCount, registrationRequired:account.registrationRequired===true, identityVerified:false }); }
         data.players = await Promise.all([...players.values()].map(async player => ({ ...player, gameRegion:player.gameIp ? await regions.locate(player.gameIp) : null })));
         data.total = data.players.length; data.accessEvents = await accounts.events();
         let bans = [], moderationError = '';
@@ -611,7 +614,7 @@ function serveFile(req, res) {
     res.setHeader('cache-control', 'no-cache');
     fs.createReadStream(file).pipe(res); return;
   }
-  const extensionAsset = requestPath === '/downloads/baidu-download-helper.zip'
+  const extensionAsset = requestPath === '/assets/Steam profile guide.png' ? {file:path.join(root,'assets','Steam profile guide.png'),type:'image/png'} : requestPath === '/project-license' ? {file:path.join(root,'LICENSE'),type:'text/plain; charset=utf-8'} : requestPath === '/downloads/baidu-download-helper.zip'
     ? { file: path.join(root, 'downloads', 'L4D2 Baidu Download Helper.zip'), type: 'application/zip', disposition: 'attachment; filename="L4D2 Baidu Download Helper.zip"; filename*=UTF-8\'\'L4D2%20Baidu%20Download%20Helper.zip' }
     : requestPath === '/downloads/baidu-download-helper-guide'
       ? { file: path.join(root, 'docs', 'Browser Extension Installation.html'), type: 'text/html; charset=utf-8' }
@@ -638,7 +641,7 @@ function serveFile(req, res) {
   res.setHeader('content-type', types[path.extname(filePath)] || 'application/octet-stream');
   res.setHeader('cache-control', 'no-store');
   if (req.method === 'HEAD') { res.end(); return; }
-  if (relative === 'index.html') { const html = fs.readFileSync(filePath, 'utf8').replace('<body>', `<body data-panel-role="${req.access.role}" data-panel-csrf="${req.access.csrf || ''}">`); res.end(html); return; }
+  if (relative === 'index.html' || relative === 'login.html') { let html=fs.readFileSync(filePath,'utf8');if(relative==='index.html')html=html.replace('<body>',`<body data-panel-role="${req.access.role}" data-panel-csrf="${req.access.csrf || ''}">`);html=html.replaceAll('__L4D2_PROJECT_ID__',projectProvenance.projectId).replaceAll('__L4D2_FINGERPRINT__',projectProvenance.sourceFingerprint || 'unavailable').replaceAll('__L4D2_FINGERPRINT_SHORT__',(projectProvenance.sourceFingerprint || 'unavailable').slice(0,12));res.end(html);return; }
   fs.createReadStream(filePath).pipe(res);
 }
 
@@ -649,9 +652,11 @@ function accessError(req, res, error) {
   res.end(JSON.stringify({ error: error.status ? error.message : '服务暂时不可用' }));
 }
 const serve = async (req, res) => {
+  res.setHeader('x-l4d2-project',projectProvenance.projectId);res.setHeader('x-l4d2-fingerprint',projectProvenance.sourceFingerprint || 'unavailable');res.setHeader('x-l4d2-license',projectProvenance.license);
   res.setHeader('x-content-type-options', 'nosniff'); res.setHeader('referrer-policy', 'no-referrer');
   res.setHeader('x-frame-options', 'SAMEORIGIN');
   let pathname; try { pathname = new URL(req.url, 'http://localhost').pathname; } catch { accessError(req, res, Object.assign(new Error('无效请求'), {status:400})); return; }
+  if(pathname==='/.well-known/l4d2-control.json'){res.setHeader('cache-control','no-store');res.setHeader('content-type','application/json; charset=utf-8');if(!['GET','HEAD'].includes(req.method)){res.writeHead(405,{Allow:'GET, HEAD'});res.end(JSON.stringify({error:'method not allowed'}));return;}res.end(req.method==='HEAD'?undefined:JSON.stringify(projectProvenance));return;}
   if (pathname.startsWith('/api/auth/')) {
     res.setHeader('cache-control', 'no-store'); res.setHeader('content-type', 'application/json; charset=utf-8');
     let body = '', tooLarge = false;
