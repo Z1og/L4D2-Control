@@ -36,7 +36,7 @@ Server details in these previews are redacted; the project does not include a re
 
 | Login | Gameplay |
 | --- | --- |
-| ![Login](https://raw.githubusercontent.com/Z1og/L4D2-Control/931e00bd37135e413f7ad12172236d02bd0acab8/docs/Project%20Preview/Login.png) | ![Gameplay](https://raw.githubusercontent.com/Z1og/L4D2-Control/793f96b31fb4f850f895460b391b8c71fea33f8d/docs/Project%20Preview/Gameplay.png) |
+| ![Login](https://raw.githubusercontent.com/Z1og/L4D2-Control/46842a0ef55cac655c4c9eff98c526da7125448b/docs/Project%20Preview/Login.png) | ![Gameplay](https://raw.githubusercontent.com/Z1og/L4D2-Control/793f96b31fb4f850f895460b391b8c71fea33f8d/docs/Project%20Preview/Gameplay.png) |
 
 | Overview | Map management |
 | --- | --- |
