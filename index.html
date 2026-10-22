@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>L4D2-Control · 求生之路 2</title>
+  <title>L4D2-Control · 今天一定要活下去</title>
   <link rel="icon" href="data:,">
   <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
   <link rel="stylesheet" href="styles.css">
@@ -46,7 +46,7 @@
       </header>
 
       <section class="content" id="overviewView">
-        <div class="page-heading"><div><p class="eyebrow">工作台 · OVERVIEW</p><h1>一起，准备出发。</h1><p>地图、插件与服务器状态，都在这里。</p></div><button class="primary-button" id="quickMapBtn"><i data-lucide="shuffle"></i>快速切图</button></div>
+        <div class="page-heading"><div><p class="eyebrow">工作台 · OVERVIEW</p><h1>今天一定要活下去，<span style="white-space:nowrap">加油💪！</span></h1><p>地图、插件与玩家管理，都在这里，<br>为您准备最好的状态。</p></div><button class="primary-button" id="quickMapBtn"><i data-lucide="shuffle"></i>快速切图</button></div>
         <div class="status-banner" id="serverStatus"><div class="status-icon"><i data-lucide="check-circle-2"></i></div><div><strong>正在读取服务器状态</strong><span>正在同步游戏服务状态</span></div><span class="latency"><i data-lucide="activity"></i> 检查中</span></div>
         <div class="stat-grid"><article class="stat-card"><div class="stat-top"><span>当前地图</span><i data-lucide="map"></i></div><strong class="current-map-title" id="currentMap">读取中…</strong><small class="current-map-english" id="currentMapEnglish">UNKNOWN</small><small id="currentMapSubtitle">服务器当前关卡</small><button class="stat-link" data-view="maps">管理地图 <i data-lucide="arrow-up-right"></i></button></article><article class="stat-card"><div class="stat-top"><span>在线玩家</span><i data-lucide="users"></i></div><strong id="overviewPlayerCount">—</strong><small id="overviewPlayerHint">正在读取实时玩家</small><button class="stat-link" data-view="players">管理玩家 <i data-lucide="arrow-up-right"></i></button></article><article class="stat-card"><div class="stat-top"><span>已安装插件</span><i data-lucide="puzzle"></i></div><strong id="overviewPluginCount">…</strong><small>以服务器插件目录为准</small><button class="stat-link" data-view="plugins">查看插件 <i data-lucide="arrow-up-right"></i></button></article><article class="stat-card"><div class="stat-top"><span>运行状态</span><i data-lucide="server"></i></div><strong id="overviewState">检查中</strong><small>来自游戏进程状态</small><div class="health-line"><span></span><span></span><span></span><span></span><span></span></div></article></div>
         <div class="section-grid"><section class="panel recent-panel"><div class="panel-heading"><div><h2>地图快捷操作</h2><p>常用战役一键切换</p></div><button class="text-button" data-view="maps">全部地图 <i data-lucide="arrow-right"></i></button></div><div class="map-quick-list" id="quickMaps"></div></section><section class="panel activity-panel"><div class="panel-heading"><div><h2>本次会话</h2><p>当前页面执行的管理动作</p></div></div><div class="activity-list" id="activityList"></div></section></div>

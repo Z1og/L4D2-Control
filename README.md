@@ -1,16 +1,20 @@
-# 今天一定要活下去
+# L4D2-Control · 今天一定要活下去
 
 > [!IMPORTANT]
 > **如果本项目对你有帮助别忘了点一下star⭐**
 > 点击仓库右上角的 **Star**，支持项目继续更新。
 
-**求生之路 2 服务器管理面板** · 原名 L4D2-Control。
+**英文名：L4D2-Control** · **中文名：今天一定要活下去**。
 
 一个为《求生之路 2》专用服务器打造的网页管理面板，提供地图、插件、创意工坊/GameMaps 内容下载和内容专用代理管理。
 
 > **网盘适配说明：** 本项目的云端地图备份与直连下载导出功能当前适配 **OpenList 挂载的百度网盘**。随项目提供的 Chrome/Edge 下载助手也专用于百度网盘直链；其他网盘驱动尚未完成同等验证。基础地图与插件管理不依赖网盘。
 >
 > **Cloud-drive compatibility:** Map cloud backup and direct-download export are currently adapted and tested with **Baidu Netdisk mounted through OpenList**. The bundled Chrome/Edge download helper is specific to Baidu direct links. Other storage drivers have not received equivalent validation. Basic map and plugin management does not require a cloud drive.
+
+> **百度网盘 SVIP 测试说明：** 本项目已验证的百度网盘账号已开通 **SVIP**。尚未验证未开通 SVIP 的账号，是否会影响下载服务暂不确定。
+>
+> The Baidu Netdisk account used for validation has **SVIP** enabled. Download behavior for accounts without SVIP has not been tested; whether this affects the download service remains unknown.
 
 **English** · [English README](README%20English.md)<br>
 **简体中文** · [中文 README](README%20Chinese.md)<br>
@@ -30,11 +34,11 @@
 
 | 总览 | 地图管理 |
 | --- | --- |
-| ![总览](https://raw.githubusercontent.com/Z1og/jin-tian-yi-ding-yao-huo-xia-qu/c5e295112d77ab696e363cfd41b64343a9736644/docs/Project%20Preview/Overview.png) | ![地图管理](https://raw.githubusercontent.com/Z1og/jin-tian-yi-ding-yao-huo-xia-qu/c5e295112d77ab696e363cfd41b64343a9736644/docs/Project%20Preview/Maps.png) |
+| ![总览](https://raw.githubusercontent.com/Z1og/L4D2-Control/c5e295112d77ab696e363cfd41b64343a9736644/docs/Project%20Preview/Overview.png) | ![地图管理](https://raw.githubusercontent.com/Z1og/L4D2-Control/c5e295112d77ab696e363cfd41b64343a9736644/docs/Project%20Preview/Maps.png) |
 
 | 插件管理 | 内容下载 |
 | --- | --- |
-| ![插件管理](https://raw.githubusercontent.com/Z1og/jin-tian-yi-ding-yao-huo-xia-qu/c5e295112d77ab696e363cfd41b64343a9736644/docs/Project%20Preview/Plugins.png) | ![内容下载](https://raw.githubusercontent.com/Z1og/jin-tian-yi-ding-yao-huo-xia-qu/c5e295112d77ab696e363cfd41b64343a9736644/docs/Project%20Preview/Downloads.png) |
+| ![插件管理](https://raw.githubusercontent.com/Z1og/L4D2-Control/c5e295112d77ab696e363cfd41b64343a9736644/docs/Project%20Preview/Plugins.png) | ![内容下载](https://raw.githubusercontent.com/Z1og/L4D2-Control/c5e295112d77ab696e363cfd41b64343a9736644/docs/Project%20Preview/Downloads.png) |
 
 ---
 

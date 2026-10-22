@@ -1,10 +1,10 @@
-# 今天一定要活下去 · 服务器部署教程 / Server Deployment
+# L4D2-Control · 今天一定要活下去 · 服务器部署教程 / Server Deployment
 
 > [!IMPORTANT]
 > **如果本项目对你有帮助别忘了点一下star⭐**
 > 点击仓库右上角的 **Star**，支持项目继续更新。
 
-**求生之路 2 服务器管理面板** · 原名 L4D2-Control。
+**英文名：L4D2-Control** · **中文名：今天一定要活下去**。
 
 Replace placeholders such as `<GAME_USER>`, `<GAME_ROOT>`, `<SCREEN_SESSION>`, `<PANEL_DOMAIN>` and `<PUBLIC_GAME_HOST>` with your own values. Never commit passwords, subscription links, private keys or real credentials.
 
@@ -16,6 +16,10 @@ Replace placeholders such as `<GAME_USER>`, `<GAME_ROOT>`, `<SCREEN_SESSION>`, `
 >
 > The validated combination for map cloud backup and direct-download export is **OpenList with its Baidu Netdisk storage driver**. The Chrome/Edge helper is specific to Baidu direct links; other drivers have not received equivalent validation. Map/plugin management and server download export also work without cloud storage.
 
+> **百度网盘 SVIP 测试说明：** 本项目已验证的百度网盘账号已开通 **SVIP**。尚未验证未开通 SVIP 的账号，是否会影响下载服务暂不确定。
+>
+> The Baidu Netdisk account used for validation has **SVIP** enabled. Download behavior for accounts without SVIP has not been tested; whether this affects the download service remains unknown.
+
 ## 简体中文部署教程
 
 ### 0. 让 AI 协助部署（可选）
@@ -24,8 +28,8 @@ Replace placeholders such as `<GAME_USER>`, `<GAME_ROOT>`, `<SCREEN_SESSION>`, `
 
 ~~~text
 请根据 L4D2-Control 项目和服务器部署教程，帮我在这台我有权限管理的 Linux 服务器上完成部署。
-项目地址：https://github.com/Z1og/jin-tian-yi-ding-yao-huo-xia-qu
-教程：https://github.com/Z1og/jin-tian-yi-ding-yao-huo-xia-qu/blob/main/docs/Server%20Deployment.md
+项目地址：https://github.com/Z1og/L4D2-Control
+教程：https://github.com/Z1og/L4D2-Control/blob/main/docs/Server%20Deployment.md
 请先检查 Node.js、screen、L4D2 游戏目录和权限，再逐步执行；每一步报告结果，遇到错误先停下来说明原因。
 请使用安全的随机面板密码、HTTPS 和最小权限，不要把密码、私钥、令牌、订阅链接或服务器凭据写入公开聊天、代码或 Git 提交。
 ~~~
@@ -59,7 +63,7 @@ GAME_USER=replace-with-game-user  # 换成拥有 screen 会话的账号
 id "$GAME_USER"
 sudo mkdir -p /opt/L4D2-Control
 sudo chown "$GAME_USER:$GAME_USER" /opt/L4D2-Control
-sudo -H -u "$GAME_USER" git clone https://github.com/Z1og/jin-tian-yi-ding-yao-huo-xia-qu.git /opt/L4D2-Control
+sudo -H -u "$GAME_USER" git clone https://github.com/Z1og/L4D2-Control.git /opt/L4D2-Control
 sudo -H -u "$GAME_USER" npm --prefix /opt/L4D2-Control ci
 ~~~
 
@@ -221,8 +225,8 @@ If you are not comfortable with Linux, give the public project URL to a trusted 
 
 ~~~text
 Please deploy L4D2-Control on this Linux server, which I am authorized to manage, using the project and deployment guide below.
-Project: https://github.com/Z1og/jin-tian-yi-ding-yao-huo-xia-qu
-Guide: https://github.com/Z1og/jin-tian-yi-ding-yao-huo-xia-qu/blob/main/docs/Server%20Deployment.md
+Project: https://github.com/Z1og/L4D2-Control
+Guide: https://github.com/Z1og/L4D2-Control/blob/main/docs/Server%20Deployment.md
 Check Node.js, screen, the L4D2 directory and permissions first. Execute one step at a time and report the result; stop and explain any error before continuing.
 Use a strong random panel password, HTTPS and least privilege. Never put passwords, private keys, tokens, subscription URLs or server credentials in public chat, source code or Git commits.
 ~~~
@@ -254,7 +258,7 @@ GAME_USER=replace-with-game-user  # screen session owner
 id "$GAME_USER"
 sudo mkdir -p /opt/L4D2-Control
 sudo chown "$GAME_USER:$GAME_USER" /opt/L4D2-Control
-sudo -H -u "$GAME_USER" git clone https://github.com/Z1og/jin-tian-yi-ding-yao-huo-xia-qu.git /opt/L4D2-Control
+sudo -H -u "$GAME_USER" git clone https://github.com/Z1og/L4D2-Control.git /opt/L4D2-Control
 sudo -H -u "$GAME_USER" npm --prefix /opt/L4D2-Control ci
 ~~~
 

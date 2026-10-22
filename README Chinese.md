@@ -1,10 +1,10 @@
-# 今天一定要活下去
+# L4D2-Control · 今天一定要活下去
 
 > [!IMPORTANT]
 > **如果本项目对你有帮助别忘了点一下star⭐**
 > 点击仓库右上角的 **Star**，支持项目继续更新。
 
-**求生之路 2 服务器管理面板** · 原名 L4D2-Control。
+**英文名：L4D2-Control** · **中文名：今天一定要活下去**。
 
 [首页](README.md) · [English](README%20English.md) · [服务器部署教程](docs/Server%20Deployment.md#简体中文部署教程)
 
@@ -16,17 +16,19 @@
 
 OpenList 和百度网盘均为可选组件；不配置网盘仍可使用本地地图、插件管理及“服务器下载导出”。网盘授权与凭据在部署者自己的 OpenList 和服务器环境文件中配置，项目不附带任何网盘账号、令牌或订阅。
 
+> **百度网盘 SVIP 测试说明：** 本项目已验证的百度网盘账号已开通 **SVIP**。尚未验证未开通 SVIP 的账号，是否会影响下载服务暂不确定。
+
 ## 项目预览
 
 预览图中的服务器地址已打码；项目不包含真实服务器地址、账号或密码。
 
 | 总览 | 地图管理 |
 | --- | --- |
-| ![总览](https://raw.githubusercontent.com/Z1og/jin-tian-yi-ding-yao-huo-xia-qu/c5e295112d77ab696e363cfd41b64343a9736644/docs/Project%20Preview/Overview.png) | ![地图管理](https://raw.githubusercontent.com/Z1og/jin-tian-yi-ding-yao-huo-xia-qu/c5e295112d77ab696e363cfd41b64343a9736644/docs/Project%20Preview/Maps.png) |
+| ![总览](https://raw.githubusercontent.com/Z1og/L4D2-Control/c5e295112d77ab696e363cfd41b64343a9736644/docs/Project%20Preview/Overview.png) | ![地图管理](https://raw.githubusercontent.com/Z1og/L4D2-Control/c5e295112d77ab696e363cfd41b64343a9736644/docs/Project%20Preview/Maps.png) |
 
 | 插件管理 | 内容下载 |
 | --- | --- |
-| ![插件管理](https://raw.githubusercontent.com/Z1og/jin-tian-yi-ding-yao-huo-xia-qu/c5e295112d77ab696e363cfd41b64343a9736644/docs/Project%20Preview/Plugins.png) | ![内容下载](https://raw.githubusercontent.com/Z1og/jin-tian-yi-ding-yao-huo-xia-qu/c5e295112d77ab696e363cfd41b64343a9736644/docs/Project%20Preview/Downloads.png) |
+| ![插件管理](https://raw.githubusercontent.com/Z1og/L4D2-Control/c5e295112d77ab696e363cfd41b64343a9736644/docs/Project%20Preview/Plugins.png) | ![内容下载](https://raw.githubusercontent.com/Z1og/L4D2-Control/c5e295112d77ab696e363cfd41b64343a9736644/docs/Project%20Preview/Downloads.png) |
 
 ## 功能
 
@@ -47,7 +49,7 @@ OpenList 和百度网盘均为可选组件；不配置网盘仍可使用本地�
 推荐 Linux 服务器、Node.js 22 LTS 或更新的受支持 LTS 版本、GNU screen，以及已经运行的 L4D2 服务。面板运行账号须与游戏 screen 会话所属账号一致。插件管理需要 MetaMod/SourceMod。
 
 ```sh
-git clone https://github.com/Z1og/jin-tian-yi-ding-yao-huo-xia-qu.git L4D2-Control
+git clone https://github.com/Z1og/L4D2-Control.git L4D2-Control
 cd L4D2-Control
 npm ci
 cp .env.example .env

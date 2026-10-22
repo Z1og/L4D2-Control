@@ -1,10 +1,10 @@
-# 今天一定要活下去
+# L4D2-Control · 今天一定要活下去
 
 > [!IMPORTANT]
 > **如果本项目对你有帮助别忘了点一下star⭐**
 > If this project helps you, please click **Star ⭐** in the upper-right corner of this repository.
 
-**Survive Today** · A Left 4 Dead 2 server control panel, formerly L4D2-Control.
+**English name: L4D2-Control** · **Chinese name: 今天一定要活下去**.
 
 [Home](README.md) · [简体中文](README%20Chinese.md) · [Server deployment guide](docs/Server%20Deployment.md#english-server-deployment-guide)
 
@@ -16,17 +16,19 @@ Map cloud backup and **Direct download export (recommended)** are currently adap
 
 OpenList and Baidu Netdisk are optional. Local map and plugin management and **Server download export** remain available without a cloud drive. Configure authorization and credentials in your own OpenList instance and private server environment. No cloud accounts, tokens or subscriptions are included in this repository.
 
+> **SVIP validation note：** The Baidu Netdisk account used for validation has **SVIP** enabled. Download behavior for accounts without SVIP has not been tested; whether this affects the download service remains unknown.
+
 ## Project preview
 
 Server details in these previews are redacted; the project does not include a real server address, account or password.
 
 | Overview | Map management |
 | --- | --- |
-| ![Overview](https://raw.githubusercontent.com/Z1og/jin-tian-yi-ding-yao-huo-xia-qu/c5e295112d77ab696e363cfd41b64343a9736644/docs/Project%20Preview/Overview.png) | ![Map management](https://raw.githubusercontent.com/Z1og/jin-tian-yi-ding-yao-huo-xia-qu/c5e295112d77ab696e363cfd41b64343a9736644/docs/Project%20Preview/Maps.png) |
+| ![Overview](https://raw.githubusercontent.com/Z1og/L4D2-Control/c5e295112d77ab696e363cfd41b64343a9736644/docs/Project%20Preview/Overview.png) | ![Map management](https://raw.githubusercontent.com/Z1og/L4D2-Control/c5e295112d77ab696e363cfd41b64343a9736644/docs/Project%20Preview/Maps.png) |
 
 | Plugin management | Content downloads |
 | --- | --- |
-| ![Plugin management](https://raw.githubusercontent.com/Z1og/jin-tian-yi-ding-yao-huo-xia-qu/c5e295112d77ab696e363cfd41b64343a9736644/docs/Project%20Preview/Plugins.png) | ![Content downloads](https://raw.githubusercontent.com/Z1og/jin-tian-yi-ding-yao-huo-xia-qu/c5e295112d77ab696e363cfd41b64343a9736644/docs/Project%20Preview/Downloads.png) |
+| ![Plugin management](https://raw.githubusercontent.com/Z1og/L4D2-Control/c5e295112d77ab696e363cfd41b64343a9736644/docs/Project%20Preview/Plugins.png) | ![Content downloads](https://raw.githubusercontent.com/Z1og/L4D2-Control/c5e295112d77ab696e363cfd41b64343a9736644/docs/Project%20Preview/Downloads.png) |
 
 ## Features
 
@@ -47,7 +49,7 @@ A Steam subscription alone does not install files on a dedicated server. Install
 Use Linux with Node.js 22 LTS or a newer supported LTS, GNU screen and an already running L4D2 server. Run the panel as the same Unix user that owns the game's screen session. Plugin operations require MetaMod/SourceMod.
 
 ```sh
-git clone https://github.com/Z1og/jin-tian-yi-ding-yao-huo-xia-qu.git L4D2-Control
+git clone https://github.com/Z1og/L4D2-Control.git L4D2-Control
 cd L4D2-Control
 npm ci
 cp .env.example .env
