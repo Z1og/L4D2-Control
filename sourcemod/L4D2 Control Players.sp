@@ -5,13 +5,15 @@
 public Plugin myinfo = {
     name = "L4D2 Control Players", author = "L4D2-Control",
     description = "Server-local player identity and permission snapshot; no player IPs or credentials",
-    version = "1.0.0", url = ""
+    version = "1.1.0", url = ""
 };
 KeyValues gHistory;
 char gSnapshotPath[PLATFORM_MAX_PATH];
 char gHistoryPath[PLATFORM_MAX_PATH];
 bool gHistoryDirty;
 int gLastSave;
+KeyValues gBans;
+char gBansPath[PLATFORM_MAX_PATH];
 
 public void OnPluginStart() {
     char privateDir[PLATFORM_MAX_PATH];
@@ -21,15 +23,19 @@ public void OnPluginStart() {
     if (!SetFilePermissions(privateDir, privateMode)) SetFailState("Cannot protect private player data directory");
     BuildPath(Path_SM, gSnapshotPath, sizeof(gSnapshotPath), "data/l4d2 control/players.txt");
     BuildPath(Path_SM, gHistoryPath, sizeof(gHistoryPath), "data/l4d2 control/history.txt");
+    BuildPath(Path_SM, gBansPath, sizeof(gBansPath), "data/l4d2 control/bans.txt");
+    if (!LoadBans()) SetFailState("Cannot read panel bans; preserving original file");
     gHistory = new KeyValues("PanelPlayerHistory");
     gHistory.SetEscapeSequences(true);
     if (FileExists(gHistoryPath) && !gHistory.ImportFromFile(gHistoryPath)) SetFailState("Player history cannot be read; preserving the original file");
     RegServerCmd("l4d2_control_players", CommandSnapshot);
+    RegServerCmd("l4d2_control_bans", CommandBans);
+    RegServerCmd("l4d2_control_kick", CommandKick);
     CreateTimer(5.0, TimerSnapshot, _, TIMER_REPEAT);
     for (int client = 1; client <= MaxClients; client++) if (IsClientInGame(client) && !IsFakeClient(client)) Remember(client);
-    WriteSnapshot(); SaveHistory();
+    EnforceBans(); WriteSnapshot(); SaveHistory();
 }
-public void OnClientPostAdminCheck(int client) { Remember(client); WriteSnapshot(); SaveHistory(); }
+public void OnClientPostAdminCheck(int client) { Remember(client); EnforceBan(client); WriteSnapshot(); SaveHistory(); }
 public void OnClientDisconnect(int client) { Remember(client); SaveHistory(); }
 public void OnClientDisconnect_Post(int client) { WriteSnapshot(); }
 public void OnPluginEnd() { SaveHistory(); if (FileExists(gSnapshotPath)) DeleteFile(gSnapshotPath); }
@@ -58,6 +64,7 @@ bool WriteSnapshot() {
     KeyValues snapshot = new KeyValues("PanelPlayers");
     snapshot.SetEscapeSequences(true);
     snapshot.SetNum("version", 1); snapshot.SetNum("updated", GetTime());
+    snapshot.SetNum("moderationVersion", 1);
     int bots;
     for (int client = 1; client <= MaxClients; client++) if (IsClientInGame(client) && IsFakeClient(client)) bots++;
     snapshot.SetNum("bots", bots); snapshot.JumpToKey("players", true);
@@ -86,5 +93,53 @@ public Action CommandSnapshot(int args) {
     bool written = WriteSnapshot(); SaveHistory();
     if (written) PrintToServer("L4D2CONTROL_SNAPSHOT %s", nonce);
     else PrintToServer("L4D2CONTROL_ERROR snapshot write failed");
+    return Plugin_Handled;
+}
+
+bool LoadBans() {
+    KeyValues next = new KeyValues("PanelBans");
+    next.SetEscapeSequences(true);
+    if (FileExists(gBansPath) && (!next.ImportFromFile(gBansPath) || next.GetNum("version") != 1)) { delete next; return false; }
+    delete gBans; gBans = next;
+    return true;
+}
+bool ActiveBan(int client) {
+    if (!gBans || !IsClientConnected(client) || IsFakeClient(client) || !IsClientAuthorized(client)) return false;
+    char steam2[32], expiry[32], current[32];
+    if (!GetClientAuthId(client, AuthId_Steam2, steam2, sizeof(steam2), true)) return false;
+    if (steam2[6] == '0') steam2[6] = '1';
+    gBans.Rewind();
+    bool found = gBans.JumpToKey("bans") && gBans.JumpToKey(steam2);
+    if (found) gBans.GetString("expires", expiry, sizeof(expiry));
+    gBans.Rewind();
+    if (!found || !expiry[0]) return false;
+    IntToString(GetTime(), current, sizeof(current));
+    // Decimal comparison avoids overflowing a long-duration expiry timestamp.
+    return strlen(expiry) > strlen(current) || (strlen(expiry) == strlen(current) && strcmp(expiry, current) > 0);
+}
+void EnforceBan(int client) {
+    if (ActiveBan(client) && !IsClientInKickQueue(client)) KickClient(client, "You are banned from this server. Contact the server administrator.");
+}
+void EnforceBans() { for (int client = 1; client <= MaxClients; client++) EnforceBan(client); }
+public void OnClientAuthorized(int client, const char[] auth) { EnforceBan(client); }
+public Action CommandBans(int args) {
+    char expected[40], revision[40]; GetCmdArg(1, expected, sizeof(expected));
+    if (!LoadBans()) { PrintToServer("L4D2CONTROL_BANS_ERROR %s", expected); return Plugin_Handled; }
+    gBans.Rewind(); gBans.GetString("revision", revision, sizeof(revision));
+    if (!StrEqual(expected, revision)) { PrintToServer("L4D2CONTROL_BANS_ERROR %s", expected); return Plugin_Handled; }
+    EnforceBans();
+    PrintToServer("L4D2CONTROL_BANS %s", revision);
+    return Plugin_Handled;
+}
+public Action CommandKick(int args) {
+    char nonce[40], expected[32], userid[16], actual[32];
+    GetCmdArg(1, nonce, sizeof(nonce)); GetCmdArg(2, expected, sizeof(expected)); GetCmdArg(3, userid, sizeof(userid));
+    int client = GetClientOfUserId(StringToInt(userid));
+    if (client <= 0 || !IsClientInGame(client) || IsFakeClient(client) || !GetClientAuthId(client, AuthId_SteamID64, actual, sizeof(actual), true) || !StrEqual(actual, expected)) {
+        PrintToServer("L4D2CONTROL_KICK_OFFLINE %s", nonce); return Plugin_Handled;
+    }
+    Remember(client); SaveHistory();
+    KickClient(client, "You were kicked by the server administrator.");
+    PrintToServer("L4D2CONTROL_KICK %s", nonce);
     return Plugin_Handled;
 }

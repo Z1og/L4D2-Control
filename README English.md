@@ -102,7 +102,7 @@ The default URL is `http://127.0.0.1:4174`, reachable only on the server itself.
 - OpenList is a virtual cloud-drive layer, not a speed booster. If a download is proxied through OpenList, throughput is bounded by the slowest of Baidu's upstream, the OpenList host's outbound link and the client's route. Data can bypass the OpenList host only when the driver returns a usable direct/302 link and the client can reach it. The first map backup still uses the game server's uplink; a server cache can avoid repeated upstream reads, not accelerate the first Baidu transfer.
 - Configured content requests do not fall back to direct connections when the proxy fails. System, game and SSH traffic are not redirected. Subscription retrieval uses a separate HTTPS connection, not the content SOCKS proxy.
 - Origin validation uses the request's actual TLS state. Direct HTTPS is recommended; a basic HTTPS-to-HTTP reverse proxy can break write operations.
-- Bilingual documentation is not a UI language switch. The players view and activity feed are not a full player-management or persistent audit system.
+- Bilingual documentation is not a UI language switch. The activity feed is session-local; permission and moderation audits are stored separately in private server files.
 
 ## Testing and maintenance
 
@@ -140,7 +140,7 @@ For co-located OpenList, optional `OPENLIST_CONNECT_ADDRESS=127.0.0.1` uses loop
 
 Online Players shows real human/bot counts, team, latency, connected duration, and exact SteamID2/3/64 values, with search, copy-ID, history and administrator tabs. Server Diagnostics is in the System sidebar section.
 
-Install the read-only SourceMod bridge from `sourcemod/L4D2 Control Players.sp` as described in the deployment guide. History starts when the bridge is enabled, is not retrospective and excludes IP addresses. Snapshots older than 20 seconds show unknown status and disable permission editing.
+Install the SourceMod player-management bridge from `sourcemod/L4D2 Control Players.sp` as described in the deployment guide. History starts when the bridge is enabled, is not retrospective and excludes IP addresses. Snapshots older than 20 seconds show unknown status and disable permission editing.
 
 Grant, adjust or revoke panel-owned SourceMod permissions by SteamID. Presets: plugin administrator `bfn`, game moderator `bcdfgjk`, or custom flags `a–t` / `z`. Root requires separate confirmation. Use `!admin` / `/admin` for an installed admin menu; each plugin still determines its own command and flag requirements. Permissions do not install plugins.
 
@@ -159,3 +159,11 @@ Download Helper 1.2.1 or later is required. Download the new ZIP, replace the fi
 ### ⭐ 如果本项目对你有帮助别忘了点一下star⭐
 
 Your star helps more Left 4 Dead 2 server owners discover this project.
+
+## Restart, kick and timed bans
+
+- The Overview restart button sits before Quick Map and requires confirmation. It reports progress and supports a single Linux game process supervised by `srcds_run` with automatic restart, under the same account and host as the panel. Unsupported supervisors and `-norestart` are rejected.
+- Kick current players individually or with batch selection. The confirmation offers kick only, kick and ban, or cancel; kick and ban opens a duration selector before submission.
+- Ban recorded Steam identities for **1, 3, 7, 30, 180 or 3650 days**. The banned-player tab supports changing durations and unbanning, including batches of up to 100 identities. Changing a duration restarts its countdown from confirmation time.
+- The SourceMod bridge enforces bans when players join. Bans expire automatically and survive server restarts without an open browser. Only panel-owned bans are changed; other plugins' bans are preserved.
+- Recompile and reload **L4D2 Control Players 1.1.0** after upgrading. A page refresh does not update the game plugin. Private `bans.txt` and `moderation audit.jsonl` files live in `left4dead2/addons/sourcemod/data/l4d2 control/`; never publish these records.

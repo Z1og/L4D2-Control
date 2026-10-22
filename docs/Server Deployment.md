@@ -487,3 +487,19 @@ Verify a fresh timestamp in Online Players; zero humans remains zero. An offline
 ### ⭐ 如果本项目对你有帮助别忘了点一下star⭐
 
 你的支持能让更多服主发现这个项目，也欢迎提交问题与改进建议。
+
+## 重启、踢出与限时拉黑
+
+- 总览的“重启服务器”位于“快速切图”左侧，二次确认后才执行，并显示重启进度。支持面板与游戏同机同账号、Linux 上由 `srcds_run` 自动重启托管的唯一游戏进程；不支持 `-norestart` 或未识别的托管方式时会拒绝操作。
+- 当前在线玩家可单独或勾选批量踢出。确认框提供“仅踢出服务器”“踢出和拉黑”“取消”；选择踢出并拉黑后再选择时长并确认。
+- 玩家记录可按 SteamID 拉黑，时长为 **1、3、7、30、180、3650 天**。已拉黑页面支持修改时长和取消拉黑，也支持批量操作；每批最多 100 位。修改时长从本次确认重新计时。
+- 黑名单由 SourceMod 插件在玩家加入时校验，到期自动失效，重启后继续生效；不依赖浏览器保持打开。面板只管理自己的黑名单，不会撤销其他插件的封禁。
+- 升级后需要重新编译并重载 **L4D2 Control Players 1.1.0**，仅刷新网页不能升级游戏插件。黑名单和处置审计位于私有目录 `left4dead2/addons/sourcemod/data/l4d2 control/` 中的 `bans.txt`、`moderation audit.jsonl`，不应上传到公共仓库。
+
+## Restart, kick and timed bans
+
+- The Overview restart button sits before Quick Map and requires confirmation. It reports progress and supports a single Linux game process supervised by `srcds_run` with automatic restart, under the same account and host as the panel. Unsupported supervisors and `-norestart` are rejected.
+- Kick current players individually or with batch selection. The confirmation offers kick only, kick and ban, or cancel; kick and ban opens a duration selector before submission.
+- Ban recorded Steam identities for **1, 3, 7, 30, 180 or 3650 days**. The banned-player tab supports changing durations and unbanning, including batches of up to 100 identities. Changing a duration restarts its countdown from confirmation time.
+- The SourceMod bridge enforces bans when players join. Bans expire automatically and survive server restarts without an open browser. Only panel-owned bans are changed; other plugins' bans are preserved.
+- Recompile and reload **L4D2 Control Players 1.1.0** after upgrading. A page refresh does not update the game plugin. Private `bans.txt` and `moderation audit.jsonl` files live in `left4dead2/addons/sourcemod/data/l4d2 control/`; never publish these records.

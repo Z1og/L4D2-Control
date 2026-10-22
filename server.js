@@ -19,6 +19,8 @@ const { PROJECT_URL, parseConfig: parseOpenListConfig, createManager: createOpen
 const { createCloudMaps } = require('./cloud maps');
 const { createCloudDownloads } = require('./cloud downloads');
 const { createPlayerManager } = require('./player manager');
+const { createModeration, BAN_DAYS } = require('./player moderation');
+const { createRestartController, inspectGame } = require('./server controls');
 
 const root = __dirname;
 const port = Number(process.env.PORT || 4174);
@@ -52,6 +54,25 @@ async function refreshPlayerSnapshot(reload = false) {
   if (!output.includes('L4D2CONTROL_SNAPSHOT ' + nonce) || /Unknown command.*sm_reloadadmins/i.test(output)) throw new Error('SourceMod 未确认玩家状态更新');
 }
 const playerManager = createPlayerManager({ serverRoot, stateDir: process.env.PLAYER_STATE_DIR || path.join(os.homedir(), '.local', 'state', 'dead-air-panel', 'players'), reloadAdmins: () => refreshPlayerSnapshot(true), refreshSnapshot: () => refreshPlayerSnapshot() });
+const moderation = createModeration({ serverRoot, playerManager,
+  syncBans: async revision => {
+    const output = await captureDiagnosticConsole([`l4d2_control_bans ${revision}`]);
+    if (!output.includes('L4D2CONTROL_BANS ' + revision)) throw new Error('游戏插件未确认黑名单同步');
+  },
+  kickPlayer: async (steam64, userId) => {
+    if (!/^\d{17}$/.test(steam64) || !Number.isInteger(userId) || userId <= 0) throw new Error('在线玩家身份无效');
+    const nonce = crypto.randomBytes(12).toString('hex');
+    const output = await captureDiagnosticConsole([`l4d2_control_kick ${nonce} ${steam64} ${userId}`]);
+    if (!output.includes('L4D2CONTROL_KICK ' + nonce)) throw new Error('玩家已离线或身份发生变化，未执行踢出');
+    for (let attempt = 0; attempt < 5; attempt++) {
+      await new Promise(resolve => setTimeout(resolve, 200)); await refreshPlayerSnapshot();
+      const live = await playerManager.snapshot();
+      if (live.available && !live.players.some(player => player.steam64 === steam64 && player.userId === userId)) return;
+    }
+    throw new Error('已发送踢出请求，但未确认玩家断开，请刷新检查');
+  }
+});
+const restartController = createRestartController({ inspect: () => inspectGame(serverRoot), ready: async () => { try { await refreshPlayerSnapshot(); return (await playerManager.snapshot()).available; } catch { return false; } } });
 const sshConfig = {
   host: process.env.L4D2_SSH_HOST || '',
   port: Number(process.env.L4D2_SSH_PORT || 22),
@@ -348,9 +369,20 @@ async function handleApi(req, res, body) {
       return;
     }
     if (req.method === 'GET' && req.url === '/api/status') { res.end(JSON.stringify(await status())); return; }
+    if (pathname === '/api/server/restart') {
+      if (!localMode || process.platform !== 'linux') throw Object.assign(new Error('重启功能需要在 Linux 游戏服务器本机运行面板'), { status: 400 });
+      if (req.method === 'GET') { res.end(JSON.stringify(restartController.get())); return; }
+      if (req.method === 'POST') { const result = await restartController.start(body ? JSON.parse(body) : {}); res.statusCode = 202; res.end(JSON.stringify(result)); return; }
+    }
     if (pathname.startsWith('/api/players')) {
       if (!localMode) throw Object.assign(new Error('玩家管理需要在游戏服务器本机运行面板'), { status: 400 });
-      if (req.method === 'GET' && pathname === '/api/players') { res.end(JSON.stringify(await playerManager.list())); return; }
+      if (req.method === 'GET' && pathname === '/api/players') {
+        const data = await playerManager.list();
+        let bans = [], moderationError = '';
+        try { bans = await moderation.list(); } catch { moderationError = '黑名单读取失败，玩家处置已禁用，请检查服务器文件'; }
+        res.end(JSON.stringify({ ...data, bans, banDays: BAN_DAYS, moderationAvailable: data.moderationAvailable && !moderationError, moderationError })); return;
+      }
+      if (req.method === 'POST' && pathname === '/api/players/moderation') { res.end(JSON.stringify(await moderation.act(body ? JSON.parse(body) : {}, panelUser))); return; }
       if (req.method === 'POST' && pathname === '/api/players/permissions') {
         const payload = body ? JSON.parse(body) : {};
         res.end(JSON.stringify(await playerManager.update(payload, panelUser))); return;

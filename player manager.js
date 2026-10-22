@@ -134,7 +134,7 @@ function createPlayerManager({ serverRoot, stateDir = path.join(os.homedir(), '.
         if (identity.steam64 !== String(row.steam64)) throw new Error('Steam identity mismatch');
         players.push({ ...identity, name: String(row.name || '').slice(0, 128), userId: Number(row.userid), team: Number(row.team), ping: Math.max(0, Number(row.ping) || 0), connectedSeconds: Math.max(0, Number(row.connected) || 0), runtimeFlags: flagsOf(String(row.flags || '')), runtimeImmunity: Math.max(0, Number(row.immunity) || 0), online: true });
       }
-      return { available: true, players, bots: Number(root.bots) || 0, checkedAt, reason: '' };
+      return { available: true, moderationAvailable: Number(root.moderationversion) === 1, players, bots: Number(root.bots) || 0, checkedAt, reason: '' };
     } catch { return { available: false, reason: '未取得玩家采集数据，请检查 L4D2 Control Players 插件是否运行', players: [], bots: 0, checkedAt: null }; }
   }
   async function freshSnapshot() {
