@@ -606,10 +606,14 @@ function updateCloudDownloadCommand() {
   const name = cloudDirectInfo.name.replace(/[<>:"/\\|?*]/g, '-');
   const ua = quote(cloudDirectInfo.userAgent), url = quote(cloudDirectInfo.url), output = quote(name);
   $('#cloudDownloadCommand').value = $('#cloudDownloadTool').value === 'aria2' ? 'aria2c --continue=true --split=4 --max-connection-per-server=4 --user-agent=' + ua + ' --out=' + output + ' -- ' + url : 'curl.exe --fail --location --retry 2 --user-agent ' + ua + ' --continue-at - --output ' + output + ' -- ' + url;
+  const directLink = $('#browserDirectDownload');
+  directLink.href = cloudDirectInfo.url;
+  const directUrl = new URL(cloudDirectInfo.url);
+  directLink.hidden = !cloudDirectInfo.direct || cloudDirectInfo.userAgent !== 'pan.baidu.com' || directUrl.protocol !== 'https:' || !/(^|\.)(baidupcs\.com|pcs\.baidu\.com)$/i.test(directUrl.hostname);
 }
 $('#cloudDownloadTool').onchange = updateCloudDownloadCommand;
 $('#closeCloudDownload').onclick = () => cloudDownloadDialog.close();
-cloudDownloadDialog.addEventListener('close', () => { cloudDirectController?.abort(); cloudDirectInfo = null; $('#cloudDownloadCommand').value = ''; });
+cloudDownloadDialog.addEventListener('close', () => { cloudDirectController?.abort(); cloudDirectInfo = null; $('#cloudDownloadCommand').value = ''; $('#browserDirectDownload').hidden = true; $('#browserDirectDownload').removeAttribute('href'); });
 $('#copyCloudDownloadCommand').onclick = async () => { if (!cloudDirectInfo) return; try { await navigator.clipboard.writeText($('#cloudDownloadCommand').value); toast('下载命令已复制，粘贴到电脑的 PowerShell 执行'); } catch { $('#cloudDownloadCommand').focus(); $('#cloudDownloadCommand').select(); toast('请复制已选中的下载命令'); } };
 $('#cloudMapList').onclick = async event => {
   const button = event.target.closest('[data-cloud-download], [data-cloud-direct], [data-cloud-share]');
@@ -626,6 +630,7 @@ $('#cloudMapList').onclick = async event => {
       cloudDirectController?.abort(); cloudDirectController = new AbortController();
       const controller = cloudDirectController;
       cloudDirectInfo = null; $('#cloudDownloadName').textContent = button.dataset.cloudDirect;
+      $('#browserDirectDownload').hidden = true; $('#browserDirectDownload').removeAttribute('href');
       $('#cloudDownloadMessage').textContent = '正在生成临时下载链接…'; $('#cloudDownloadCommand').value = ''; $('#copyCloudDownloadCommand').disabled = true;
       cloudDownloadDialog.showModal();
       try {

@@ -22,7 +22,8 @@ logs/
 bin/
 dashboard/
 state/
-downloads/
+downloads/*
+!downloads/L4D2 Baidu Download Helper.zip
 backups/
 profiles/
 config.json

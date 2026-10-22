@@ -416,7 +416,19 @@ Use a dedicated GENERAL account based at `/l4d2-maps`, with write-content and sh
 
 同机部署 OpenList 时，可选 `OPENLIST_CONNECT_ADDRESS=127.0.0.1`，上传连接走本机回环，仍校验 `OPENLIST_URL` 的 HTTPS 证书。进度到“云盘正在保存”表示 OpenList 已接收文件，须等网盘完成后才计为备份成功。百度上传较慢时可在驱动中设置单线程、4 MiB 分片、每片超时 600 秒；这些仅为部署建议，面板不会自动改动网盘设置。
 
+### 浏览器扩展：本机直连下载
+
+如果不想让百度地图文件经过游戏服务器，可在面板登录后进入“云端地图 → 下载器直连”，下载 `L4D2 Baidu Download Helper.zip` 和安装说明。Chrome/Edge 打开扩展管理页，启用开发者模式，解压 ZIP 后选择包含 `manifest.json` 的文件夹加载；回到面板标签页，点击扩展图标并绑定当前标签页，然后从同一标签页点击“浏览器直接下载”。数据从百度直接传到本机，游戏服务器只提供短时下载链接。
+
+扩展只修改手动绑定标签页从该面板发起、指向百度下载域名的请求头；不配置代理、不读取网页内容、不保存下载链接。规则仅在当前浏览器会话有效，重启浏览器后需要重新绑定。下载链接或百度策略变化时，可改用本机 curl/aria2 命令。扩展安装页：`/downloads/baidu-download-helper-guide`。
+
 For co-located OpenList, optional `OPENLIST_CONNECT_ADDRESS=127.0.0.1` uses loopback uploads while validating the original HTTPS identity. The cloud-save stage means OpenList has received the file; completion is only recorded after the cloud provider finishes. For slow Baidu uploads, consider one upload thread, 4 MiB slices, and a 600-second per-slice timeout in the driver; the panel does not automatically change these provider settings.
+
+### Browser extension: download directly to your computer
+
+To avoid routing Baidu map files through the game server, sign in to the panel and open **Cloud Maps → Direct downloader**. Download `L4D2 Baidu Download Helper.zip` and the installation guide. In Chrome/Edge, open the extensions page, enable Developer mode, extract the ZIP and load the folder containing `manifest.json`. Return to the panel tab, click the extension icon and bind that tab, then choose **Browser direct download** from the same tab. The file transfers from Baidu to your computer; the game server only supplies the temporary link.
+
+The extension changes headers only for requests initiated by the manually bound panel tab and addressed to Baidu download hosts. It does not configure a proxy, read page content or save download links. The rule exists only for the current browser session; bind again after restarting the browser. If the temporary link or Baidu policy changes, use the local curl/aria2 command instead. Installation page: `/downloads/baidu-download-helper-guide`.
 
 ### 玩家采集插件 / Player bridge
 

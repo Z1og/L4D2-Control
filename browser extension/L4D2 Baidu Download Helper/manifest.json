@@ -1,0 +1,19 @@
+{
+  "manifest_version": 3,
+  "name": "L4D2 Baidu Download Helper",
+  "version": "1.0.0",
+  "description": "仅为已绑定面板发起的百度网盘直链设置下载请求头。",
+  "minimum_chrome_version": "111",
+  "permissions": [
+    "activeTab",
+    "declarativeNetRequestWithHostAccess"
+  ],
+  "host_permissions": [
+    "https://*.baidupcs.com/*",
+    "https://*.pcs.baidu.com/*"
+  ],
+  "action": {
+    "default_title": "L4D2 百度直链助手",
+    "default_popup": "popup.html"
+  }
+}

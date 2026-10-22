@@ -514,6 +514,24 @@ function serveFile(req, res) {
     }
     fs.createReadStream(file).pipe(res); return;
   }
+  const extensionAsset = requestPath === '/downloads/baidu-download-helper.zip'
+    ? { file: path.join(root, 'downloads', 'L4D2 Baidu Download Helper.zip'), type: 'application/zip', disposition: 'attachment; filename="L4D2 Baidu Download Helper.zip"; filename*=UTF-8\'\'L4D2%20Baidu%20Download%20Helper.zip' }
+    : requestPath === '/downloads/baidu-download-helper-guide'
+      ? { file: path.join(root, 'docs', 'Browser Extension Installation.html'), type: 'text/html; charset=utf-8' }
+      : null;
+  if (extensionAsset) {
+    if (!['GET', 'HEAD'].includes(req.method)) { res.writeHead(405, { Allow: 'GET, HEAD' }); res.end('Method not allowed'); return; }
+    if (!fs.existsSync(extensionAsset.file) || !fs.statSync(extensionAsset.file).isFile()) { res.writeHead(404); res.end('Not found'); return; }
+    res.setHeader('content-type', extensionAsset.type);
+    res.setHeader('content-length', fs.statSync(extensionAsset.file).size);
+    res.setHeader('x-content-type-options', 'nosniff');
+    res.setHeader('cache-control', 'private, no-store');
+    if (extensionAsset.disposition) res.setHeader('content-disposition', extensionAsset.disposition);
+    if (req.method === 'HEAD') { res.end(); return; }
+    const stream = fs.createReadStream(extensionAsset.file);
+    stream.on('error', () => res.destroy()); res.on('close', () => stream.destroy());
+    stream.pipe(res); return;
+  }
   const relative = requestPath === '/' ? 'index.html' : requestPath.replace(/^\/+/, '');
   if (!['index.html', 'app.js', 'players.js', 'styles.css'].includes(relative)) { res.statusCode = 404; res.end('Not found'); return; }
   const filePath = path.resolve(root, relative);
