@@ -34,7 +34,7 @@
 
 | 总览 | 地图管理 |
 | --- | --- |
-| ![总览](https://raw.githubusercontent.com/Z1og/L4D2-Control/c5e295112d77ab696e363cfd41b64343a9736644/docs/Project%20Preview/Overview.png) | ![地图管理](https://raw.githubusercontent.com/Z1og/L4D2-Control/c5e295112d77ab696e363cfd41b64343a9736644/docs/Project%20Preview/Maps.png) |
+| ![总览](https://raw.githubusercontent.com/Z1og/L4D2-Control/23f2a9474bafeb56ef7b06ff097d6eff99a673c0/docs/Project%20Preview/Overview.png) | ![地图管理](https://raw.githubusercontent.com/Z1og/L4D2-Control/c5e295112d77ab696e363cfd41b64343a9736644/docs/Project%20Preview/Maps.png) |
 
 | 插件管理 | 内容下载 |
 | --- | --- |

@@ -24,7 +24,7 @@ Server details in these previews are redacted; the project does not include a re
 
 | Overview | Map management |
 | --- | --- |
-| ![Overview](https://raw.githubusercontent.com/Z1og/L4D2-Control/c5e295112d77ab696e363cfd41b64343a9736644/docs/Project%20Preview/Overview.png) | ![Map management](https://raw.githubusercontent.com/Z1og/L4D2-Control/c5e295112d77ab696e363cfd41b64343a9736644/docs/Project%20Preview/Maps.png) |
+| ![Overview](https://raw.githubusercontent.com/Z1og/L4D2-Control/23f2a9474bafeb56ef7b06ff097d6eff99a673c0/docs/Project%20Preview/Overview.png) | ![Map management](https://raw.githubusercontent.com/Z1og/L4D2-Control/c5e295112d77ab696e363cfd41b64343a9736644/docs/Project%20Preview/Maps.png) |
 
 | Plugin management | Content downloads |
 | --- | --- |
