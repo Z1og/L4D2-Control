@@ -22,11 +22,11 @@ Server details in these previews are redacted; the project does not include a re
 
 | Overview | Map management |
 | --- | --- |
-| ![Overview](docs/Project%20Preview/Overview.png) | ![Map management](docs/Project%20Preview/Maps.png) |
+| ![Overview](docs/Project%20Preview/Overview.png?v=277d187ba382) | ![Map management](docs/Project%20Preview/Maps.png?v=965ed2bd5cb2) |
 
 | Plugin management | Content downloads |
 | --- | --- |
-| ![Plugin management](docs/Project%20Preview/Plugins.png) | ![Content downloads](docs/Project%20Preview/Downloads.png) |
+| ![Plugin management](docs/Project%20Preview/Plugins.png?v=91c7f35b5a0e) | ![Content downloads](docs/Project%20Preview/Downloads.png?v=5a97dee7beac) |
 
 ## Features
 

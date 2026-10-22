@@ -30,11 +30,11 @@
 
 | 总览 | 地图管理 |
 | --- | --- |
-| ![总览](docs/Project%20Preview/Overview.png) | ![地图管理](docs/Project%20Preview/Maps.png) |
+| ![总览](docs/Project%20Preview/Overview.png?v=277d187ba382) | ![地图管理](docs/Project%20Preview/Maps.png?v=965ed2bd5cb2) |
 
 | 插件管理 | 内容下载 |
 | --- | --- |
-| ![插件管理](docs/Project%20Preview/Plugins.png) | ![内容下载](docs/Project%20Preview/Downloads.png) |
+| ![插件管理](docs/Project%20Preview/Plugins.png?v=91c7f35b5a0e) | ![内容下载](docs/Project%20Preview/Downloads.png?v=5a97dee7beac) |
 
 ---
 
