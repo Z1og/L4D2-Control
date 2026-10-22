@@ -1,4 +1,10 @@
-# L4D2-Control
+# 今天一定要活下去
+
+> [!IMPORTANT]
+> **如果本项目对你有帮助别忘了点一下star⭐**
+> If this project helps you, please click **Star ⭐** in the upper-right corner of this repository.
+
+**Survive Today** · A Left 4 Dead 2 server control panel, formerly L4D2-Control.
 
 [Home](README.md) · [简体中文](README%20Chinese.md) · [Server deployment guide](docs/Server%20Deployment.md#english-server-deployment-guide)
 
@@ -41,7 +47,7 @@ A Steam subscription alone does not install files on a dedicated server. Install
 Use Linux with Node.js 22 LTS or a newer supported LTS, GNU screen and an already running L4D2 server. Run the panel as the same Unix user that owns the game's screen session. Plugin operations require MetaMod/SourceMod.
 
 ```sh
-git clone https://github.com/Z1og/L4D2-Control.git
+git clone https://github.com/Z1og/jin-tian-yi-ding-yao-huo-xia-qu.git L4D2-Control
 cd L4D2-Control
 npm ci
 cp .env.example .env
@@ -145,3 +151,9 @@ Only the latest pre-edit admin configuration is retained, not a whole-server bac
 Map cards provide **Direct download export (recommended)** and **Server download export**. Direct export is available only for maps with a verified cloud backup and a Baidu direct link. The browser link is refreshed when clicked, and the curl/aria2 link is refreshed immediately before copying. Temporary links expire, so run a copied command promptly.
 
 Download Helper 1.2.1 or later is required. Download the new ZIP, replace the files in the existing extension folder, click Reload on the browser extensions page and confirm the version. Return to the panel and bind its tab again. Refreshing the website alone does not update an extension; same-tab reloads reconnect automatically. Rebind after opening a new tab, restarting the browser or updating the extension. The helper checks its binding, refreshes the signed link, verifies the VPK header and file size from your computer, then starts the download from the bound tab while keeping the panel open. Missing bindings and failed checks are reported in the dialog. Check the browser download list for final completion.
+
+---
+
+### ⭐ 如果本项目对你有帮助别忘了点一下star⭐
+
+Your star helps more Left 4 Dead 2 server owners discover this project.

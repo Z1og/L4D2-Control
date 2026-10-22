@@ -1,4 +1,10 @@
-# L4D2-Control
+# 今天一定要活下去
+
+> [!IMPORTANT]
+> **如果本项目对你有帮助别忘了点一下star⭐**
+> 点击仓库右上角的 **Star**，支持项目继续更新。
+
+**求生之路 2 服务器管理面板** · 原名 L4D2-Control。
 
 [首页](README.md) · [English](README%20English.md) · [服务器部署教程](docs/Server%20Deployment.md#简体中文部署教程)
 
@@ -41,7 +47,7 @@ OpenList 和百度网盘均为可选组件；不配置网盘仍可使用本地�
 推荐 Linux 服务器、Node.js 22 LTS 或更新的受支持 LTS 版本、GNU screen，以及已经运行的 L4D2 服务。面板运行账号须与游戏 screen 会话所属账号一致。插件管理需要 MetaMod/SourceMod。
 
 ```sh
-git clone https://github.com/Z1og/L4D2-Control.git
+git clone https://github.com/Z1og/jin-tian-yi-ding-yao-huo-xia-qu.git L4D2-Control
 cd L4D2-Control
 npm ci
 cp .env.example .env
@@ -147,3 +153,9 @@ npm test
 地图管理卡片提供「直连下载导出（推荐）」和「服务器下载导出」。前者只适用于已完成云端备份的地图，并要求 OpenList 返回百度直链；浏览器按钮在实际点击时重新取签名链接，复制 curl/aria2 命令前也会刷新。由于链接有时效，复制命令后应尽快执行。
 
 需要下载助手 1.2.1 或更新版。请重新下载 ZIP，覆盖原扩展文件夹，在浏览器扩展页点击“重新加载”并确认版本，再回到面板点击扩展图标“绑定当前面板标签页”。仅刷新网页不会更新扩展；同一标签页刷新会自动恢复连接；新标签页、浏览器重启或扩展更新后需重新绑定。新版会检测扩展、刷新签名链接，从本机读取文件头并核对 VPK 和大小，再从绑定标签页启动直连下载，面板保持打开。未绑定或验证失败时会显示明确提示。请在浏览器下载列表确认最终完成状态。
+
+---
+
+### ⭐ 如果本项目对你有帮助别忘了点一下star⭐
+
+你的支持能让更多服主发现这个项目，也欢迎提交问题与改进建议。

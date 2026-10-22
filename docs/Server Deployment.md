@@ -1,4 +1,10 @@
-# L4D2-Control Server Deployment / 服务器部署教程
+# 今天一定要活下去 · 服务器部署教程 / Server Deployment
+
+> [!IMPORTANT]
+> **如果本项目对你有帮助别忘了点一下star⭐**
+> 点击仓库右上角的 **Star**，支持项目继续更新。
+
+**求生之路 2 服务器管理面板** · 原名 L4D2-Control。
 
 Replace placeholders such as `<GAME_USER>`, `<GAME_ROOT>`, `<SCREEN_SESSION>`, `<PANEL_DOMAIN>` and `<PUBLIC_GAME_HOST>` with your own values. Never commit passwords, subscription links, private keys or real credentials.
 
@@ -18,8 +24,8 @@ Replace placeholders such as `<GAME_USER>`, `<GAME_ROOT>`, `<SCREEN_SESSION>`, `
 
 ~~~text
 请根据 L4D2-Control 项目和服务器部署教程，帮我在这台我有权限管理的 Linux 服务器上完成部署。
-项目地址：https://github.com/Z1og/L4D2-Control
-教程：https://github.com/Z1og/L4D2-Control/blob/main/docs/Server%20Deployment.md
+项目地址：https://github.com/Z1og/jin-tian-yi-ding-yao-huo-xia-qu
+教程：https://github.com/Z1og/jin-tian-yi-ding-yao-huo-xia-qu/blob/main/docs/Server%20Deployment.md
 请先检查 Node.js、screen、L4D2 游戏目录和权限，再逐步执行；每一步报告结果，遇到错误先停下来说明原因。
 请使用安全的随机面板密码、HTTPS 和最小权限，不要把密码、私钥、令牌、订阅链接或服务器凭据写入公开聊天、代码或 Git 提交。
 ~~~
@@ -53,7 +59,7 @@ GAME_USER=replace-with-game-user  # 换成拥有 screen 会话的账号
 id "$GAME_USER"
 sudo mkdir -p /opt/L4D2-Control
 sudo chown "$GAME_USER:$GAME_USER" /opt/L4D2-Control
-sudo -H -u "$GAME_USER" git clone https://github.com/Z1og/L4D2-Control.git /opt/L4D2-Control
+sudo -H -u "$GAME_USER" git clone https://github.com/Z1og/jin-tian-yi-ding-yao-huo-xia-qu.git /opt/L4D2-Control
 sudo -H -u "$GAME_USER" npm --prefix /opt/L4D2-Control ci
 ~~~
 
@@ -215,8 +221,8 @@ If you are not comfortable with Linux, give the public project URL to a trusted 
 
 ~~~text
 Please deploy L4D2-Control on this Linux server, which I am authorized to manage, using the project and deployment guide below.
-Project: https://github.com/Z1og/L4D2-Control
-Guide: https://github.com/Z1og/L4D2-Control/blob/main/docs/Server%20Deployment.md
+Project: https://github.com/Z1og/jin-tian-yi-ding-yao-huo-xia-qu
+Guide: https://github.com/Z1og/jin-tian-yi-ding-yao-huo-xia-qu/blob/main/docs/Server%20Deployment.md
 Check Node.js, screen, the L4D2 directory and permissions first. Execute one step at a time and report the result; stop and explain any error before continuing.
 Use a strong random panel password, HTTPS and least privilege. Never put passwords, private keys, tokens, subscription URLs or server credentials in public chat, source code or Git commits.
 ~~~
@@ -248,7 +254,7 @@ GAME_USER=replace-with-game-user  # screen session owner
 id "$GAME_USER"
 sudo mkdir -p /opt/L4D2-Control
 sudo chown "$GAME_USER:$GAME_USER" /opt/L4D2-Control
-sudo -H -u "$GAME_USER" git clone https://github.com/Z1og/L4D2-Control.git /opt/L4D2-Control
+sudo -H -u "$GAME_USER" git clone https://github.com/Z1og/jin-tian-yi-ding-yao-huo-xia-qu.git /opt/L4D2-Control
 sudo -H -u "$GAME_USER" npm --prefix /opt/L4D2-Control ci
 ~~~
 
@@ -471,3 +477,9 @@ Verify a fresh timestamp in Online Players; zero humans remains zero. An offline
 
 ### 地图一键下载 / Map downloads
 无需新增端口或安装 aria2 服务端。“服务器下载导出”从游戏服务器中转 VPK，速度受服务器出站带宽影响；“直连下载导出（推荐）”需要已确认的云端备份和有效的百度直链。浏览器直连点击时刷新签名，curl/aria2 命令复制时刷新签名；OpenList 账号令牌不会发送到下载端。 / No additional port or server-side aria2 is required. Server download export streams the VPK through the game server and uses its egress bandwidth. Direct download export requires a verified cloud backup and a valid Baidu raw link. Browser links refresh at click time; curl/aria2 links refresh before copying. OpenList credentials are never forwarded to download clients.
+
+---
+
+### ⭐ 如果本项目对你有帮助别忘了点一下star⭐
+
+你的支持能让更多服主发现这个项目，也欢迎提交问题与改进建议。
