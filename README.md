@@ -100,3 +100,10 @@ Game Mode appears above Maps in the sidebar. Authorized users can select campaig
 Expanded rooms require running `l4d2_sv_maxplayers` and `bots` plugins. Limits are read from live ConVars, not assumed. This adapter uses `bots_limit` / `bots_join_limit`; unsupported plugins remain unavailable. Capacity cannot be reduced below the online human count. Disabling expanded rooms restores standard capacity: 4 for co-op/realism/survival and 8 for versus/scavenge.
 
 Changes require confirmation and read-back; mismatches restore previous values. Settings persist in SourceMod's private `data/l4d2 control/gameplay.txt`, restored after map configs by version **1.3.0+** of this project's player bridge. Mode and initial bot changes may require a map reload. Reload has separate confirmation and resets current progress; the chosen map must support the mode. Deploying the panel does not change live gameplay settings.
+
+## 浏览状态与玩家备注
+
+- 同一浏览器标签页内刷新时，保留当前页面、插件分类、搜索词、地图展开状态、玩家页签，以及各页面和侧栏的滚动位置。内容下载恢复上次结果，不自动重新请求第三方搜索。
+- 直连下载通过检查并提交浏览器后，弹窗自动关闭；检查失败时继续保留错误说明。
+- 授权管理员可为玩家添加、编辑、搜索和清除备注。备注按 SteamID 保存，改名或离线仍保留，普通账号不可查看或修改。
+- 登录页精简为登录和权限说明；既有私有登录与操作记录处理方式见部署教程。

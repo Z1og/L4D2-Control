@@ -18,7 +18,8 @@ const { PROJECT_URL, parseConfig: parseOpenListConfig, createManager: createOpen
 
 const { createCloudMaps } = require('./cloud maps');
 const { createCloudDownloads } = require('./cloud downloads');
-const { createPlayerManager } = require('./player manager');
+const { createPlayerManager, steamIdentity } = require('./player manager');
+const { createPlayerNotes } = require('./player notes');
 const { createModeration, BAN_DAYS } = require('./player moderation');
 const { createRestartController, inspectGame } = require('./server controls');
 const { createGameplayController } = require('./gameplay controls');
@@ -65,6 +66,7 @@ async function refreshPlayerSnapshot(reload = false) {
   if (!output.includes('L4D2CONTROL_SNAPSHOT ' + nonce) || /Unknown command.*sm_reloadadmins/i.test(output)) throw new Error('SourceMod 未确认玩家状态更新');
 }
 const playerManager = createPlayerManager({ serverRoot, stateDir: process.env.PLAYER_STATE_DIR || path.join(os.homedir(), '.local', 'state', 'dead-air-panel', 'players'), reloadAdmins: () => refreshPlayerSnapshot(true), refreshSnapshot: () => refreshPlayerSnapshot() });
+const playerNotes = createPlayerNotes({ directory: process.env.PLAYER_STATE_DIR || path.join(os.homedir(), '.local', 'state', 'dead-air-panel', 'players') });
 const moderation = createModeration({ serverRoot, playerManager, registeredPlayers: () => accounts.list(),
   syncBans: async revision => {
     const output = await captureDiagnosticConsole([`l4d2_control_bans ${revision}`]);
@@ -426,7 +428,19 @@ async function handleApi(req, res, body) {
         data.total = data.players.length; data.accessEvents = await accounts.events();
         let bans = [], moderationError = '';
         try { bans = await moderation.list(); } catch { moderationError = '黑名单读取失败，玩家处置已禁用，请检查服务器文件'; }
-        res.end(JSON.stringify({ ...data, bans, banDays: BAN_DAYS, moderationAvailable: data.moderationAvailable && !moderationError, moderationError })); return;
+        let notes = {}, notesError = '';
+        try { notes = await playerNotes.list(); } catch (error) { notesError = error.message; }
+        const withNote = player => ({ ...player, note: notes[player.steam64]?.note || '', noteUpdatedAt: notes[player.steam64]?.updatedAt || null });
+        data.players = data.players.map(withNote); bans = bans.map(withNote);
+        res.end(JSON.stringify({ ...data, notesError, bans, banDays: BAN_DAYS, moderationAvailable: data.moderationAvailable && !moderationError, moderationError })); return;
+      }
+      if (req.method === 'POST' && pathname === '/api/players/notes') {
+        const payload = body ? JSON.parse(body) : {};
+        if (!payload || Array.isArray(payload) || typeof payload !== 'object') throw Object.assign(new Error('备注格式无效'), { status:400 });
+        const identity = steamIdentity(payload.steamId);
+        const [data, registered, bans] = await Promise.all([playerManager.list(), accounts.list(), moderation.list()]);
+        if (![...data.players, ...registered, ...bans].some(player => player.steam64 === identity.steam64)) throw Object.assign(new Error('玩家记录不存在，请刷新列表'), { status:404 });
+        res.end(JSON.stringify(await playerNotes.update(identity.steam64, payload.note, req.access?.name || panelUser))); return;
       }
       if (req.method === 'POST' && pathname === '/api/players/moderation') { res.end(JSON.stringify(await moderation.act(body ? JSON.parse(body) : {}, panelUser))); return; }
       if (req.method === 'POST' && pathname === '/api/players/permissions') {
@@ -616,7 +630,7 @@ function serveFile(req, res) {
     stream.pipe(res); return;
   }
   const relative = requestPath === '/' ? 'index.html' : requestPath === '/login' ? 'login.html' : requestPath.replace(/^\/+/, '');
-  if (!['index.html', 'app.js', 'players.js', 'gameplay.js', 'styles.css', 'login.html', 'login.js', 'login.css'].includes(relative)) { res.statusCode = 404; res.end('Not found'); return; }
+  if (!['index.html', 'app.js', 'panel state.js', 'players.js', 'gameplay.js', 'styles.css', 'login.html', 'login.js', 'login.css'].includes(relative)) { res.statusCode = 404; res.end('Not found'); return; }
   const filePath = path.resolve(root, relative);
   const relativeToRoot = path.relative(root, filePath);
   if (relativeToRoot.startsWith('..') || path.isAbsolute(relativeToRoot) || !fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) { res.statusCode = 404; res.end('Not found'); return; }

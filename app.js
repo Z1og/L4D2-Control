@@ -4,8 +4,9 @@ const $ = selector => document.querySelector(selector);
 const $$ = selector => [...document.querySelectorAll(selector)];
 const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]);
 const categories = { admin: '管理权限', vote: '地图与投票', players: '玩家与人数', gameplay: '玩法与物品', fix: '修复与优化', framework: '框架依赖' };
-let campaigns = [], plugins = [], currentMap = '', selectedMap = '', mapFilter = savedMapFilter(), pluginFilter = 'all';
-const expandedCampaigns = new Set();
+let campaigns = [], plugins = [], currentMap = '', selectedMap = window.panelState?.get('selectedMap', '') || '', mapFilter = savedMapFilter(), pluginFilter = savedPluginFilter();
+const savedCampaigns = window.panelState?.get('expandedCampaigns', []);
+const expandedCampaigns = new Set(Array.isArray(savedCampaigns) ? savedCampaigns.filter(x => typeof x === 'string').slice(0, 500) : []);
 let proxyState = { activeId: null, nodes: [] }, workshopPage = 1, workshopQuery = '', workshopResults = [];
 let contentSection = 'maps', contentSource = 'steam-workshop', downloadJobs = [], searchVersion = 0, searchController = null, hasMoreResults = false, workshopSearched = false, downloadsBusy = false;
 let pluginStorePage = 1, pluginStoreQuery = '', pluginStoreCategory = 'all', pluginStoreResults = [], pluginStoreTotal = 0, pluginStoreHasMore = false, pluginStoreBusy = false, pluginStoreLoaded = false, pluginStoreSyncing = false;
@@ -70,6 +71,7 @@ function navigate(view) {
   if (!Object.hasOwn(panelViews, view) || typeof isGuest !== 'undefined' && isGuest && !['overview', 'maps', 'plugins'].includes(view)) view = 'overview';
   try { sessionStorage.setItem('l4d2-panel-view', view); } catch {}
   try { if (location.hash !== `#${view}`) history.replaceState(null, '', `#${view}`); } catch {}
+  window.panelState?.activate(view);
   $$('.content').forEach(element => element.classList.toggle('hidden', element.id !== `${view}View`));
   $$('.nav-item').forEach(button => button.classList.toggle('active', button.dataset.view === view));
   $('#pageTitle').textContent = panelViews[view];
@@ -131,12 +133,13 @@ function renderMaps() {
     const expanded = expandedCampaigns.has(campaign.id) || autoExpanded.has(campaign.id);
     return `<article class="campaign-card ${expanded ? 'expanded' : ''}"><button class="campaign-head" data-campaign-toggle="${escapeHtml(campaign.id)}" aria-expanded="${expanded}"><span class="campaign-head-copy"><strong>${escapeHtml(campaign.name)}</strong><span>${escapeHtml(campaign.english)}</span></span><span class="campaign-head-meta"><span class="campaign-count">${campaign.chapters.length} 章 · ${campaign.type === 'official' ? '官方' : campaign.type === 'custom' ? '自定义' : '其他'}</span><i data-lucide="${expanded ? 'chevron-up' : 'chevron-down'}"></i></span></button><div class="chapter-list ${expanded ? '' : 'hidden'}">${campaign.chapters.map(chapter => `<button class="chapter-row ${chapter.id === selectedMap ? 'selected' : ''}" data-map="${escapeHtml(chapter.id)}"><span class="chapter-number">${String(chapter.number).padStart(2, '0')}</span><span class="chapter-title"><strong>${escapeHtml(chapter.name)}</strong><small>${escapeHtml(chapter.id)}</small></span><span class="chapter-state ${chapter.id === currentMap ? 'current' : ''}">${chapter.id === currentMap ? '运行中' : isGuest ? '查看章节' : '可切换'}</span><i data-lucide="chevron-right"></i></button>`).join('')}</div>${campaign.type === 'custom' && campaign.package ? `<div class="campaign-actions"><span title="${escapeHtml(campaign.package)}">${escapeHtml(campaign.package)}</span><div class="library-item-actions"><button class="secondary-button" data-direct-map="${escapeHtml(campaign.package)}" ${libraryBusy || !openListState.enabled ? 'disabled' : ''} title="${openListState.enabled ? '从已备份到 OpenList 的地图文件获取全新的百度直链' : '请先在服务器配置 OpenList'}"><i data-lucide="zap"></i>直连下载导出（推荐）</button><button class="secondary-button" data-export-map="${escapeHtml(campaign.package)}" ${libraryBusy ? 'disabled' : ''}><i data-lucide="download"></i>服务器下载导出</button><button class="danger-button" data-delete-map="${escapeHtml(campaign.package)}" ${libraryBusy ? 'disabled' : ''}><i data-lucide="trash-2"></i>删除地图包</button></div></div>` : ''}</article>`;
   }).join('') || '<div class="empty-state"><p>没有匹配的战役或章节</p></div>';
+  window.panelState?.set('expandedCampaigns', [...expandedCampaigns].slice(0, 500));
   renderDetail(); icons();
 }
 function renderDetail() {
   const selected = chapterById(selectedMap) || chapterById(currentMap) || (campaigns[0] && { campaign: campaigns[0], chapter: campaigns[0].chapters[0] });
   if (!selected) { $('#mapDetail').innerHTML = '<h2>暂无可用地图</h2><p>请检查游戏目录与附加包。</p>'; return; }
-  const { campaign, chapter } = selected; selectedMap = chapter.id;
+  const { campaign, chapter } = selected; selectedMap = chapter.id; window.panelState?.set('selectedMap', selectedMap);
   $('#mapDetail').innerHTML = `<span class="detail-kicker">已选章节 · ${String(chapter.number).padStart(2, '0')}</span><h2>${escapeHtml(campaign.name)}</h2><p class="detail-english">${escapeHtml(campaign.english)}</p><h3>${escapeHtml(chapter.name)}</h3><p>${escapeHtml(chapter.id)}</p><div class="detail-stats"><div><span>类型</span><b>${campaign.type === 'official' ? '官方战役' : '自定义战役'}</b></div><div><span>状态</span><b class="green-text">${chapter.id === currentMap ? '运行中' : isGuest ? '查看章节' : '可切换'}</b></div></div><button class="primary-button detail-button" id="changeMap"><i data-lucide="play"></i>${chapter.id === currentMap ? '重载当前章节' : '切换到此章节'}</button>`;
   $('#changeMap').onclick = () => changeMap(chapter.id); icons();
 }
@@ -205,7 +208,15 @@ async function cloudAction(route, payload = {}) {
   finally { cloudActionBusy = false; renderCloudBackup(); }
 }
 
+function savedPluginFilter() {
+  const value = window.panelState?.get('pluginFilter', 'all') || 'all';
+  return value === 'all' || Object.hasOwn(categories, value) ? value : 'all';
+}
+function syncPluginFilterButtons() {
+  $$('#pluginFilters button').forEach(button => { const active = button.dataset.filter === pluginFilter; button.classList.toggle('active', active); button.setAttribute('aria-pressed', String(active)); });
+}
 function renderPlugins() {
+  syncPluginFilterButtons();
   const query = $('#pluginSearch').value.trim().toLowerCase();
   const filtered = plugins.filter(item => (pluginFilter === 'all' || item.type === pluginFilter) && (!query || `${item.name} ${item.id}`.toLowerCase().includes(query)));
   $('#pluginGrid').innerHTML = filtered.map(item => `<article class="plugin-card"><div class="plugin-card-top"><div class="plugin-names"><h3>${escapeHtml(item.name)}</h3><span title="${escapeHtml(item.id)}.smx">${escapeHtml(item.id)}.smx</span></div><button class="switch ${item.enabled ? 'on' : ''}" data-plugin="${escapeHtml(item.id)}" role="switch" aria-checked="${item.enabled}" title="${item.enabled ? '停用' : '启用'} ${escapeHtml(item.name)}" aria-label="${item.enabled ? '停用' : '启用'} ${escapeHtml(item.name)}"></button></div><div class="plugin-meta"><span>${escapeHtml(item.category)}</span><span>${item.enabled ? '已启用' : '已停用'}</span></div><div class="plugin-actions"><button class="secondary-button" data-export-plugin="${escapeHtml(item.id)}" ${libraryBusy ? 'disabled' : ''}><i data-lucide="download"></i>导出插件</button>${corePlugins.has(item.id.toLowerCase()) ? '<span class="protected-note"><i data-lucide="shield-check"></i>核心管理插件</span>' : `<button class="danger-button" data-delete-plugin="${escapeHtml(item.id)}" ${libraryBusy ? 'disabled' : ''}><i data-lucide="trash-2"></i>删除插件</button>`}</div></article>`).join('') || '<div class="empty-state"><p>没有匹配的插件</p></div>';
@@ -318,7 +329,7 @@ async function searchWorkshop(query = $('#workshopSearch').value.trim(), reset =
 const bytesLabel = bytes => bytes >= 1024 ** 3 ? `${(bytes / 1024 ** 3).toFixed(2)} GiB` : bytes >= 1024 ** 2 ? `${(bytes / 1024 ** 2).toFixed(1)} MiB` : `${(bytes / 1024).toFixed(1)} KiB`;
 function renderDownloads() {
   const expandedErrors = new Set($$('#downloadList .download-error-details[open]').map(element => element.dataset.job));
-  const historyOpen = !!$('#downloadHistory')?.open;
+  const historyOpen = $('#downloadHistory') ? $('#downloadHistory').open : Boolean(window.panelState?.get('downloadHistoryOpen', false));
   const isDone = job => ['completed', 'failed', 'cancelled'].includes(job.status);
   const activeSource = contentSection === 'plugins' ? 'plugin-store' : contentSource;
   const sourceJobs = downloadJobs.filter(job => job.source === activeSource).sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
@@ -356,7 +367,7 @@ function selectContentSource(source, query = $('#workshopSearch').value.trim()) 
   renderDownloads(); renderWorkshopResults(); renderWorkshop();
 
 }
-function selectContentSection(section) {
+function selectContentSection(section, restoring = false) {
   contentSection = section;
   $$('#contentSections button').forEach(button => { const active = button.dataset.contentSection === section; button.classList.toggle('active', active); button.setAttribute('aria-selected', String(active)); });
   $('#mapDownloadSection').classList.toggle('hidden', section !== 'maps');
@@ -364,7 +375,7 @@ function selectContentSection(section) {
   $('#openWorkshop').classList.toggle('hidden', section !== 'maps');
   $('#downloadHeading').childNodes[0].textContent = section === 'plugins' ? '插件下载任务 ' : '地图下载任务 ';
   renderDownloads();
-  if (section === 'plugins' && !pluginStoreLoaded && !pluginStoreBusy) searchPluginStore();
+  if (section === 'plugins' && !restoring && !pluginStoreLoaded && !pluginStoreBusy) searchPluginStore();
 
 }
 async function loadDownloads() {
@@ -447,7 +458,7 @@ $$('.nav-item').forEach(button => { button.title = button.textContent.trim(); })
 $('#mapSearch').oninput = renderMaps; $('#pluginSearch').oninput = renderPlugins;
 $$('#mapFilters button').forEach(button => button.onclick = () => setMapFilter(button.dataset.filter));
 syncMapFilterButtons();
-$$('#pluginFilters button').forEach(button => button.onclick = () => { $$('#pluginFilters button').forEach(item => item.classList.remove('active')); button.classList.add('active'); pluginFilter = button.dataset.filter; renderPlugins(); });
+$$('#pluginFilters button').forEach(button => button.onclick = () => { $$('#pluginFilters button').forEach(item => item.classList.remove('active')); button.classList.add('active'); pluginFilter = button.dataset.filter; window.panelState?.set('pluginFilter', pluginFilter); renderPlugins(); });
 $('#mapRows').onclick = event => { const direct = event.target.closest('[data-direct-map]'); if (direct) { openMapDirectDownload(direct.dataset.directMap, direct); return; } const exp = event.target.closest('[data-export-map]'); if (exp) { exportLibraryItem('maps', exp.dataset.exportMap, exp); return; } const remove = event.target.closest('[data-delete-map]'); if (remove) { deleteLibraryItem('maps', remove.dataset.deleteMap); return; } const toggle = event.target.closest('[data-campaign-toggle]'); if (toggle) { const id = toggle.dataset.campaignToggle; if (expandedCampaigns.has(id)) expandedCampaigns.delete(id); else expandedCampaigns.add(id); renderMaps(); return; } const button = event.target.closest('[data-map]'); if (button) selectMap(button.dataset.map); };
 $('#quickMaps').onclick = event => { const button = event.target.closest('[data-map]'); if (button) selectMap(button.dataset.map); };
 $('#randomMapBtn').onclick = () => { const chapters = allChapters(); if (chapters.length) selectMap(chapters[Math.floor(Math.random() * chapters.length)].id); else toast('还没有可用地图'); };
@@ -537,7 +548,28 @@ $('#serverConnectCommand').onclick = event => { event.currentTarget.select(); co
 $('#sunriseTime').value = localStorage.getItem('deadAirSunrise') || '07:00'; $('#sunsetTime').value = localStorage.getItem('deadAirSunset') || '19:00';
 $('#sunriseTime').onchange = $('#sunsetTime').onchange = () => { localStorage.setItem('deadAirSunrise', $('#sunriseTime').value); localStorage.setItem('deadAirSunset', $('#sunsetTime').value); if (themeMode === 'auto') applyTheme('auto'); toast('主题时段已更新'); };
 $('#refreshBtn').onclick = async () => { const button = $('#refreshBtn'); button.disabled = true; button.setAttribute('aria-busy', 'true'); try { await Promise.all([loadMaps(), loadPlugins(), loadConnection()]); await syncStatus(); toast('状态检查已完成'); } finally { button.disabled = false; button.removeAttribute('aria-busy'); } };
-renderActivity(); renderWorkshop(); applyTheme(themeMode);
+function rememberBrowseState() {
+  if (isGuest) return;
+  window.panelState?.set('contentBrowse', { source:contentSource, section:contentSection, page:workshopPage, query:workshopQuery, searched:workshopSearched, items:workshopResults.slice(0, 48), more:hasMoreResults, pluginPage:pluginStorePage, pluginQuery:pluginStoreQuery, pluginCategory:pluginStoreCategory, pluginItems:pluginStoreResults.slice(0, 48), pluginLoaded:pluginStoreLoaded, pluginTotal:pluginStoreTotal, pluginMore:pluginStoreHasMore });
+  window.panelState?.set('downloadHistoryOpen', Boolean($('#downloadHistory')?.open));
+}
+function restoreBrowseState() {
+  if (isGuest) return;
+  const saved = window.panelState?.get('contentBrowse', null);
+  if (!saved || typeof saved !== 'object' || !['steam-workshop','gamemaps'].includes(saved.source) || !['maps','plugins'].includes(saved.section)) return;
+  const page = n => Number.isSafeInteger(n) && n >= 1 && n <= 10000 ? n : 1;
+  const text = s => typeof s === 'string' ? s.slice(0, 250) : '';
+  selectContentSource(saved.source);
+  workshopPage=page(saved.page);workshopQuery=text(saved.query);workshopSearched=saved.searched===true;
+  workshopResults=Array.isArray(saved.items)?saved.items.filter(x=>x&&typeof x.id==='string'&&typeof x.title==='string').slice(0,48):[];hasMoreResults=saved.more===true;
+  pluginStorePage=page(saved.pluginPage);pluginStoreQuery=text(saved.pluginQuery);pluginStoreCategory=$$('#pluginStoreFilters button').some(b=>b.dataset.pluginCategory===saved.pluginCategory)?saved.pluginCategory:'all';
+  pluginStoreResults=Array.isArray(saved.pluginItems)?saved.pluginItems.filter(x=>x&&typeof x.id==='string'&&typeof x.title==='string'&&typeof x.fileName==='string').slice(0,48):[];pluginStoreLoaded=saved.pluginLoaded===true;pluginStoreTotal=Number.isSafeInteger(saved.pluginTotal)?saved.pluginTotal:0;pluginStoreHasMore=saved.pluginMore===true;
+  $$('#pluginStoreFilters button').forEach(b=>b.classList.toggle('active',b.dataset.pluginCategory===pluginStoreCategory));
+  selectContentSection(saved.section,true);renderWorkshopResults();renderPluginStoreResults();
+  if(pluginStoreLoaded)$('#pluginStoreStatus').querySelector('span').textContent='已恢复上次浏览结果，可手动搜索或刷新目录获取最新数据。';
+}
+window.addEventListener('pagehide',rememberBrowseState);window.addEventListener('beforeunload',rememberBrowseState);
+renderActivity(); renderWorkshop(); applyTheme(themeMode); restoreBrowseState();
 loadDownloads();
 setInterval(() => { if (!document.hidden && (!$('#workshopView').classList.contains('hidden') || downloadJobs.some(job => !['completed', 'failed', 'cancelled'].includes(job.status)))) loadDownloads(); }, 1500);
 loadConnection();
@@ -670,7 +702,8 @@ $('#browserDirectDownload').onclick = async event => {
     frame.setAttribute('sandbox', 'allow-downloads allow-same-origin');
     frame.src = info.url; document.body.append(frame); setTimeout(() => frame.remove(), 60000);
     $('#cloudDownloadMessage').textContent = '地图内容检查通过，已交给浏览器下载。请在浏览器下载列表查看进度；文件由百度直接传到你的电脑。';
-    toast('直连下载已启动，面板会保持打开');
+    if (cloudDirectController === controller && cloudDownloadDialog.open) cloudDownloadDialog.close();
+    toast('已提交浏览器下载，可在浏览器下载列表查看进度');
   } catch (error) { if (error.name !== 'AbortError' && cloudDirectController === controller) $('#cloudDownloadMessage').textContent = error.message; }
   finally { cloudDownloadBusy = false; $('#browserDirectDownload').disabled = false; }
 };

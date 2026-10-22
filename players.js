@@ -1,10 +1,13 @@
 let playerBatchMode = false, playerActionBusy = false, playerAction = null, restartBusy = false, restartTimer = null;
 const selectedPlayers = new Set();
-let playerData = null, playerTab = 'online', playerLoading = false, playerSaving = false, playerReturnFocus = null;
+let playerData = null, playerTab = savedPlayerTab(), playerLoading = false, playerSaving = false, playerReturnFocus = null;
+function savedPlayerTab() { const saved = window.panelState?.get('playerTab', 'online'); return ['online','history','panel','admins','banned'].includes(saved) ? saved : 'online'; }
+function syncPlayerTabs() { $$('#playerTabs button').forEach(b => { const active = b.dataset.playerTab === playerTab; b.classList.toggle('active', active); b.setAttribute('aria-pressed', String(active)); }); }
 const playerTeam = team => ({ 1: '旁观者', 2: '生还者', 3: '感染者' })[team] || '连接中';
 const playerTime = value => value ? new Date(value).toLocaleString() : '尚未记录';
 function playerDuration(seconds) { const n = Math.max(0, Math.floor(seconds || 0)); return n >= 3600 ? `${Math.floor(n / 3600)} 小时 ${Math.floor(n % 3600 / 60)} 分` : `${Math.floor(n / 60)} 分 ${n % 60} 秒`; }
 function renderPlayers() {
+  syncPlayerTabs();
   const data = playerData;
   $('#playerOnlineCount').textContent = data?.available ? data.onlineCount : '—';
   $('#overviewPlayerCount').textContent = data?.available ? data.onlineCount : '未连接';
@@ -16,21 +19,21 @@ function renderPlayers() {
   $('#addPlayerAdmin').disabled = !data?.available || Boolean(data?.configError) || playerSaving;
   const status = $('#playerStatus');
   status.className = 'player-status' + (data && !data.available || data?.configError ? ' warning' : '');
-  status.textContent = !data ? '正在连接玩家采集插件…' : [data.available ? `实时数据更新于 ${playerTime(data.checkedAt)} · 每 5 秒自动刷新` : data.reason, data.configError, data.historyError, data.moderationError, data.available && !data.moderationAvailable ? '玩家处置插件未就绪' : ''].filter(Boolean).join(' · ');
+  status.textContent = !data ? '正在连接玩家采集插件…' : [data.available ? `实时数据更新于 ${playerTime(data.checkedAt)} · 每 5 秒自动刷新` : data.reason, data.configError, data.historyError, data.notesError, data.moderationError, data.available && !data.moderationAvailable ? '玩家处置插件未就绪' : ''].filter(Boolean).join(' · ');
   if (!data) { $('#playerList').innerHTML = '<div class="player-empty">正在读取玩家数据…</div>'; return; }
   const query = $('#playerSearch').value.trim().toLowerCase();
   let rows = playerRows();
-  rows = rows.filter(p => `${p.name} ${p.steam2} ${p.steam3} ${p.steam64}`.toLowerCase().includes(query));
+  rows = rows.filter(p => `${p.name} ${p.note || ''} ${p.steam2} ${p.steam3} ${p.steam64}`.toLowerCase().includes(query));
   $('#playerListTitle').textContent = { online: '当前在线', history: '玩家记录', panel: '面板账号', admins: '管理员权限', banned: '已拉黑玩家' }[playerTab];
   $('#playerListCount').textContent = `${rows.length} 位玩家`;
   $('#playerList').innerHTML = rows.length ? rows.map(p => {
     const profile = data.profiles.find(x => x.flags === p.flags);
     const role = p.permissionSource === 'external' ? '外部配置管理员' : p.permissionSource === 'runtime' ? '其他来源权限' : p.flags ? profile?.name || '自定义管理员' : '普通玩家';
     const live = p.online ? `${playerTeam(p.team)} · ${p.ping} ms · 已连接 ${playerDuration(p.connectedSeconds)}` : `最后出现：${playerTime(p.lastSeen)}`;
-    return `<article class="player-row">${playerBatchMode && playerTab !== 'admins' ? `<label class="player-select"><input type="checkbox" data-player-select="${p.steam64}" aria-label="选择 ${escapeHtml(p.name)}" ${selectedPlayers.has(p.steam64) ? 'checked' : ''} ${playerActionBusy ? 'disabled' : ''}></label>` : ''}<div class="player-avatar ${p.online ? 'online' : ''}"><i data-lucide="user-round"></i></div><div class="player-main"><div class="player-name-line"><h3>${escapeHtml(p.name)}</h3><span class="player-state ${p.online ? 'online' : ''}">${p.online ? '在线' : data.available ? '离线' : '在线状态未知'}</span></div><p>${escapeHtml(live)}</p><div class="player-identities"><code>${escapeHtml(p.steam2)}</code><code>${escapeHtml(p.steam64)}</code><button class="player-copy" data-player-copy="${escapeHtml(p.steam64)}" aria-label="复制 ${escapeHtml(p.name)} 的 SteamID64"><i data-lucide="copy"></i>复制 ID</button></div><small>首次记录：${playerTime(p.firstSeen)}</small>${p.panelAccount ? `<small>面板账号 · ${escapeHtml(p.panelName)} · 资料归属未验证 · 登录 ${p.loginCount || 0} 次</small><small>最近登录：${playerTime(p.lastLoginAt)}</small>` : ''}${p.lastLoginIp ? `<small class="player-network">面板 IP：<code>${escapeHtml(p.lastLoginIp)}</code> · ${escapeHtml(p.lastLoginRegion?.label || '未知省份')}</small>` : ''}${p.gameIp ? `<small class="player-network">游戏 IP：<code>${escapeHtml(p.gameIp)}</code> · ${escapeHtml(p.gameRegion?.label || '未知省份')}</small>` : ''}${p.ban ? `<small class="player-ban-expiry">已拉黑 · 到期：${playerTime(p.ban.expiresAt)}</small>` : ''}${p.readOnlyReason ? `<small class="player-config-note">${escapeHtml(p.readOnlyReason)}</small>` : ''}</div><div class="player-role"><strong>${escapeHtml(role)}</strong><span>${p.flags ? `标记 ${escapeHtml(p.flags)} · 免疫 ${p.immunity}` : '没有面板管理授权'}</span>${p.online && p.managed ? `<small>游戏实际标记：${escapeHtml(p.runtimeFlags || '无')}</small>` : ''}<button class="secondary-button" data-player-edit="${escapeHtml(p.steam64)}" ${p.readOnly || !data.available || playerSaving ? 'disabled' : ''}><i data-lucide="shield-check"></i>${p.managed ? '修改 / 撤销权限' : '设置权限'}</button><div class="player-row-actions">${playerActionButtons(p)}</div></div></article>`;
+    return `<article class="player-row">${playerBatchMode && playerTab !== 'admins' ? `<label class="player-select"><input type="checkbox" data-player-select="${p.steam64}" aria-label="选择 ${escapeHtml(p.name)}" ${selectedPlayers.has(p.steam64) ? 'checked' : ''} ${playerActionBusy ? 'disabled' : ''}></label>` : ''}<div class="player-avatar ${p.online ? 'online' : ''}"><i data-lucide="user-round"></i></div><div class="player-main"><div class="player-name-line"><h3>${escapeHtml(p.name)}</h3><span class="player-state ${p.online ? 'online' : ''}">${p.online ? '在线' : data.available ? '离线' : '在线状态未知'}</span></div><p>${escapeHtml(live)}</p><div class="player-identities"><code>${escapeHtml(p.steam2)}</code><code>${escapeHtml(p.steam64)}</code><button class="player-copy" data-player-copy="${escapeHtml(p.steam64)}" aria-label="复制 ${escapeHtml(p.name)} 的 SteamID64"><i data-lucide="copy"></i>复制 ID</button></div>${p.note ? `<p class="player-note"><strong>备注</strong><span>${escapeHtml(p.note)}</span></p>` : ''}<small>首次记录：${playerTime(p.firstSeen)}</small>${p.panelAccount ? `<small>面板账号 · ${escapeHtml(p.panelName)} · 资料归属未验证 · 登录 ${p.loginCount || 0} 次</small><small>最近登录：${playerTime(p.lastLoginAt)}</small>` : ''}${p.lastLoginIp ? `<small class="player-network">面板 IP：<code>${escapeHtml(p.lastLoginIp)}</code> · ${escapeHtml(p.lastLoginRegion?.label || '未知省份')}</small>` : ''}${p.gameIp ? `<small class="player-network">游戏 IP：<code>${escapeHtml(p.gameIp)}</code> · ${escapeHtml(p.gameRegion?.label || '未知省份')}</small>` : ''}${p.ban ? `<small class="player-ban-expiry">已拉黑 · 到期：${playerTime(p.ban.expiresAt)}</small>` : ''}${p.readOnlyReason ? `<small class="player-config-note">${escapeHtml(p.readOnlyReason)}</small>` : ''}</div><div class="player-role"><strong>${escapeHtml(role)}</strong><span>${p.flags ? `标记 ${escapeHtml(p.flags)} · 免疫 ${p.immunity}` : '没有面板管理授权'}</span>${p.online && p.managed ? `<small>游戏实际标记：${escapeHtml(p.runtimeFlags || '无')}</small>` : ''}<button class="secondary-button" data-player-edit="${escapeHtml(p.steam64)}" ${p.readOnly || !data.available || playerSaving ? 'disabled' : ''}><i data-lucide="shield-check"></i>${p.managed ? '修改 / 撤销权限' : '设置权限'}</button><button class="secondary-button" data-player-note="${escapeHtml(p.steam64)}" ${data.notesError ? 'disabled' : ''}><i data-lucide="notebook-pen"></i>${p.note ? '编辑备注' : '添加备注'}</button><div class="player-row-actions">${playerActionButtons(p)}</div></div></article>`;
   }).join('') : `<div class="player-empty"><i data-lucide="users"></i><h3>${query ? '没有匹配的玩家' : playerTab === 'online' ? data.available ? '当前没有真人玩家在线' : '暂时无法确认在线玩家' : playerTab === 'banned' ? '暂无已拉黑玩家' : playerTab === 'admins' ? '暂无管理员记录' : '尚未记录玩家'}</h3><p>${playerTab === 'online' && !query ? '机器人不会被记录为 Steam 玩家。真实玩家加入后，会自动记录身份与最近在线时间。' : '可用昵称、SteamID2、SteamID3 或 SteamID64 搜索。'}</p></div>`;
   $('#playerAudit').innerHTML = data.audit.length ? data.audit.map(a => `<div class="player-audit-row"><time>${playerTime(a.at)}</time><code>${escapeHtml(a.steam2)}</code><span>${escapeHtml(a.before || '普通玩家')} → ${escapeHtml(a.after || '普通玩家')} · 免疫 ${a.immunity}</span></div>`).join('') : '<p class="player-audit-empty">尚无面板权限变更。已有管理员不会被自动修改。</p>';
-  const actionNames = {login:'登录',register:'注册','login-denied':'登录被拒绝','register-denied':'注册被拒绝','/api/openlist/map-download-info':'生成地图直连下载','/api/players/moderation':'玩家处置','/api/server/restart':'重启服务器','/api/map':'切换地图','/api/plugin':'切换插件','/api/players/permissions':'修改游戏权限'};
+  const actionNames = {login:'登录',register:'注册','login-denied':'登录被拒绝','register-denied':'注册被拒绝','/api/openlist/map-download-info':'生成地图直连下载','/api/players/notes':'编辑玩家备注','/api/players/moderation':'玩家处置','/api/server/restart':'重启服务器','/api/map':'切换地图','/api/plugin':'切换插件','/api/players/permissions':'修改游戏权限'};
   $('#accessAudit').innerHTML = (data.accessEvents || []).map(event => '<div class="player-access-row"><time>' + playerTime(event.at) + '</time><strong>' + escapeHtml(event.actor || event.steam64 || '未登录') + '</strong><span>' + escapeHtml(actionNames[event.action] || event.action) + ' · ' + (event.ok ? '成功' : '未完成') + '</span><code>' + escapeHtml(event.steam64 || '') + '</code><span>' + escapeHtml(event.ip || '未知 IP') + ' · ' + escapeHtml(event.region?.label || '未知省份') + '</span>' + (event.target ? '<small>' + escapeHtml(event.target) + '</small>' : '') + '</div>').join('') || '<p class="player-audit-empty">尚无面板登录和操作记录。</p>';
   syncPlayerSelection(); icons();
 }
@@ -64,8 +67,8 @@ function openPlayerPermission(steam64 = '') {
 }
 $('#refreshPlayers').onclick = loadPlayers;
 $('#playerSearch').oninput = () => { selectedPlayers.clear(); renderPlayers(); };
-$('#playerTabs').onclick = e => { const b = e.target.closest('[data-player-tab]'); if (!b) return; playerTab = b.dataset.playerTab; selectedPlayers.clear(); $$('#playerTabs button').forEach(x => { x.classList.toggle('active', x === b); x.setAttribute('aria-pressed', String(x === b)); }); renderPlayers(); };
-$('#playerList').onclick = async e => { const action = e.target.closest('[data-player-action]'); if (action && !action.disabled) { openPlayerModeration(action.dataset.playerAction, [action.dataset.playerId]); return; } const copy = e.target.closest('[data-player-copy]'); if (copy) { try { await navigator.clipboard.writeText(copy.dataset.playerCopy); toast('SteamID64 已复制'); } catch { prompt('复制 SteamID64', copy.dataset.playerCopy); } return; } const edit = e.target.closest('[data-player-edit]'); if (edit && !edit.disabled) openPlayerPermission(edit.dataset.playerEdit); };
+$('#playerTabs').onclick = e => { const b = e.target.closest('[data-player-tab]'); if (!b) return; playerTab = b.dataset.playerTab; window.panelState?.set('playerTab', playerTab); selectedPlayers.clear(); $$('#playerTabs button').forEach(x => { x.classList.toggle('active', x === b); x.setAttribute('aria-pressed', String(x === b)); }); renderPlayers(); };
+$('#playerList').onclick = async e => { const note = e.target.closest('[data-player-note]'); if (note && !note.disabled) { openPlayerNote(note.dataset.playerNote); return; } const action = e.target.closest('[data-player-action]'); if (action && !action.disabled) { openPlayerModeration(action.dataset.playerAction, [action.dataset.playerId]); return; } const copy = e.target.closest('[data-player-copy]'); if (copy) { try { await navigator.clipboard.writeText(copy.dataset.playerCopy); toast('SteamID64 已复制'); } catch { prompt('复制 SteamID64', copy.dataset.playerCopy); } return; } const edit = e.target.closest('[data-player-edit]'); if (edit && !edit.disabled) openPlayerPermission(edit.dataset.playerEdit); };
 $('#addPlayerAdmin').onclick = () => openPlayerPermission();
 $('#closePlayerPermission').onclick = () => { if (!playerSaving) $('#playerPermissionDialog').close(); };
 $('#cancelPlayerPermission').onclick = () => { if (!playerSaving) $('#playerPermissionDialog').close(); };
@@ -84,14 +87,14 @@ $('#playerPermissionForm').onsubmit = async e => {
   finally { playerSaving = false; $$('#playerPermissionForm button, #playerPermissionForm input, #playerPermissionForm select').forEach(x => x.disabled = false); $('#closePlayerPermission').disabled = false; $('#playerImmunity').disabled = !selectedPlayerFlags(); renderPlayers(); }
 };
 loadPlayers();
-setInterval(() => { if (!document.hidden && (!$('#playersView').classList.contains('hidden') || !$('#overviewView').classList.contains('hidden')) && !$('#playerPermissionDialog').open && !$('#playerModerationDialog').open && !playerActionBusy) loadPlayers(); }, 5000);
+setInterval(() => { if (!document.hidden && (!$('#playersView').classList.contains('hidden') || !$('#overviewView').classList.contains('hidden')) && !$('#playerNoteDialog').open && !$('#playerPermissionDialog').open && !$('#playerModerationDialog').open && !playerActionBusy) loadPlayers(); }, 5000);
 
 function playerRows() {
   if (!playerData) return [];
   const bans = new Map((playerData.bans || []).map(ban => [ban.steam64, ban]));
   const rows = playerTab === 'banned' ? (playerData.bans || []).map(ban => ({ flags: '', permissionSource: 'none', online: false, readOnly: true, ...playerData.players.find(player => player.steam64 === ban.steam64), ...ban, ban })) : playerData.players.map(player => ({ ...player, ban: bans.get(player.steam64) }));
   const query = $('#playerSearch').value.trim().toLowerCase();
-  return rows.filter(player => (playerTab !== 'online' || player.online) && (playerTab !== 'panel' || player.panelAccount) && (playerTab !== 'admins' || player.flags || player.permissionSource !== 'none') && `${player.name} ${player.steam2} ${player.steam3} ${player.steam64}`.toLowerCase().includes(query));
+  return rows.filter(player => (playerTab !== 'online' || player.online) && (playerTab !== 'panel' || player.panelAccount) && (playerTab !== 'admins' || player.flags || player.permissionSource !== 'none') && `${player.name} ${player.note || ''} ${player.steam2} ${player.steam3} ${player.steam64}`.toLowerCase().includes(query));
 }
 function playerActionButtons(player) {
   const disabled = !playerData?.available || !playerData?.moderationAvailable || playerActionBusy ? 'disabled' : '';
@@ -176,3 +179,23 @@ $('#confirmServerRestart').onclick = async () => {
   finally { $('#confirmServerRestart').disabled = false; $('#cancelServerRestart').disabled = false; }
 };
 checkRestartStatus();
+
+let playerNoteId = '', playerNoteSaving = false, playerNoteFocus = null;
+function openPlayerNote(id) {
+  const player = playerRows().find(p => p.steam64 === id); if (!player) return;
+  playerNoteId = id; playerNoteFocus = document.activeElement;
+  $('#playerNoteIdentity').textContent = player.name + ' · ' + id;
+  $('#playerNoteText').value = player.note || ''; $('#playerNoteMessage').textContent = '';
+  $('#playerNoteDialog').showModal(); $('#playerNoteText').focus({ preventScroll:true });
+}
+$('#closePlayerNote').onclick = $('#cancelPlayerNote').onclick = () => { if (!playerNoteSaving) $('#playerNoteDialog').close(); };
+$('#playerNoteDialog').addEventListener('cancel', event => { if (playerNoteSaving) event.preventDefault(); });
+$('#playerNoteDialog').addEventListener('close', () => { playerNoteId = ''; if (playerNoteFocus?.isConnected) playerNoteFocus.focus({ preventScroll:true }); });
+$('#playerNoteForm').onsubmit = async event => {
+  event.preventDefault(); if (playerNoteSaving || !playerNoteId) return;
+  playerNoteSaving = true; for (const id of ['savePlayerNote','closePlayerNote','cancelPlayerNote','playerNoteText']) $('#' + id).disabled = true;
+  $('#playerNoteMessage').textContent = '正在保存…';
+  try { const result = await post('/api/players/notes', { steamId:playerNoteId, note:$('#playerNoteText').value }); toast(result.message); record('更新玩家备注'); $('#playerNoteDialog').close(); await loadPlayers(); }
+  catch (error) { $('#playerNoteMessage').textContent = error.message; }
+  finally { playerNoteSaving = false; for (const id of ['savePlayerNote','closePlayerNote','cancelPlayerNote','playerNoteText']) $('#' + id).disabled = false; }
+};

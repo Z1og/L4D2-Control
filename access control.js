@@ -4,7 +4,7 @@ const { requestIP } = require('./ip regions');
 const GUEST_READ = new Set(['/api/config', '/api/status', '/api/maps', '/api/plugins']);
 const GUEST_WRITE = new Set(['/api/openlist/map-download-info']);
 const PUBLIC_FILES = new Set(['/login', '/login.html', '/login.js', '/login.css']);
-const PANEL_FILES = new Set(['/', '/index.html', '/app.js', '/players.js', '/gameplay.js', '/styles.css', '/downloads/baidu-download-helper.zip', '/downloads/baidu-download-helper-guide']);
+const PANEL_FILES = new Set(['/', '/index.html', '/app.js', '/panel state.js', '/panel%20state.js', '/players.js', '/gameplay.js', '/styles.css', '/downloads/baidu-download-helper.zip', '/downloads/baidu-download-helper-guide']);
 const COOKIE = 'l4d2-session';
 const fail = (message, status = 403) => Object.assign(new Error(message), { status });
 const equal = (left, right) => { const a = crypto.createHash('sha256').update(String(left)).digest(), b = crypto.createHash('sha256').update(String(right)).digest(); return crypto.timingSafeEqual(a, b); };

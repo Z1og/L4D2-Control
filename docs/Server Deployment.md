@@ -557,3 +557,13 @@ chmod 600 "$region_dir/"*.xdb
 可用 `IP_REGION_DIR` 指定其他私有目录。缺少数据库时显示“未知省份”，不阻止登录。账号及访问日志默认位于 `~/.local/state/dead-air-panel/accounts`，可由 `PANEL_ACCOUNT_STATE_DIR` 自定义。不要放在静态网站目录中，也不要提交到 Git。若经过受信任反代，仅将其固定出口 IP 配置到 `PANEL_TRUSTED_PROXIES`（逗号分隔）；默认忽略转发头。来源验证仍按 Node 实际 TLS 状态执行，推荐 Node 直接提供 HTTPS。
 
 `IP_REGION_DIR` and `PANEL_ACCOUNT_STATE_DIR` override private storage locations. Missing databases display an unknown province without blocking login. Forwarded IPs are trusted only for explicit `PANEL_TRUSTED_PROXIES`; use direct Node HTTPS for the existing origin checks. Keep account files, logs, game snapshots, databases and configuration out of the public repository. Compile and hot-reload the latest player bridge as described above to enable IP capture and persisted gameplay settings.
+
+## 玩家备注与浏览状态 / Player notes and browsing state
+
+玩家备注保存在 `PLAYER_STATE_DIR/player notes.json`（未配置时使用面板用户的私有 players 状态目录），不要放进公开仓库或网盘分享目录。按 SteamID 关联，仅授权管理员可访问；留空保存可清除。无需玩家在线或重启游戏即可编辑。
+
+Player notes are stored in `PLAYER_STATE_DIR/player notes.json` (the panel user’s private players state directory by default). They are keyed by SteamID, available only to authorized administrators, and can be cleared by saving an empty note. Keep this file out of public repositories and shared storage.
+
+浏览状态使用当前标签页的 `sessionStorage`，按普通/授权角色分开；清除站点数据或关闭标签页后不保证保留。只保留浏览筛选与公开搜索结果，不缓存备注、密码、下载签名或代理凭据。异步内容加载后恢复滚动位置；用户滚动或点击时立即让出控制。
+
+Browsing state uses per-tab `sessionStorage`, separated by ordinary/authorized role. It stores browsing filters and public search results, not player notes, passwords, signed download links or proxy credentials. Scroll restoration waits for asynchronous layout growth and stops when the user interacts.
