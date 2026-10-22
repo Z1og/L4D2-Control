@@ -614,7 +614,8 @@ function serveFile(req, res) {
     res.setHeader('cache-control', 'no-cache');
     fs.createReadStream(file).pipe(res); return;
   }
-  const extensionAsset = requestPath === '/assets/Steam profile guide.png' ? {file:path.join(root,'assets','Steam profile guide.png'),type:'image/png'} : requestPath === '/project-license' ? {file:path.join(root,'LICENSE'),type:'text/plain; charset=utf-8'} : requestPath === '/downloads/baidu-download-helper.zip'
+  const communityAssets = new Set(["/assets/Project poster desktop.png","/assets/Project poster mobile.png","/assets/Project poster desktop.webp","/assets/Project poster mobile.webp","/assets/Project mobile banner.webp"]);
+  const extensionAsset = communityAssets.has(requestPath) ? {file:path.join(root,requestPath.slice(1)),type:requestPath.endsWith('.webp')?'image/webp':'image/png',publicAsset:true} : requestPath === '/assets/Steam profile guide.png' ? {file:path.join(root,'assets','Steam profile guide.png'),type:'image/png'} : requestPath === '/project-license' ? {file:path.join(root,'LICENSE'),type:'text/plain; charset=utf-8'} : requestPath === '/downloads/baidu-download-helper.zip'
     ? { file: path.join(root, 'downloads', 'L4D2 Baidu Download Helper.zip'), type: 'application/zip', disposition: 'attachment; filename="L4D2 Baidu Download Helper.zip"; filename*=UTF-8\'\'L4D2%20Baidu%20Download%20Helper.zip' }
     : requestPath === '/downloads/baidu-download-helper-guide'
       ? { file: path.join(root, 'docs', 'Browser Extension Installation.html'), type: 'text/html; charset=utf-8' }
@@ -625,7 +626,7 @@ function serveFile(req, res) {
     res.setHeader('content-type', extensionAsset.type);
     res.setHeader('content-length', fs.statSync(extensionAsset.file).size);
     res.setHeader('x-content-type-options', 'nosniff');
-    res.setHeader('cache-control', 'private, no-store');
+    res.setHeader('cache-control', extensionAsset.publicAsset ? 'public, max-age=3600' : 'private, no-store');
     if (extensionAsset.disposition) res.setHeader('content-disposition', extensionAsset.disposition);
     if (req.method === 'HEAD') { res.end(); return; }
     const stream = fs.createReadStream(extensionAsset.file);
@@ -633,7 +634,7 @@ function serveFile(req, res) {
     stream.pipe(res); return;
   }
   const relative = requestPath === '/' ? 'index.html' : requestPath === '/login' ? 'login.html' : requestPath.replace(/^\/+/, '');
-  if (!['index.html', 'app.js', 'account password.js', 'panel state.js', 'players.js', 'gameplay.js', 'styles.css', 'login.html', 'login.js', 'login.css'].includes(relative)) { res.statusCode = 404; res.end('Not found'); return; }
+  if (!['index.html', 'app.js', 'account password.js', 'panel state.js', 'players.js', 'gameplay.js', 'styles.css', 'login.html', 'login.js', 'login.css', 'project community.js', 'project community.css'].includes(relative)) { res.statusCode = 404; res.end('Not found'); return; }
   const filePath = path.resolve(root, relative);
   const relativeToRoot = path.relative(root, filePath);
   if (relativeToRoot.startsWith('..') || path.isAbsolute(relativeToRoot) || !fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) { res.statusCode = 404; res.end('Not found'); return; }

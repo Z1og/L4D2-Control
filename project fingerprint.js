@@ -5,7 +5,7 @@ const crypto = require('node:crypto');
 const digest = value => crypto.createHash('sha256').update(value).digest('hex');
 const repository = 'https://github.com/Z1og/L4D2-Control';
 const PROJECT = Object.freeze({name:'L4D2-Control',chineseName:'今天一定要活下去',projectId:'l4d2-control-'+digest(repository).slice(0,20),repository,license:'LicenseRef-L4D2-Control-NonCommercial-1.0',copyright:'Copyright 2026 Z1og and original contributors'});
-const SOURCE_FILES = Object.freeze(['access control.js','account password.js','app.js','index.html','login.html','login.js','login.css','panel accounts.js','players.js','server.js','styles.css','project fingerprint.js','Project identity.json','LICENSE','NOTICE.md','Build project fingerprint.js','assets/Steam profile guide.png','package.json'].sort());
+const SOURCE_FILES = Object.freeze(['access control.js','account password.js','app.js','index.html','login.html','login.js','login.css','panel accounts.js','players.js','server.js','styles.css','project fingerprint.js','Project identity.json','LICENSE','NOTICE.md','Build project fingerprint.js','assets/Steam profile guide.png','package.json',"project community.js","project community.css","assets/Project poster desktop.png","assets/Project poster mobile.png","assets/Project poster desktop.webp","assets/Project poster mobile.webp","assets/Project mobile banner.webp"].sort());
 function computeFingerprint(root = __dirname) {
   const base=fs.realpathSync(root);
   const files=SOURCE_FILES.map(file=>{

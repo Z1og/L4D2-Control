@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "projectId": "l4d2-control-bf312edc896c79baad5c",
-  "fingerprint": "248edd929db1e9a5cd318b08e0cb992aae1cef5bdd9be034619884f181b3f06f",
+  "fingerprint": "0e3e4f471edcda552550c4e060b083c006672b6b67335ee7b51c656ec9c8d164",
   "files": [
     {
       "path": "Build project fingerprint.js",
@@ -21,7 +21,7 @@
     },
     {
       "path": "access control.js",
-      "sha256": "c7a422c4a49a3de4c45185019d086ac9ec2fc925f5256834ffa51810ddaee0cb"
+      "sha256": "104c0584829e23d0546bcc57bfb83243adf3f9f65cd09b2efcf15af24cfb7380"
     },
     {
       "path": "account password.js",
@@ -32,20 +32,40 @@
       "sha256": "b3e941ac8e25f7a32eb75d4e62bf51123fb0acaf05a5d9344f316b6c6a7a4fb8"
     },
     {
+      "path": "assets/Project mobile banner.webp",
+      "sha256": "790264ef03ec827cb8bd6f83df8d49cbca8f6437a81b3274d2f105b04eb9df21"
+    },
+    {
+      "path": "assets/Project poster desktop.png",
+      "sha256": "c178c9c25e4b222fe6547b1834ad1375b5871bbb8f392d1006d949038aa0676f"
+    },
+    {
+      "path": "assets/Project poster desktop.webp",
+      "sha256": "dfb5f8804404d4af9e969a92edbfd1b15ac9c615e41ce7d92437b8e823340362"
+    },
+    {
+      "path": "assets/Project poster mobile.png",
+      "sha256": "2a42ff23be79cf7e55bcf8b9bf19f93f3e673c5af979c9e4b5b17e904230aa29"
+    },
+    {
+      "path": "assets/Project poster mobile.webp",
+      "sha256": "6c67b5b209e661d4d048cea1e24d5c0f5bf43d0bbf1a8c24767c64776351afe8"
+    },
+    {
       "path": "assets/Steam profile guide.png",
       "sha256": "605e4529626ab39546cd79312138bd475067b9dc1e882c64d9a3585863fd68fc"
     },
     {
       "path": "index.html",
-      "sha256": "b7d76ee4c7b439e0131f2b4f8079df1628ecfb390cb301a5e704fa826a4a431a"
+      "sha256": "26f6c4c9c51a14fdde9f33ee7a9999e63ca318703b491cf1553440a302ca7b6a"
     },
     {
       "path": "login.css",
-      "sha256": "fd4468b6333523b8276b3359991610137e2d590d709ed746598ce17c55ece0dc"
+      "sha256": "bed6a905208588bfe9d4cc37da4c8e668d781dc99801edbdeb0b1d3e6993c44d"
     },
     {
       "path": "login.html",
-      "sha256": "ec4f8116cb5bc51c2233836752045b80a1a280585418e3ffa9bf3a91fd3448eb"
+      "sha256": "8ede1543025d820677854c322f75bd7a5df0233adb67a971a30f1cefe55037f1"
     },
     {
       "path": "login.js",
@@ -53,7 +73,7 @@
     },
     {
       "path": "package.json",
-      "sha256": "9559d27ab5564d4c184942d4a6c06b7d6357a3234e67808538b4e1c95cd61592"
+      "sha256": "fcadb15ffece9d9e35fca01c4dc6ac62801c4a36cd961a4402fe4dc821945891"
     },
     {
       "path": "panel accounts.js",
@@ -64,12 +84,20 @@
       "sha256": "47bbac2a0523361a095aa28d38c94ddcf928b21b1166e44bd579ffb33e400dc7"
     },
     {
+      "path": "project community.css",
+      "sha256": "2678b646c4525090cdaac06b5c2ed8d216e50b1ad634a6d62297fdb92f3987bc"
+    },
+    {
+      "path": "project community.js",
+      "sha256": "3487731d8b46e9760fb6a5f402312803bd0b7b95eaa9f998c4c6b16efe4a1246"
+    },
+    {
       "path": "project fingerprint.js",
-      "sha256": "45c0207eaa8ce58746f83eb3b1b839fe11101d90ca7f4e056e8126ae97986d5d"
+      "sha256": "325f9e2f0f7d9e6f775d96424e5ba440a1e32899559c91e34ed788de2cc44605"
     },
     {
       "path": "server.js",
-      "sha256": "ca939c712f73dd14ab75a9650b6804f94d7d4ee2b240016bd889fdcbf1b44535"
+      "sha256": "bbdac178d22da633757e793fb5764134ceecf889d8d2e66189883611cd20d635"
     },
     {
       "path": "styles.css",

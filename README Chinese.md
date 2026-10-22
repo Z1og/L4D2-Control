@@ -1,5 +1,12 @@
 # L4D2-Control · 今天一定要活下去
 
+![L4D2-Control · 今天一定要活下去](assets/Project%20poster%20desktop.webp)
+
+> **QQ 交流群：1002677414** · 在 QQ 搜索群号即可加入，交流地图、插件与开服经验。
+> 登录页和面板“关于项目”均可一键复制群号。
+
+[电脑横版海报](assets/Project%20poster%20desktop.png) · [手机竖版海报](assets/Project%20poster%20mobile.png)
+
 > 项目原创部分仅限非商业使用，商业使用需事先取得书面授权。参见 [LICENSE](LICENSE) 与[来源指纹说明](docs/Project%20Provenance.md)。
 
 
@@ -23,15 +30,15 @@ OpenList 和百度网盘均为可选组件；不配置网盘仍可使用本地�
 
 ## 项目预览
 
+[电脑 / 手机登录页效果](docs/Project%20Preview/Community.png) · [手机登录页预览](docs/Project%20Preview/Login%20mobile.png)
+
 预览图中的服务器地址已打码；项目不包含真实服务器地址、账号或密码。
 
 | 普通 / 授权登录 | 游戏模式 |
 | --- | --- |
 | ![普通 / 授权登录](https://raw.githubusercontent.com/Z1og/L4D2-Control/931e00bd37135e413f7ad12172236d02bd0acab8/docs/Project%20Preview/Login.png) | ![游戏模式](https://raw.githubusercontent.com/Z1og/L4D2-Control/793f96b31fb4f850f895460b391b8c71fea33f8d/docs/Project%20Preview/Gameplay.png) |
 
-| 总览 | 登录管理 | 普通 / 授权登录；Steam 数字资料链接 + 独立面板密码，无 Steam 授权；普通账号仅查看和直连下载 |
-| 游戏模式 | 读取实时模式与难度、管理扩展多人和开局 Bot；保存与重载二次确认，按插件能力限额，跨地图保留配置 |
-| 地图管理 |
+| 总览 | 地图管理 |
 | --- | --- |
 | ![总览](https://raw.githubusercontent.com/Z1og/L4D2-Control/793f96b31fb4f850f895460b391b8c71fea33f8d/docs/Project%20Preview/Overview.png) | ![地图管理](https://raw.githubusercontent.com/Z1og/L4D2-Control/793f96b31fb4f850f895460b391b8c71fea33f8d/docs/Project%20Preview/Maps.png) |
 

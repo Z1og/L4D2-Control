@@ -1,5 +1,12 @@
 # L4D2-Control · 今天一定要活下去
 
+![L4D2-Control · 今天一定要活下去](assets/Project%20poster%20desktop.webp)
+
+> **QQ 交流群：1002677414** · 在 QQ 搜索群号即可加入，交流地图、插件与开服经验。
+> 登录页和面板“关于项目”均可一键复制群号。
+
+[电脑横版海报](assets/Project%20poster%20desktop.png) · [手机竖版海报](assets/Project%20poster%20mobile.png)
+
 > 项目原创部分仅限非商业使用，商业使用需事先取得书面授权。参见 [LICENSE](LICENSE) 与[来源指纹说明](docs/Project%20Provenance.md)。
 
 
@@ -32,6 +39,8 @@
 > ### ⭐ 如果本项目对你有帮助别忘了点一下star⭐
 
 ## 项目预览
+
+[电脑 / 手机登录页效果](docs/Project%20Preview/Community.png) · [手机登录页预览](docs/Project%20Preview/Login%20mobile.png)
 
 以下为当前面板的实际页面预览。服务器地址、连接端口及其他私人信息已作不可逆遮盖，公开图片不包含原始敏感像素。
 

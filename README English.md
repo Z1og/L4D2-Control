@@ -1,5 +1,12 @@
 # L4D2-Control · 今天一定要活下去
 
+![L4D2-Control · 今天一定要活下去](assets/Project%20poster%20desktop.webp)
+
+> **QQ community group：1002677414** · Search this group number in QQ to join.
+> Copy the group number on the login page or open “About project” inside the panel.
+
+[Desktop poster](assets/Project%20poster%20desktop.png) · [Mobile poster](assets/Project%20poster%20mobile.png)
+
 > Original project contributions are available for non-commercial use. Commercial use requires written authorization. See [LICENSE](LICENSE) and [project provenance](docs/Project%20Provenance.md).
 
 
@@ -22,6 +29,8 @@ OpenList and Baidu Netdisk are optional. Local map and plugin management and **S
 > **SVIP validation note：** The Baidu Netdisk account used for validation has **SVIP** enabled. Download behavior for accounts without SVIP has not been tested; whether this affects the download service remains unknown.
 
 ## Project preview
+
+[Desktop and mobile login preview](docs/Project%20Preview/Community.png) · [Mobile login screenshot](docs/Project%20Preview/Login%20mobile.png)
 
 Server details in these previews are redacted; the project does not include a real server address, account or password.
 
