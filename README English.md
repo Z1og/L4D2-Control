@@ -28,7 +28,7 @@ Server details in these previews are redacted; the project does not include a re
 
 | Plugin management | Content downloads |
 | --- | --- |
-| ![Plugin management](https://raw.githubusercontent.com/Z1og/L4D2-Control/c5e295112d77ab696e363cfd41b64343a9736644/docs/Project%20Preview/Plugins.png) | ![Content downloads](https://raw.githubusercontent.com/Z1og/L4D2-Control/c5e295112d77ab696e363cfd41b64343a9736644/docs/Project%20Preview/Downloads.png) |
+| ![Plugin management](https://raw.githubusercontent.com/Z1og/L4D2-Control/4131b3917d552be06b09acc44d4b14ab036f5c09/docs/Project%20Preview/Plugins.png) | ![Content downloads](https://raw.githubusercontent.com/Z1og/L4D2-Control/4131b3917d552be06b09acc44d4b14ab036f5c09/docs/Project%20Preview/Downloads.png) |
 
 ## Features
 

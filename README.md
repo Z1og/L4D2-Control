@@ -38,7 +38,7 @@
 
 | 插件管理 | 内容下载 |
 | --- | --- |
-| ![插件管理](https://raw.githubusercontent.com/Z1og/L4D2-Control/c5e295112d77ab696e363cfd41b64343a9736644/docs/Project%20Preview/Plugins.png) | ![内容下载](https://raw.githubusercontent.com/Z1og/L4D2-Control/c5e295112d77ab696e363cfd41b64343a9736644/docs/Project%20Preview/Downloads.png) |
+| ![插件管理](https://raw.githubusercontent.com/Z1og/L4D2-Control/4131b3917d552be06b09acc44d4b14ab036f5c09/docs/Project%20Preview/Plugins.png) | ![内容下载](https://raw.githubusercontent.com/Z1og/L4D2-Control/4131b3917d552be06b09acc44d4b14ab036f5c09/docs/Project%20Preview/Downloads.png) |
 
 ---
 
