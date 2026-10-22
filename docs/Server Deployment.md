@@ -4,6 +4,12 @@ Replace placeholders such as `<GAME_USER>`, `<GAME_ROOT>`, `<SCREEN_SESSION>`, `
 
 请将 `<GAME_USER>`、`<GAME_ROOT>`、`<SCREEN_SESSION>`、`<PANEL_DOMAIN>`、`<PUBLIC_GAME_HOST>` 等占位符替换为自己的值。切勿提交密码、订阅链接、私钥或真实凭据。
 
+> **网盘适配 / Cloud-drive compatibility**
+>
+> 云端地图备份和直连下载导出的已验证组合为 **OpenList + 百度网盘存储驱动**。Chrome/Edge 下载助手仅适配百度直链，其他网盘驱动尚未完成同等验证；不启用网盘也能使用地图、插件管理和服务器下载导出。
+>
+> The validated combination for map cloud backup and direct-download export is **OpenList with its Baidu Netdisk storage driver**. The Chrome/Edge helper is specific to Baidu direct links; other drivers have not received equivalent validation. Map/plugin management and server download export also work without cloud storage.
+
 ## 简体中文部署教程
 
 ### 0. 让 AI 协助部署（可选）
@@ -182,7 +188,7 @@ OPENLIST_MAPS_PATH=/l4d2-maps
 OPENLIST_UPLOAD=true
 ~~~
 
-`OPENLIST_MAPS_PATH` 是 OpenList 中网盘存储的公开路径，不是服务器文件系统路径。启用 `OPENLIST_UPLOAD=true` 后，在“云端地图”备份 VPK，完成后可通过 `/api/share/create` 创建单文件分享；令牌只在服务器端使用，不返回浏览器。首次上传占用游戏服务器上行，好友下载能否走网盘直链取决于该驱动的直链/代理设置。同名不同大小的文件不会被覆盖。OpenList 地址必须是 HTTPS 且不能带账号、密码、查询参数或令牌。
+`OPENLIST_MAPS_PATH` 是 OpenList 中网盘存储的公开路径，不是服务器文件系统路径。启用 `OPENLIST_UPLOAD=true` 后，在控制台“服务器自检 → 地图云端备份”执行备份；令牌只在服务器端使用，不返回浏览器。首次上传占用游戏服务器上行，地图卡片的直连导出能否使用取决于网盘驱动是否提供有效百度直链。同名不同大小的文件不会被覆盖。OpenList 地址必须是 HTTPS 且不能带账号、密码、查询参数或令牌。
 
 ### 9. 验收、更新与排错
 
@@ -377,7 +383,7 @@ OPENLIST_MAPS_PATH=/l4d2-maps
 OPENLIST_UPLOAD=true
 ~~~
 
-`OPENLIST_MAPS_PATH` is the public path inside OpenList, not a filesystem path. With `OPENLIST_UPLOAD=true`, back up VPKs in Cloud Maps first, then use `/api/share/create` for a single-file share; the token never reaches the browser. The first upload uses the game server uplink; whether later downloads use the cloud provider's direct link depends on the driver/proxy setting. Same-name files with a different size are never overwritten. `OPENLIST_URL` must be HTTPS without embedded credentials, query parameters or tokens.
+`OPENLIST_MAPS_PATH` is the public path inside OpenList, not a filesystem path. With `OPENLIST_UPLOAD=true`, use **Server Diagnostics → Map cloud backup** for manual or automatic backups; the token never reaches the browser. The first upload uses the game server uplink; direct export from a map card requires a verified backup and a usable Baidu raw URL from the provider. Same-name files with a different size are never overwritten. `OPENLIST_URL` must be HTTPS without embedded credentials, query parameters or tokens.
 
 ### 9. Verify, update and troubleshoot
 
@@ -396,9 +402,9 @@ sudo systemctl start l4d2-control.service
 
 Missing status/maps: check that game and panel use the same account and screen-session name. Failed imports/deletions: check local mode and game-directory write access. Service exits: inspect journalctl, Node path and environment-file permissions. GameMaps challenges: configure Chrome/Xvfb, switch node or use Steam search. Origin validation uses actual TLS state; a basic HTTPS-to-HTTP reverse proxy can reject writes, so direct Node HTTPS is recommended.
 
-### 控制台内的云端地图与自动备份
+### 服务器自检中的地图备份
 
-“云端地图”直接列出专用 OpenList 存储内的 VPK，无需跳转。可搜索文件、查看容量与服务器备份状态、生成单文件分享链接；高级存储设置仍由 OpenList 管理。
+云端地图浏览页已移除。备份状态、立即备份、自动备份开关和停止操作集中在侧栏“服务器自检 → 地图云端备份”；该区域只读写服务器备份状态，不会列出网盘目录文件。OpenList 存储配置仍在 OpenList 管理页维护。
 
 点击“开启自动备份”后，服务器每 5 分钟检查 `addons` 和其 `workshop` 子目录中的 VPK，包含地图资源分包；不复制官方游戏目录或插件。顺序流式上传，文件成功上传并核对大小后才记录完成；已备份且未变化的文件跳过。文件变化或遇到已有同名文件时保留独立指纹版本，不覆盖、不联动删除。关闭网页后继续运行；“停止本轮并关闭自动备份”可取消当前任务。
 
@@ -406,9 +412,9 @@ Missing status/maps: check that game and panel use the same account and screen-s
 
 首次备份仍使用游戏服务器上行；后续下载是否直连取决于网盘驱动及代理设置。下载速度并不由“内嵌列表”功能改变。
 
-### In-console cloud maps and automatic backup
+### Server Diagnostics map backup
 
-Cloud Maps lists VPKs from the dedicated OpenList folder without leaving the console. Search files, inspect capacity and per-server backup status, or copy a single-file share link. Advanced storage configuration remains in OpenList.
+The standalone Cloud Maps browser page has been removed. Backup status, manual backup, automatic backup and stop controls are grouped under **Server Diagnostics → Map cloud backup**. The panel reports server backup state without listing the cloud-drive directory. Manage the OpenList storage itself from its own admin page.
 
 Enabling automatic backup starts an incremental scan every five minutes on the server. It includes VPKs in `addons` and its `workshop` directory, including map resource parts, but excludes the base game and plugins. Files stream sequentially. Completion is recorded only after upload and remote-size validation; unchanged recorded files are skipped. Changes and name collisions create fingerprinted versions without overwriting or propagating deletion. Closing the browser does not stop the worker; the Stop action aborts the current run and disables the schedule.
 
@@ -418,17 +424,17 @@ Use a dedicated GENERAL account based at `/l4d2-maps`, with write-content and sh
 
 ### 浏览器扩展：本机直连下载
 
-如果不想让百度地图文件经过游戏服务器，可在面板登录后进入“云端地图 → 下载器直连”，下载 `L4D2 Baidu Download Helper.zip` 和安装说明。Chrome/Edge 打开扩展管理页，启用开发者模式，解压 ZIP 后选择包含 `manifest.json` 的文件夹加载；回到面板标签页，点击扩展图标并绑定当前标签页，然后从同一标签页点击“浏览器直接下载”。数据从百度直接传到本机，游戏服务器只提供短时下载链接。
+需要下载助手 1.2.1 或更新版。请重新下载 ZIP，覆盖原扩展文件夹，在浏览器扩展页点击“重新加载”并确认版本，再回到面板点击扩展图标“绑定当前面板标签页”。仅刷新网页不会更新扩展；同一标签页刷新会自动恢复连接；新标签页、浏览器重启或扩展更新后需重新绑定。新版会检测扩展、刷新签名链接，从本机读取文件头并核对 VPK 和大小，再从绑定标签页启动直连下载，面板保持打开。未绑定或验证失败时会显示明确提示。请在浏览器下载列表确认最终完成状态。
 
-扩展只修改手动绑定标签页从该面板发起、指向百度下载域名的请求头；不配置代理、不读取网页内容、不保存下载链接。规则仅在当前浏览器会话有效，重启浏览器后需要重新绑定。下载链接或百度策略变化时，可改用本机 curl/aria2 命令。扩展安装页：`/downloads/baidu-download-helper-guide`。
+activeTab 与 scripting 在你手动绑定后注入消息桥接，并在同一标签页刷新后自动恢复，不读取网页正文；请求头规则仅覆盖绑定标签页与扩展自身发往百度下载域名的文件检查。其他标签页不受影响。不申请 Cookies、历史记录、代理、全部网站或下载记录权限，不持久保存签名链接与网盘凭据。文件从百度直接传到本机，速度仍由百度和本地网络决定。
 
 For co-located OpenList, optional `OPENLIST_CONNECT_ADDRESS=127.0.0.1` uses loopback uploads while validating the original HTTPS identity. The cloud-save stage means OpenList has received the file; completion is only recorded after the cloud provider finishes. For slow Baidu uploads, consider one upload thread, 4 MiB slices, and a 600-second per-slice timeout in the driver; the panel does not automatically change these provider settings.
 
 ### Browser extension: download directly to your computer
 
-To avoid routing Baidu map files through the game server, sign in to the panel and open **Cloud Maps → Direct downloader**. Download `L4D2 Baidu Download Helper.zip` and the installation guide. In Chrome/Edge, open the extensions page, enable Developer mode, extract the ZIP and load the folder containing `manifest.json`. Return to the panel tab, click the extension icon and bind that tab, then choose **Browser direct download** from the same tab. The file transfers from Baidu to your computer; the game server only supplies the temporary link.
+Download Helper 1.2.1 or later is required. Download the new ZIP, replace the files in the existing extension folder, click Reload on the browser extensions page and confirm the version. Return to the panel and bind its tab again. Refreshing the website alone does not update an extension; same-tab reloads reconnect automatically. Rebind after opening a new tab, restarting the browser or updating the extension. The helper checks its binding, refreshes the signed link, verifies the VPK header and file size from your computer, then starts the download from the bound tab while keeping the panel open. Missing bindings and failed checks are reported in the dialog. Check the browser download list for final completion.
 
-The extension changes headers only for requests initiated by the manually bound panel tab and addressed to Baidu download hosts. It does not configure a proxy, read page content or save download links. The rule exists only for the current browser session; bind again after restarting the browser. If the temporary link or Baidu policy changes, use the local curl/aria2 command instead. Installation page: `/downloads/baidu-download-helper-guide`.
+activeTab and scripting add a message bridge after you explicitly bind a tab and restore it on same-tab reloads, without reading page content. Header rules cover the bound tab and the helper's own file checks on Baidu download hosts. Other tabs are unaffected. No cookies, history, proxy, all-site or download-history access is requested. Signed links and cloud credentials are not persisted. Files travel directly from Baidu to your computer; speed still depends on Baidu and your local network.
 
 ### 玩家采集插件 / Player bridge
 
@@ -463,5 +469,5 @@ The bridge writes snapshots every five seconds and persists identity history on 
 
 Verify a fresh timestamp in Online Players; zero humans remains zero. An offline player can be configured by SteamID. Permission changes require working `basecommands` (`sm_reloadadmins`) and `admin-flatfile`. `bfn` does not unlock every third-party plugin; choose the least required flags rather than defaulting to `z`. Reload/effective-permission failures restore the previous file. For unreadable history or missing snapshots, inspect SourceMod logs and private-directory permissions.
 
-### 云端地图一键下载 / One-click cloud downloads
-无需新增端口或安装 aria2 服务端。面板登录后可在云端地图使用浏览器流式下载；该方式消耗服务器出站带宽。下载器直连命令应在下载者电脑运行，已包含百度请求头。当前下载地址仅接受已配置的 OpenList 或百度域名；不会转发 OpenList 账号令牌。 / No additional port or server-side aria2 is required. Browser downloads use server egress. Run direct downloader commands on the client computer. OpenList service credentials are never forwarded to download hosts.
+### 地图一键下载 / Map downloads
+无需新增端口或安装 aria2 服务端。“服务器下载导出”从游戏服务器中转 VPK，速度受服务器出站带宽影响；“直连下载导出（推荐）”需要已确认的云端备份和有效的百度直链。浏览器直连点击时刷新签名，curl/aria2 命令复制时刷新签名；OpenList 账号令牌不会发送到下载端。 / No additional port or server-side aria2 is required. Server download export streams the VPK through the game server and uses its egress bandwidth. Direct download export requires a verified cloud backup and a valid Baidu raw link. Browser links refresh at click time; curl/aria2 links refresh before copying. OpenList credentials are never forwarded to download clients.

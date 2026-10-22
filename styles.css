@@ -47,6 +47,14 @@ h3 { font-size: 18px; font-weight: 600; }
 .server-chip b { display: block; font-size: 14px; font-weight: 600; }
 .server-chip small { display: block; color: var(--muted); font: 11px/1.8 var(--mono); }
 .server-chip>svg { display: none; }
+.server-connection { display: block; padding: 10px 12px 12px; }
+.server-connection-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+.server-connection-heading label { display: flex; align-items: center; gap: 9px; font-size: 14px; font-weight: 600; }
+.server-connection-copy { display: grid; place-items: center; width: 36px; height: 36px; flex: none; padding: 0; border: 0; border-radius: 10px; color: var(--blue); background: var(--accent-soft); cursor: pointer; }
+.server-connection-copy:not(:disabled):hover { background: var(--surface-2); }
+.server-connection-copy svg { width: 18px; height: 18px; }
+.server-connection-field { display: block; width: 100%; min-height: 60px; max-height: 120px; margin: 0; padding: 9px 5px; resize: none; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); color: var(--text); font: 13px/1.6 var(--mono); cursor: text; overflow-wrap: anywhere; }
+.server-connection .server-connection-hint { margin-top: 7px; color: var(--muted); font: 11px/1.6 var(--font); overflow-wrap: anywhere; }
 .pulse-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); flex: none; }
 body[data-server-state="online"] .pulse-dot { background: var(--green); box-shadow: 0 0 0 4px var(--green-soft); }
 body[data-server-state="offline"] .pulse-dot { background: var(--red); }
@@ -595,3 +603,5 @@ body.modal-open { overflow: hidden; }
 .cloud-file-actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:9px;flex:0 1 310px}.cloud-file-actions button{font-size:14px;min-height:42px}.cloud-file-actions .text-button{padding:8px}.cloud-download-help{padding:0 28px}.cloud-download-dialog>label{display:block;font-size:16px;font-weight:600;margin:20px 0 10px}.cloud-download-dialog select,.cloud-download-dialog textarea{width:100%;box-sizing:border-box;background:var(--surface-2);color:var(--text);border:1px solid var(--line);border-radius:12px;padding:12px;font:15px/1.6 var(--font)}.cloud-download-dialog textarea{font-family:var(--mono);resize:vertical;overflow-wrap:anywhere;white-space:pre-wrap}.cloud-download-name{font-size:17px;overflow-wrap:anywhere}.cloud-download-dialog [role=status]{font-size:15px;line-height:1.7;color:var(--muted)}.cloud-download-dialog .player-dialog-actions{justify-content:space-between;align-items:center}
 @media(max-width:1100px){.cloud-file-actions{flex-basis:100%;justify-content:flex-start;margin-left:66px}}@media(max-width:760px){.cloud-file-actions{margin-left:0;display:grid;grid-template-columns:1fr 1fr;flex-basis:100%}.cloud-file-actions .text-button{grid-column:1/-1;justify-content:center}.cloud-download-help{padding:0 20px}.cloud-download-dialog .player-dialog-actions{flex-wrap:wrap}}
 .cloud-extension-links{display:flex;flex-wrap:wrap;gap:12px 20px;margin:16px 0}.cloud-extension-links a{color:var(--accent);font-size:15px;line-height:1.6;text-underline-offset:4px}.cloud-browser-direct{display:flex;justify-content:center;min-height:48px;width:100%;margin:12px 0;text-decoration:none}.cloud-browser-direct[hidden]{display:none}
+.diagnostics-backup{margin-top:28px}.diagnostics-backup .panel-heading{align-items:center}.diagnostics-backup .openlist-status{margin:0 28px 18px}.diagnostics-backup .library-actions{align-items:center;justify-content:flex-end}.campaign-actions .library-item-actions{flex-wrap:wrap}.campaign-actions .library-item-actions button{white-space:nowrap}
+@media(max-width:760px){.diagnostics-backup .panel-heading{align-items:stretch}.diagnostics-backup .library-actions{width:100%;justify-content:stretch}.diagnostics-backup .library-actions button{flex:1}.diagnostics-backup .openlist-status{margin:0 20px 18px}.campaign-actions .library-item-actions{display:grid;grid-template-columns:1fr}.campaign-actions .library-item-actions button{justify-content:center}}

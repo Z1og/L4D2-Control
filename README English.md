@@ -4,6 +4,12 @@
 
 A web control panel for a Left 4 Dead 2 dedicated server, built with vanilla HTML/CSS/JavaScript and Node.js. Run the backend on the game server and manage it from a browser; no local desktop backend is required. The application UI is primarily Chinese.
 
+## Cloud-drive compatibility
+
+Map cloud backup and **Direct download export (recommended)** are currently adapted and tested with **Baidu Netdisk mounted through OpenList**. The bundled Chrome/Edge helper only handles Baidu download domains; it is not a general-purpose cloud-drive extension. Other OpenList storage drivers have not received equivalent validation.
+
+OpenList and Baidu Netdisk are optional. Local map and plugin management and **Server download export** remain available without a cloud drive. Configure authorization and credentials in your own OpenList instance and private server environment. No cloud accounts, tokens or subscriptions are included in this repository.
+
 ## Project preview
 
 Server details in these previews are redacted; the project does not include a real server address, account or password.
@@ -76,14 +82,14 @@ The default URL is `http://127.0.0.1:4174`, reachable only on the server itself.
 ## Behavior and limitations
 
 - Map export returns the original VPK with all packaged chapters. Plugin export returns only the SMX, not configuration, translations, gamedata or extensions.
-- Back up files in Cloud Maps before creating single-file shares. Only recorded, unchanged successful backups are reused; unknown same-name files produce separate fingerprinted versions and are never overwritten. Initial backup uses the server uplink.
+- Use **Server Diagnostics → Map cloud backup** for manual or automatic backups. Only recorded, unchanged successful backups are reused; unknown same-name files produce separate fingerprinted versions and are never overwritten. Initial backup uses the server uplink.
 - Whether friends bypass the game server depends on the cloud driver exposing a direct link and OpenList proxy-download settings. Prefer direct-link mode and test the share in a logged-out window.
 - Map/content installation accepts VPK/ZIP, not RAR/7z, split VPKs or executable installers. Paths, headers, sizes and filename conflicts are checked.
 - Official maps and custom packages containing the confirmed running map cannot be deleted. Removed files are retained in a private recovery directory for manual restoration.
 - Installation is serialized. Unknown totals use indeterminate progress. Interrupted jobs become failed after restart; there is no automatic partial-download resumption or game restart.
 - Steam prefers official HTTPS files, falling back to SteamCMD anonymous downloads only when metadata lacks a public file URL. Some items do not permit anonymous downloads.
 - GameMaps verification, rate limits and proxy availability can cause failures; the optional browser adapter does not guarantee access.
-- Baidu direct links can be downloaded locally with curl/aria2 or the panel's Chrome/Edge extension. The extension changes the `pan.baidu.com` User-Agent only for requests to `*.baidupcs.com` / `*.pcs.baidu.com` from the panel tab explicitly bound by the user, and only for the current browser session; bind again after restarting the browser. The ZIP and bilingual instructions are available under **Cloud Maps → Direct downloader**, or at `/downloads/baidu-download-helper-guide`.
+- Baidu direct links can be downloaded locally with curl/aria2 or the panel's Chrome/Edge extension. The extension sets Baidu's required User-Agent and Referer only for requests to `*.baidupcs.com` / `*.pcs.baidu.com` from the panel tab explicitly bound by the user, and only for the current browser session; bind again after restarting the browser. The ZIP and bilingual instructions are available from the map card's **Direct download export (recommended)** dialog, or at `/downloads/baidu-download-helper-guide`.
 - The plugin store syncs compiled `.smx` files from enabled plugin folders in the selected GitHub repository. Git blob hashes and file sizes are checked; the last successful catalog is retained if the upstream is unavailable. Installation imports only the `.smx` to SourceMod's disabled folder; configs, translations, gamedata, extensions and other dependencies are not installed automatically. Read the upstream notes before enabling. The server must reach `api.github.com` and `raw.githubusercontent.com`; this sync does not use the Workshop/GameMaps-only content proxy.
 - OpenList is a virtual cloud-drive layer, not a speed booster. If a download is proxied through OpenList, throughput is bounded by the slowest of Baidu's upstream, the OpenList host's outbound link and the client's route. Data can bypass the OpenList host only when the driver returns a usable direct/302 link and the client can reach it. The first map backup still uses the game server's uplink; a server cache can avoid repeated upstream reads, not accelerate the first Baidu transfer.
 - Configured content requests do not fall back to direct connections when the proxy fails. System, game and SSH traffic are not redirected. Subscription retrieval uses a separate HTTPS connection, not the content SOCKS proxy.
@@ -114,7 +120,7 @@ Open **服务器自检** (Server diagnostics) and select **开始检查** (Run c
 
 ### In-console cloud maps and automatic backup
 
-Cloud Maps lists VPKs from the dedicated OpenList folder without leaving the console. Search files, inspect capacity and per-server backup status, or copy a single-file share link. Advanced storage configuration remains in OpenList.
+The standalone Cloud Maps page has been removed. Backup status, manual backup, the automatic-backup switch and stop action are grouped under **Server Diagnostics → Map cloud backup**. This page reports server backup state only; it does not browse or list cloud-drive files. Operators still manage OpenList itself through their OpenList page.
 
 Enabling automatic backup starts an incremental scan every five minutes on the server. It includes VPKs in `addons` and its `workshop` directory, including map resource parts, but excludes the base game and plugins. Files stream sequentially. Completion is recorded only after upload and remote-size validation; unchanged recorded files are skipped. Changes and name collisions create fingerprinted versions without overwriting or propagating deletion. Closing the browser does not stop the worker; the Stop action aborts the current run and disables the schedule.
 
@@ -134,8 +140,8 @@ Only the `L4D2 CONTROL MANAGED ADMINS` block in `admins_simple.ini` is managed. 
 
 Only the latest pre-edit admin configuration is retained, not a whole-server backup. Never commit player history, audit records or administrator configuration.
 
-### Cloud map downloads
+### Map download and export
 
-**Download to computer** streams the file to the browser with the required Baidu User-Agent (`pan.baidu.com`), without staging it on the server disk. It supports single byte ranges and resume, limits concurrent transfers to two, and aborts upstream work when the client disconnects. Use the browser download list for progress and pause controls.
+Map cards provide **Direct download export (recommended)** and **Server download export**. Direct export is available only for maps with a verified cloud backup and a Baidu direct link. The browser link is refreshed when clicked, and the curl/aria2 link is refreshed immediately before copying. Temporary links expire, so run a copied command promptly.
 
-Browser downloads pass through the game server and are limited by its bandwidth. **Direct downloader** generates a PowerShell command for Windows curl or aria2 with the required header. Run it on your own computer for direct delivery. Temporary links can expire; reopen the dialog for a fresh link. Existing OpenList storage settings are preserved.
+Download Helper 1.2.1 or later is required. Download the new ZIP, replace the files in the existing extension folder, click Reload on the browser extensions page and confirm the version. Return to the panel and bind its tab again. Refreshing the website alone does not update an extension; same-tab reloads reconnect automatically. Rebind after opening a new tab, restarting the browser or updating the extension. The helper checks its binding, refreshes the signed link, verifies the VPK header and file size from your computer, then starts the download from the bound tab while keeping the panel open. Missing bindings and failed checks are reported in the dialog. Check the browser download list for final completion.

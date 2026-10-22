@@ -10,7 +10,7 @@
   <main>
     <div class="eyebrow">L4D2 CONTROL · DOWNLOAD HELPER</div>
     <h1>百度网盘直链</h1>
-    <p class="copy">只修改你绑定的面板标签页发往百度下载域名的请求；其他标签页不受影响。</p>
+    <p class="copy">1.2.1 · 绑定后先检查地图文件，再从百度直接下载到电脑；面板不会跳转到百度错误页。</p>
     <section class="status" aria-live="polite">
       <span class="dot" id="dot"></span>
       <div><strong id="status">检查绑定状态…</strong><small id="origin"></small></div>
@@ -18,7 +18,7 @@
     <button class="primary" id="bind" type="button">绑定当前面板标签页</button>
     <button class="secondary" id="disable" type="button" hidden>关闭扩展规则</button>
     <p class="note" id="notice"></p>
-    <footer>扩展不读取网页正文、不储存下载链接、不配置代理。下载数据由百度直接发送给你的电脑；浏览器重启后需重新绑定。</footer>
+  <footer>只处理已绑定标签页及扩展自身的百度文件检查请求，设置 User-Agent 和 Referer。不读取网页正文、不持久保存链接、不配置代理。同一标签页刷新会自动恢复；新标签页、浏览器重启或扩展更新后请重新绑定。</footer>
   </main>
   <script src="popup.js"></script>
 </body>

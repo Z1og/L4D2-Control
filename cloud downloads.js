@@ -27,7 +27,22 @@ function createCloudDownloads({ cloudMaps, openListUrl, fetchImpl = globalThis.f
   async function info(name, signal) {
     const item = await cloudMaps.downloadInfo(name, { signal });
     const url = downloadUrl(item.url, openListUrl);
-    return { name: item.name, size: item.size, url: url.href, userAgent: item.provider === 'BaiduNetdisk' ? 'pan.baidu.com' : 'L4D2-Control/1.0', direct: url.origin !== new URL(openListUrl).origin };
+    const isBaidu = item.provider === 'BaiduNetdisk';
+    return { name: item.name, size: item.size, url: url.href, userAgent: isBaidu ? 'pan.baidu.com' : 'L4D2-Control/1.0', referer: isBaidu ? 'https://pan.baidu.com/' : '', direct: url.origin !== new URL(openListUrl).origin };
+  }
+  async function infoForServerPackage(packageName, signal) {
+    if (typeof packageName !== 'string' || packageName.length > 250 || !/^(?:workshop\/)?(?!\.{1,2}(?:\/|$))[^/\\\x00-\x1f\x7f]+\.vpk$/i.test(packageName)) throw fail('地图包名称无效');
+    const listing = await cloudMaps.listMaps(true);
+    const local = listing.serverFiles.find(file => file.id === packageName);
+    if (!local) throw fail('服务器上不存在此地图包，请刷新地图列表', 404);
+    const remote = listing.files.find(file => file.serverId === packageName && file.verified);
+    if (!local.backedUp || !remote) throw fail('此地图尚未完成云端备份，请在“服务器自检”中立即备份或开启自动备份', 409);
+    const item = await info(remote.name, signal);
+    return { ...item, name: local.name };
+  }
+  async function redirectDirect(req, res, packageName) {
+    if (req.method !== 'GET') throw fail('不支持的下载方法', 405);
+    throw fail('浏览器直连入口已升级，请刷新面板并更新下载助手至 1.2.0，然后绑定当前面板标签页再下载。', 409);
   }
   async function relay(req, res, name) {
     let counted = false, size;
@@ -43,6 +58,7 @@ function createCloudDownloads({ cloudMaps, openListUrl, fetchImpl = globalThis.f
       const range = downloadRange(req.headers.range, size);
       let url = item.url, response;
       const headers = { 'User-Agent': item.userAgent, 'Accept-Encoding': 'identity' };
+      if (item.referer) headers.Referer = item.referer;
       if (range) headers.Range = range.header;
       if (range && typeof req.headers['if-range'] === 'string') headers['If-Range'] = req.headers['if-range'];
       for (let redirects = 0; redirects <= 5; redirects++) {
@@ -96,6 +112,6 @@ function createCloudDownloads({ cloudMaps, openListUrl, fetchImpl = globalThis.f
       if (counted) active--;
     }
   }
-  return { info, relay, activeCount: () => active };
+  return { info, infoForServerPackage, redirectDirect, relay, activeCount: () => active };
 }
 module.exports = { createCloudDownloads, downloadUrl, downloadRange };

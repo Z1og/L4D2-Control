@@ -315,6 +315,15 @@ async function handleApi(req, res, body) {
       const payload = body ? JSON.parse(body) : {};
       res.end(JSON.stringify(await cloudDownloads.info(payload.name))); return;
     }
+    if (req.method === 'POST' && pathname === '/api/openlist/map-download-info') {
+      const payload = body ? JSON.parse(body) : {};
+      res.end(JSON.stringify(await cloudDownloads.infoForServerPackage(payload.package))); return;
+    }
+    if (req.method === 'GET' && pathname === '/api/openlist/direct-download') {
+      if (req.headers['sec-fetch-site'] === 'cross-site' || req.headers.origin && req.headers.origin !== `${req.socket.encrypted ? 'https' : 'http'}://${req.headers.host}`) throw Object.assign(new Error('跨站下载请求已拒绝'), { status: 403 });
+      const packageName = new URL(req.url, 'http://localhost').searchParams.get('package');
+      await cloudDownloads.redirectDirect(req, res, packageName); return;
+    }
     if (req.method === 'GET' && pathname === '/api/openlist/backup') { res.end(JSON.stringify(cloudMaps.getStatus())); return; }
     if (req.method === 'POST' && pathname === '/api/openlist/backup') { res.statusCode = 202; res.end(JSON.stringify(cloudMaps.startBackup())); return; }
     if (req.method === 'POST' && pathname === '/api/openlist/backup/settings') {

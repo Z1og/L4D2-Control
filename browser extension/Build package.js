@@ -9,7 +9,7 @@ const { ZipFile } = require('yazl');
   const zip = new ZipFile();
   const options = { mtime: new Date('2026-01-01T00:00:00Z'), mode: 0o100644 };
   fs.mkdirSync(path.dirname(output), { recursive: true });
-  for (const name of ['manifest.json', 'popup.html', 'popup.css', 'popup.js']) {
+  for (const name of ['manifest.json', 'popup.html', 'popup.css', 'popup.js', 'bridge.js', 'background.js']) {
     zip.addFile(path.join(__dirname, 'L4D2 Baidu Download Helper', name), name, options);
   }
   zip.addFile(path.join(__dirname, '使用说明.md'), '使用说明.md', options);
