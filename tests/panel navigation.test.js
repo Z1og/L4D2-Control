@@ -6,20 +6,20 @@ const vm = require('node:vm');
 const app = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
 const code = app.slice(app.indexOf('const panelViews ='), app.indexOf('async function api('));
 function fixture(hash = '', saved = null, blocked = false) {
-  const views = ['overview', 'maps', 'plugins', 'diagnostics', 'workshop', 'proxy', 'players', 'logs', 'settings'];
+  const views = ['overview', 'gameplay', 'maps', 'plugins', 'diagnostics', 'workshop', 'proxy', 'players', 'logs', 'settings'];
   const events = {}, calls = [];
   const nodes = views.map(view => ({ id: view + 'View', dataset: { view }, classList: { toggle() {} }, setAttribute() {}, removeAttribute() {} }));
   const title = {}, location = { hash };
   const context = vm.createContext({ location, history: { replaceState(a, b, value) { if (blocked) throw Error('Denied'); location.hash = value; } },
     sessionStorage: { getItem() { if (blocked) throw Error('Denied'); return saved; }, setItem(key, value) { if (blocked) throw Error('Denied'); saved = value; } },
     document: { addEventListener(name, fn) { events[name] = fn; } }, window: { addEventListener(name, fn) { events[name] = fn; } },
-    $: () => title, $$: () => nodes, icons() {}, loadProxy() { calls.push('proxy'); }, loadPlayers() { calls.push('players'); },
+    $: () => title, $$: () => nodes, icons() {}, loadGameplay() { calls.push('gameplay'); }, loadProxy() { calls.push('proxy'); }, loadPlayers() { calls.push('players'); },
     loadDownloads() { calls.push('workshop'); }, loadCloudBackup() { calls.push('diagnostics'); }, startCloudPolling() {}, stopCloudPolling() {}
   });
   vm.runInContext(code, context); return { context, events, location, title, calls, saved: () => saved };
 }
 test('all panel sections restore on reload, after dependent scripts are initialized', () => {
-  for (const view of ['overview', 'maps', 'plugins', 'diagnostics', 'workshop', 'proxy', 'players', 'logs', 'settings']) {
+  for (const view of ['overview', 'gameplay', 'maps', 'plugins', 'diagnostics', 'workshop', 'proxy', 'players', 'logs', 'settings']) {
     const first = fixture(); first.context.navigate(view); assert.equal(first.location.hash, '#' + view);
     const second = fixture(first.location.hash, first.saved()); assert.equal(second.calls.length, 0);
     second.events.DOMContentLoaded(); assert.equal(second.location.hash, '#' + view); assert.equal(second.saved(), view);

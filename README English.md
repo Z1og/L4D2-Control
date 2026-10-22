@@ -22,6 +22,10 @@ OpenList and Baidu Netdisk are optional. Local map and plugin management and **S
 
 Server details in these previews are redacted; the project does not include a real server address, account or password.
 
+| Login | Gameplay |
+| --- | --- |
+| ![Login](docs/Project%20Preview/Login.png) | ![Gameplay](docs/Project%20Preview/Gameplay.png) |
+
 | Overview | Map management |
 | --- | --- |
 | ![Overview](https://raw.githubusercontent.com/Z1og/L4D2-Control/647db7a87df4d731e2168d00117d50695278cb0c/docs/Project%20Preview/Overview.png) | ![Map management](https://raw.githubusercontent.com/Z1og/L4D2-Control/c5e295112d77ab696e363cfd41b64343a9736644/docs/Project%20Preview/Maps.png) |
@@ -34,6 +38,8 @@ Server details in these previews are redacted; the project does not include a re
 
 | Module | Capabilities |
 | --- | --- |
+| Login | Separate ordinary and authorized accounts; numeric Steam profile linkage with an independent panel password; no Steam authorization; ordinary users receive read-only views and direct map downloads |
+| Gameplay | Live mode/difficulty settings, cooperative player/Bot limits, confirmed save and map reload; runtime capacity detection and persistent map-cycle settings |
 | Maps | Scan the base game, DLC and custom VPKs; collapsible campaigns and chapters; change maps; import VPK/ZIP; export original VPKs; delete custom packages |
 | Plugins | Functional categories, enable/disable, SMX import/export and deletion; imported plugins start disabled; core administrative plugins are protected |
 | Downloads | Separate **Map downloads** and **Plugin downloads** sections; search Steam Workshop, GameMaps and the LaoYutang plugin store, with byte progress, cancel/retry/history deletion; the plugin catalog and compiled SMX files sync to the server every six hours by default |
@@ -140,7 +146,7 @@ For co-located OpenList, optional `OPENLIST_CONNECT_ADDRESS=127.0.0.1` uses loop
 
 Online Players shows real human/bot counts, team, latency, connected duration, and exact SteamID2/3/64 values, with search, copy-ID, history and administrator tabs. Server Diagnostics is in the System sidebar section.
 
-Install the SourceMod player-management bridge from `sourcemod/L4D2 Control Players.sp` as described in the deployment guide. History starts when the bridge is enabled, is not retrospective and excludes IP addresses. Snapshots older than 20 seconds show unknown status and disable permission editing.
+Install the SourceMod player-management bridge from `sourcemod/L4D2 Control Players.sp` as described in the deployment guide. History starts when the bridge is enabled, is not retrospective; recent connection IPs are retained for 30 days and visible only to authorized users. Snapshots older than 20 seconds show unknown status and disable permission editing.
 
 Grant, adjust or revoke panel-owned SourceMod permissions by SteamID. Presets: plugin administrator `bfn`, game moderator `bcdfgjk`, or custom flags `a–t` / `z`. Root requires separate confirmation. Use `!admin` / `/admin` for an installed admin menu; each plugin still determines its own command and flag requirements. Permissions do not install plugins.
 
@@ -167,3 +173,19 @@ Your star helps more Left 4 Dead 2 server owners discover this project.
 - Ban recorded Steam identities for **1, 3, 7, 30, 180 or 3650 days**. The banned-player tab supports changing durations and unbanning, including batches of up to 100 identities. Changing a duration restarts its countdown from confirmation time.
 - The SourceMod bridge enforces bans when players join. Bans expire automatically and survive server restarts without an open browser. Only panel-owned bans are changed; other plugins' bans are preserved.
 - Recompile and reload **L4D2 Control Players 1.1.0** after upgrading. A page refresh does not update the game plugin. Private `bans.txt` and `moderation audit.jsonl` files live in `left4dead2/addons/sourcemod/data/l4d2 control/`; never publish these records.
+
+## Authorized and ordinary sign-in
+
+**授权登录 (Authorized sign-in)** uses the operator's `PANEL_USER` / `PANEL_PASSWORD`. **普通登录 (Ordinary sign-in)** uses a numeric Steam profile URL or SteamID64 plus a separate panel password, registered on first use. No Steam OpenID/OAuth or Steam password is involved. Vanity `/id/` URLs are not supported. Profile linkage is **self-declared, not proof of Steam account ownership**, and never grants game administrator privileges.
+
+Ordinary accounts can view public status, maps and plugins and request direct-download information for backed-up maps. The backend denies proxy, gameplay, player records, system tools, uploads, deletion, installation and server-relayed export. The Panel Accounts tab shows accounts and login/operation records to authorized users. Active panel SteamID bans prevent sign-in and revoke existing sessions on the next request.
+
+Passwords use salted scrypt hashes in private server storage. Login/operation IPs, access logs and recent game IPs are retained for **30 days**. Province-level labels use an offline local database and are approximate; user IPs are never sent to a geolocation API. Accounts, SteamIDs and ban records persist beyond the IP retention period. Sessions use HttpOnly cookies with CSRF checks; restarting the panel requires signing in again. Use HTTPS for public access.
+
+## Gameplay and multiplayer rooms
+
+Game Mode appears above Maps in the sidebar. Authorized users can select campaign, realism, versus, survival or scavenge, adjust difficulty, permit direct joining, and configure expanded co-op slots and initial bots.
+
+Expanded rooms require running `l4d2_sv_maxplayers` and `bots` plugins. Limits are read from live ConVars, not assumed. This adapter uses `bots_limit` / `bots_join_limit`; unsupported plugins remain unavailable. Capacity cannot be reduced below the online human count. Disabling expanded rooms restores standard capacity: 4 for co-op/realism/survival and 8 for versus/scavenge.
+
+Changes require confirmation and read-back; mismatches restore previous values. Settings persist in SourceMod's private `data/l4d2 control/gameplay.txt`, restored after map configs by version **1.3.0+** of this project's player bridge. Mode and initial bot changes may require a map reload. Reload has separate confirmation and resets current progress; the chosen map must support the mode. Deploying the panel does not change live gameplay settings.

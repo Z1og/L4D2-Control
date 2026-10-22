@@ -1,3 +1,5 @@
+const isGuest = document.body.dataset.panelRole === 'guest';
+const panelCsrf = document.body.dataset.panelCsrf || '';
 const $ = selector => document.querySelector(selector);
 const $$ = selector => [...document.querySelectorAll(selector)];
 const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]);
@@ -28,7 +30,7 @@ async function loadConnection() {
   const height = Math.max(60, field.scrollHeight + 2);
   field.style.height = `${Math.min(120, height)}px`; field.style.overflowY = height > 120 ? 'auto' : 'hidden';
   $('#serverConnectionHint').textContent = gameAddress ? '点击文本或图标即可复制' : '请配置 L4D2_GAME_HOST 和游戏端口';
-  renderCloudBackup();
+  if (typeof isGuest === 'undefined' || !isGuest) renderCloudBackup();
   renderMaps();
 }
 async function copyGameConnection() {
@@ -57,7 +59,7 @@ function renderCurrentMap(id = currentMap) {
   $('#currentMapEnglish').textContent = id || 'UNKNOWN';
   $('#currentMapSubtitle').textContent = selected ? `${selected.campaign.name} · ${selected.campaign.english}` : '服务器当前章节';
 }
-const panelViews = { overview: '总览', maps: '地图管理', plugins: '插件管理', diagnostics: '服务器自检', workshop: '内容下载', proxy: '代理管理', players: '在线玩家', logs: '操作日志', settings: '服务器设置' };
+const panelViews = { overview: '总览', gameplay: '游戏模式', maps: '地图管理', plugins: '插件管理', diagnostics: '服务器自检', workshop: '内容下载', proxy: '代理管理', players: '在线玩家', logs: '操作日志', settings: '服务器设置' };
 function savedPanelView() {
   const hash = location.hash.slice(1);
   if (hash) return Object.hasOwn(panelViews, hash) ? hash : 'overview';
@@ -65,12 +67,13 @@ function savedPanelView() {
   catch { return 'overview'; }
 }
 function navigate(view) {
-  if (!Object.hasOwn(panelViews, view)) view = 'overview';
+  if (!Object.hasOwn(panelViews, view) || typeof isGuest !== 'undefined' && isGuest && !['overview', 'maps', 'plugins'].includes(view)) view = 'overview';
   try { sessionStorage.setItem('l4d2-panel-view', view); } catch {}
   try { if (location.hash !== `#${view}`) history.replaceState(null, '', `#${view}`); } catch {}
   $$('.content').forEach(element => element.classList.toggle('hidden', element.id !== `${view}View`));
   $$('.nav-item').forEach(button => button.classList.toggle('active', button.dataset.view === view));
   $('#pageTitle').textContent = panelViews[view];
+  if (view === 'gameplay') loadGameplay();
   if (view === 'proxy') loadProxy();
   if (view === 'players') loadPlayers();
   if (view === 'workshop') loadDownloads();
@@ -81,7 +84,11 @@ function navigate(view) {
 document.addEventListener('DOMContentLoaded', () => navigate(savedPanelView()), { once: true });
 window.addEventListener('hashchange', () => navigate(savedPanelView()));
 async function api(url, options) {
-  const response = await fetch(url, options);
+  if (isGuest && !['/api/config','/api/status','/api/maps','/api/plugins','/api/openlist/map-download-info','/api/auth/session','/api/auth/logout'].includes(new URL(url,location.origin).pathname)) throw new Error('普通账号没有此操作权限');
+  const settings = { ...options, headers: { ...options?.headers } };
+  if (!['GET', 'HEAD'].includes((settings.method || 'GET').toUpperCase())) { settings.headers['x-csrf-token'] = panelCsrf; if (!settings.headers['content-type']) settings.headers['content-type'] = 'application/json'; }
+  const response = await fetch(url, settings);
+  if (response.status === 401) { location.replace('/login'); throw new Error('登录已过期，请重新登录'); }
   const type = response.headers.get('content-type') || '';
   const data = type.includes('json') ? await response.json() : await response.text();
   if (!response.ok) throw new Error(data.error || `请求失败 (${response.status})`);
@@ -122,7 +129,7 @@ function renderMaps() {
   const autoExpanded = new Set(query ? visible.filter(campaign => campaign.chapters.some(chapter => `${chapter.name} ${chapter.id}`.toLowerCase().includes(query))).map(campaign => campaign.id) : []);
   $('#mapRows').innerHTML = visible.map(campaign => {
     const expanded = expandedCampaigns.has(campaign.id) || autoExpanded.has(campaign.id);
-    return `<article class="campaign-card ${expanded ? 'expanded' : ''}"><button class="campaign-head" data-campaign-toggle="${escapeHtml(campaign.id)}" aria-expanded="${expanded}"><span class="campaign-head-copy"><strong>${escapeHtml(campaign.name)}</strong><span>${escapeHtml(campaign.english)}</span></span><span class="campaign-head-meta"><span class="campaign-count">${campaign.chapters.length} 章 · ${campaign.type === 'official' ? '官方' : campaign.type === 'custom' ? '自定义' : '其他'}</span><i data-lucide="${expanded ? 'chevron-up' : 'chevron-down'}"></i></span></button><div class="chapter-list ${expanded ? '' : 'hidden'}">${campaign.chapters.map(chapter => `<button class="chapter-row ${chapter.id === selectedMap ? 'selected' : ''}" data-map="${escapeHtml(chapter.id)}"><span class="chapter-number">${String(chapter.number).padStart(2, '0')}</span><span class="chapter-title"><strong>${escapeHtml(chapter.name)}</strong><small>${escapeHtml(chapter.id)}</small></span><span class="chapter-state ${chapter.id === currentMap ? 'current' : ''}">${chapter.id === currentMap ? '运行中' : '可切换'}</span><i data-lucide="chevron-right"></i></button>`).join('')}</div>${campaign.type === 'custom' && campaign.package ? `<div class="campaign-actions"><span title="${escapeHtml(campaign.package)}">${escapeHtml(campaign.package)}</span><div class="library-item-actions"><button class="secondary-button" data-direct-map="${escapeHtml(campaign.package)}" ${libraryBusy || !openListState.enabled ? 'disabled' : ''} title="${openListState.enabled ? '从已备份到 OpenList 的地图文件获取全新的百度直链' : '请先在服务器配置 OpenList'}"><i data-lucide="zap"></i>直连下载导出（推荐）</button><button class="secondary-button" data-export-map="${escapeHtml(campaign.package)}" ${libraryBusy ? 'disabled' : ''}><i data-lucide="download"></i>服务器下载导出</button><button class="danger-button" data-delete-map="${escapeHtml(campaign.package)}" ${libraryBusy ? 'disabled' : ''}><i data-lucide="trash-2"></i>删除地图包</button></div></div>` : ''}</article>`;
+    return `<article class="campaign-card ${expanded ? 'expanded' : ''}"><button class="campaign-head" data-campaign-toggle="${escapeHtml(campaign.id)}" aria-expanded="${expanded}"><span class="campaign-head-copy"><strong>${escapeHtml(campaign.name)}</strong><span>${escapeHtml(campaign.english)}</span></span><span class="campaign-head-meta"><span class="campaign-count">${campaign.chapters.length} 章 · ${campaign.type === 'official' ? '官方' : campaign.type === 'custom' ? '自定义' : '其他'}</span><i data-lucide="${expanded ? 'chevron-up' : 'chevron-down'}"></i></span></button><div class="chapter-list ${expanded ? '' : 'hidden'}">${campaign.chapters.map(chapter => `<button class="chapter-row ${chapter.id === selectedMap ? 'selected' : ''}" data-map="${escapeHtml(chapter.id)}"><span class="chapter-number">${String(chapter.number).padStart(2, '0')}</span><span class="chapter-title"><strong>${escapeHtml(chapter.name)}</strong><small>${escapeHtml(chapter.id)}</small></span><span class="chapter-state ${chapter.id === currentMap ? 'current' : ''}">${chapter.id === currentMap ? '运行中' : isGuest ? '查看章节' : '可切换'}</span><i data-lucide="chevron-right"></i></button>`).join('')}</div>${campaign.type === 'custom' && campaign.package ? `<div class="campaign-actions"><span title="${escapeHtml(campaign.package)}">${escapeHtml(campaign.package)}</span><div class="library-item-actions"><button class="secondary-button" data-direct-map="${escapeHtml(campaign.package)}" ${libraryBusy || !openListState.enabled ? 'disabled' : ''} title="${openListState.enabled ? '从已备份到 OpenList 的地图文件获取全新的百度直链' : '请先在服务器配置 OpenList'}"><i data-lucide="zap"></i>直连下载导出（推荐）</button><button class="secondary-button" data-export-map="${escapeHtml(campaign.package)}" ${libraryBusy ? 'disabled' : ''}><i data-lucide="download"></i>服务器下载导出</button><button class="danger-button" data-delete-map="${escapeHtml(campaign.package)}" ${libraryBusy ? 'disabled' : ''}><i data-lucide="trash-2"></i>删除地图包</button></div></div>` : ''}</article>`;
   }).join('') || '<div class="empty-state"><p>没有匹配的战役或章节</p></div>';
   renderDetail(); icons();
 }
@@ -130,7 +137,7 @@ function renderDetail() {
   const selected = chapterById(selectedMap) || chapterById(currentMap) || (campaigns[0] && { campaign: campaigns[0], chapter: campaigns[0].chapters[0] });
   if (!selected) { $('#mapDetail').innerHTML = '<h2>暂无可用地图</h2><p>请检查游戏目录与附加包。</p>'; return; }
   const { campaign, chapter } = selected; selectedMap = chapter.id;
-  $('#mapDetail').innerHTML = `<span class="detail-kicker">已选章节 · ${String(chapter.number).padStart(2, '0')}</span><h2>${escapeHtml(campaign.name)}</h2><p class="detail-english">${escapeHtml(campaign.english)}</p><h3>${escapeHtml(chapter.name)}</h3><p>${escapeHtml(chapter.id)}</p><div class="detail-stats"><div><span>类型</span><b>${campaign.type === 'official' ? '官方战役' : '自定义战役'}</b></div><div><span>状态</span><b class="green-text">${chapter.id === currentMap ? '运行中' : '可切换'}</b></div></div><button class="primary-button detail-button" id="changeMap"><i data-lucide="play"></i>${chapter.id === currentMap ? '重载当前章节' : '切换到此章节'}</button>`;
+  $('#mapDetail').innerHTML = `<span class="detail-kicker">已选章节 · ${String(chapter.number).padStart(2, '0')}</span><h2>${escapeHtml(campaign.name)}</h2><p class="detail-english">${escapeHtml(campaign.english)}</p><h3>${escapeHtml(chapter.name)}</h3><p>${escapeHtml(chapter.id)}</p><div class="detail-stats"><div><span>类型</span><b>${campaign.type === 'official' ? '官方战役' : '自定义战役'}</b></div><div><span>状态</span><b class="green-text">${chapter.id === currentMap ? '运行中' : isGuest ? '查看章节' : '可切换'}</b></div></div><button class="primary-button detail-button" id="changeMap"><i data-lucide="play"></i>${chapter.id === currentMap ? '重载当前章节' : '切换到此章节'}</button>`;
   $('#changeMap').onclick = () => changeMap(chapter.id); icons();
 }
 function selectMap(id) { selectedMap = id; const match = chapterById(id); if (match) { expandedCampaigns.add(match.campaign.id); if (match.campaign.type !== mapFilter) setMapFilter(match.campaign.type); } navigate('maps'); renderMaps(); }
@@ -147,7 +154,7 @@ async function loadMaps() {
     $('#officialMapCount').textContent = campaigns.filter(item => item.type === 'official').length;
     $('#customMapCount').textContent = campaigns.filter(item => item.type === 'custom').length;
     $('#otherMapCount').textContent = campaigns.filter(item => item.type === 'other').reduce((sum, item) => sum + item.chapters.length, 0);
-    $('#mapCoverage').textContent = `已识别 ${campaigns.length} 个地图分组、${data.chapterCount} 个可切换地图；附加包 ${data.addonCount} 个。`;
+    $('#mapCoverage').textContent = `已识别 ${campaigns.length} 个地图分组、${data.chapterCount} 个${isGuest ? '可查看' : '可切换'}地图；附加包 ${data.addonCount} 个。`;
     renderMaps(); renderQuick();
   } catch (error) { $('#mapCoverage').textContent = `读取地图失败：${error.message}`; $('#mapRows').innerHTML = '<div class="empty-state"><p>无法读取服务器地图</p></div>'; }
 }
@@ -361,7 +368,7 @@ function selectContentSection(section) {
 
 }
 async function loadDownloads() {
-  if (downloadsBusy) return; downloadsBusy = true;
+  if (isGuest || downloadsBusy) return; downloadsBusy = true;
   try {
     const data = await api('/api/downloads');
     const previous = new Map(downloadJobs.map(job => [job.id, job.status]));
@@ -394,7 +401,7 @@ function applyTheme(mode) {
 }
 
 async function syncStatus() {
-  try { const data = await api('/api/status'); document.body.dataset.serverState = data.online ? 'online' : 'offline'; currentMap = data.currentMap || ''; renderCurrentMap(currentMap); $('#serverStatus strong').textContent = data.online ? '服务器运行正常' : '游戏进程未运行'; $('#serverStatus span:not(.latency)').textContent = `同步于 ${new Date(data.lastSync || Date.now()).toLocaleTimeString()}`; $('#serverStatus .latency').lastChild.textContent = data.online ? '在线' : '离线'; $('#overviewState').textContent = data.online ? '在线' : '离线'; $('#sidebarState').textContent = data.online ? '在线' : '离线'; renderMaps(); }
+  try { const data = await api('/api/status'); document.body.dataset.serverState = data.online ? 'online' : 'offline'; currentMap = data.currentMap || ''; if (isGuest) { $('#overviewPlayerCount').textContent = data.playerCount ?? '—'; $('#overviewPlayerHint').textContent = '真人在线数量 · 不公开玩家资料'; } renderCurrentMap(currentMap); $('#serverStatus strong').textContent = data.online ? '服务器运行正常' : '游戏进程未运行'; $('#serverStatus span:not(.latency)').textContent = `同步于 ${new Date(data.lastSync || Date.now()).toLocaleTimeString()}`; $('#serverStatus .latency').lastChild.textContent = data.online ? '在线' : '离线'; $('#overviewState').textContent = data.online ? '在线' : '离线'; $('#sidebarState').textContent = data.online ? '在线' : '离线'; renderMaps(); }
   catch (error) { document.body.dataset.serverState = 'offline'; $('#serverStatus strong').textContent = '无法连接服务器'; $('#serverStatus span:not(.latency)').textContent = error.message; $('#serverStatus .latency').lastChild.textContent = '离线'; $('#overviewState').textContent = '离线'; $('#sidebarState').textContent = '离线'; }
 }
 const runtimeLabels = {
@@ -546,7 +553,7 @@ function uploadLibraryFile(kind, file, onProgress) {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open('POST', '/api/' + kind + '/import?name=' + encodeURIComponent(file.name));
-    xhr.setRequestHeader('content-type', 'application/octet-stream'); xhr.timeout = 30 * 60 * 1000;
+    xhr.setRequestHeader('x-csrf-token', panelCsrf); xhr.setRequestHeader('content-type', 'application/octet-stream'); xhr.timeout = 30 * 60 * 1000;
     xhr.upload.onprogress = event => { if (event.lengthComputable) onProgress(Math.min(100, Math.floor(event.loaded / event.total * 100))); };
     xhr.onload = () => { let data; try { data = JSON.parse(xhr.responseText); } catch { reject(new Error('服务器未返回有效结果')); return; } if (xhr.status >= 200 && xhr.status < 300) resolve(data); else reject(new Error(data.error || '上传失败 (' + xhr.status + ')')); };
     xhr.onerror = () => reject(new Error('上传连接中断，请刷新列表确认结果'));
@@ -691,8 +698,23 @@ async function openMapDirectDownload(packageName, button) {
     const info = await refreshCloudDirectInfo(controller.signal);
     if (controller.signal.aborted) return;
     $('#copyCloudDownloadCommand').disabled = !info.direct;
-    $('#cloudDownloadMessage').textContent = info.direct ? '需要下载助手 1.2.1 或更新版，并绑定当前标签页。点击后会刷新链接，由扩展检查实际地图内容并启动浏览器下载；不会再跳转到百度错误页。同一标签页刷新后会自动恢复连接；扩展更新后请刷新面板并重新绑定。' : '该网盘当前返回中转地址，直连不可用；可关闭此窗口后使用“服务器下载导出”，速度会受服务器带宽影响。';
+    $('#cloudDownloadMessage').textContent = info.direct ? '需要下载助手 1.2.1 或更新版，并绑定当前标签页。点击后会刷新链接，由扩展检查实际地图内容并启动浏览器下载；不会再跳转到百度错误页。同一标签页刷新后会自动恢复连接；扩展更新后请刷新面板并重新绑定。' : (isGuest ? '该地图暂时无法直连下载，请联系管理员。' : '该网盘当前返回中转地址，直连不可用；可关闭此窗口后使用“服务器下载导出”，速度会受服务器带宽影响。');
     record(`生成地图直连下载链接 ${packageName}`);
   } catch (error) { if (error.name !== 'AbortError') $('#cloudDownloadMessage').textContent = error.message; }
   finally { if (button.isConnected) button.disabled = libraryBusy || !openListState.enabled; }
 }
+
+function applyAccessPresentation() {
+  $('#sessionRole').textContent = isGuest ? '普通账号' : '授权账号';
+  $('#sessionHint').textContent = isGuest ? '仅查看与直连下载' : '服务器管理权限';
+  $('#sessionAvatar').textContent = isGuest ? 'P' : 'A';
+  if (isGuest) {
+    $('#mapsView .library-help').textContent = '展开查看战役和章节。已完成云端备份的自定义地图可以“直连下载导出（推荐）”；官方地图不提供导出。';
+    $('#pluginsView .library-help').textContent = '这里展示服务器安装的插件及启用状态。普通账号只能查看，不能启用、停用或导出插件。';
+    $('#overviewView .recent-panel h2').textContent = '地图快速浏览'; $('#overviewView .recent-panel .panel-heading p').textContent = '展开查看你想玩的战役';
+    $('#overviewView .activity-panel .panel-heading h2').textContent = '普通账号权限'; $('#overviewView .activity-panel .panel-heading p').textContent = '公开内容与个人直连下载';
+    $('#activityList').innerHTML = '<div class="activity-item"><div><b>查看地图、章节和插件状态</b><span>下载已备份的自定义地图，请到地图管理点击直连下载导出。</span></div></div>';
+  }
+}
+applyAccessPresentation();
+$('#logoutPanelMobile').onclick = $('#logoutPanel').onclick = async () => { try { await post('/api/auth/logout', {}); location.replace('/login'); } catch (error) { toast(error.message); } };

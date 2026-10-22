@@ -32,3 +32,7 @@ secret.txt
 proxy.json
 .DS_Store
 Thumbs.db
+
+*.xdb
+panel accounts.json
+access logs/

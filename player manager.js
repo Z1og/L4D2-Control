@@ -2,6 +2,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
 const crypto = require('node:crypto');
+const { normalizeIP } = require('./ip regions');
 const fail = (message, status = 400) => Object.assign(new Error(message), { status });
 const BEGIN = '// BEGIN L4D2 CONTROL MANAGED ADMINS';
 const END = '// END L4D2 CONTROL MANAGED ADMINS';
@@ -132,7 +133,7 @@ function createPlayerManager({ serverRoot, stateDir = path.join(os.homedir(), '.
         const row = fieldsOf(entry);
         const identity = steamIdentity(row.steam2);
         if (identity.steam64 !== String(row.steam64)) throw new Error('Steam identity mismatch');
-        players.push({ ...identity, name: String(row.name || '').slice(0, 128), userId: Number(row.userid), team: Number(row.team), ping: Math.max(0, Number(row.ping) || 0), connectedSeconds: Math.max(0, Number(row.connected) || 0), runtimeFlags: flagsOf(String(row.flags || '')), runtimeImmunity: Math.max(0, Number(row.immunity) || 0), online: true });
+        players.push({ ...identity, gameIp:normalizeIP(row.ip), gameIpAt:checkedAt, name: String(row.name || '').slice(0, 128), userId: Number(row.userid), team: Number(row.team), ping: Math.max(0, Number(row.ping) || 0), connectedSeconds: Math.max(0, Number(row.connected) || 0), runtimeFlags: flagsOf(String(row.flags || '')), runtimeImmunity: Math.max(0, Number(row.immunity) || 0), online: true });
       }
       return { available: true, moderationAvailable: Number(root.moderationversion) === 1, players, bots: Number(root.bots) || 0, checkedAt, reason: '' };
     } catch { return { available: false, reason: '未取得玩家采集数据，请检查 L4D2 Control Players 插件是否运行', players: [], bots: 0, checkedAt: null }; }
@@ -158,7 +159,7 @@ function createPlayerManager({ serverRoot, stateDir = path.join(os.homedir(), '.
       for (const [steam2, entry] of Object.entries(root)) {
         const row = fieldsOf(entry);
         const id = steamIdentity(steam2);
-        rows.set(id.steam64, { ...id, name: String(row.name || '').slice(0, 128), firstSeen: Number(row.firstseen) * 1000 || null, lastSeen: Number(row.lastseen) * 1000 || null, online: false });
+        rows.set(id.steam64, { ...id, gameIp:now() - Number(row.lastseen)*1000 <= 30*86400000 ? normalizeIP(row.ip) : '', gameIpAt:Number(row.lastseen)*1000 || null, name: String(row.name || '').slice(0, 128), firstSeen: Number(row.firstseen) * 1000 || null, lastSeen: Number(row.lastseen) * 1000 || null, online: false });
       }
     } catch { historyError = '历史记录读取失败，当前仅展示实时玩家和已配置管理员'; }
     for (const p of live.players) rows.set(p.steam64, { ...rows.get(p.steam64), ...p });

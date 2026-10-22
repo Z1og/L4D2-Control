@@ -1,0 +1,25 @@
+const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),os=require('node:os'),{spawn}=require('node:child_process');
+const {encodeBans}=require('../player moderation'),{steamIdentity}=require('../player manager');
+test('HTTP authentication, privacy projection, forbidden operations, ban invalidation and logout work together',async t=>{
+ const dir=fs.mkdtempSync(path.join(os.tmpdir(),'Panel HTTP test ')),sm=path.join(dir,'left4dead2/addons/sourcemod');fs.mkdirSync(path.join(sm,'plugins'),{recursive:true});fs.mkdirSync(path.join(sm,'data/l4d2 control'),{recursive:true});
+ const child=spawn(process.execPath,[path.join(__dirname,'../server.js')],{env:{...process.env,PORT:'0',BIND_HOST:'127.0.0.1',L4D2_EXEC_MODE:'local',L4D2_SERVER_ROOT:dir,L4D2_PLUGIN_PATH:path.join(sm,'plugins'),WORKSHOP_ADDON_DIR:path.join(dir,'left4dead2/addons'),DOWNLOAD_STATE_DIR:path.join(dir,'downloads'),LIBRARY_STATE_DIR:path.join(dir,'library'),CLOUD_MAPS_STATE_DIR:path.join(dir,'cloud'),PLAYER_STATE_DIR:path.join(dir,'players'),PANEL_ACCOUNT_STATE_DIR:path.join(dir,'accounts'),PLUGIN_STORE_SYNC_ENABLED:'false',PLUGIN_STORE_CACHE_DIR:path.join(dir,'store'),PANEL_TLS_KEY:path.join(dir,'none'),PANEL_TLS_CERT:path.join(dir,'none'),PANEL_USER:'test-admin',PANEL_PASSWORD:'private-test-password',PANEL_AUTH_TOKEN:'',L4D2_GAME_HOST:'game.example',L4D2_GAME_PORT:'27015',OPENLIST_URL:'',OPENLIST_USERNAME:'',OPENLIST_PASSWORD:'',WORKSHOP_PROXY_ENGINE:'',WORKSHOP_SOCKS_PROXY:''},stdio:['ignore','pipe','pipe']});
+ t.after(async()=>{const exited=new Promise(r=>child.once('exit',r));child.kill();await exited;fs.rmSync(dir,{recursive:true,force:true});});
+ const port=await new Promise((resolve,reject)=>{let output='',err='';const timer=setTimeout(()=>reject(Error(err||'timeout')),15000);child.stderr.on('data',d=>err+=d);child.stdout.on('data',d=>{output+=d;const m=/127\.0\.0\.1:(\d+)/.exec(output);if(m){clearTimeout(timer);resolve(m[1]);}});child.on('error',reject);});
+ const base='http://127.0.0.1:'+port;let cookie='',csrf='';
+ const req=(url,body,extra={})=>fetch(base+url,{method:body===undefined?'GET':'POST',redirect:'manual',headers:{cookie,...(body===undefined?{}:{'content-type':'application/json',origin:base,'x-csrf-token':csrf}),...extra},...(body===undefined?{}:{body:JSON.stringify(body)})});
+ assert.equal((await req('/')).status,303);assert.match(await(await req('/login')).text(),/普通登录/);assert.equal((await req('/api/maps')).status,401);
+ let r=await req('/api/auth/register',{profile:'76561197960265729',password:'ordinary-password',nickname:'Ordinary test',acceptPrivacy:true});assert.equal(r.status,200);let data=await r.json();csrf=data.csrf;cookie=r.headers.get('set-cookie').split(';')[0];assert.equal(data.identityVerified,false);
+ assert.match(await(await req('/')).text(),/data-panel-role="guest"/);
+ data=await(await req('/api/config')).json();assert.deepEqual(Object.keys(data).sort(),['gameAddress','openList']);assert.deepEqual(Object.keys(data.openList),['enabled']);
+ for(const url of ['/api/players','/api/gameplay','/api/diagnostics','/api/proxy/nodes','/api/maps/export?package=a.vpk','/api/openlist/maps','/server.js'])assert.equal((await req(url)).status,403,url);
+ for(const url of ['/api/map','/api/gameplay','/api/server/restart','/api/maps/import','/api/plugins/import','/api/players/moderation'])assert.equal((await req(url,{confirmed:true})).status,403,url);
+ assert.equal((await req('/api/plugins')).status,200);
+ const guestCookie=cookie,guestCsrf=csrf,identity=steamIdentity('76561197960265729'),at=Date.now();
+ fs.writeFileSync(path.join(sm,'data/l4d2 control/bans.txt'),encodeBans('fixture',[{...identity,name:'test',createdAt:at,updatedAt:at,expiresAt:at+86400000,days:1}]));
+ assert.equal((await req('/api/maps')).status,401);assert.equal((await req('/api/auth/guest',{profile:identity.steam64,password:'ordinary-password'})).status,403);
+ cookie='';csrf='';r=await req('/api/auth/login',{username:'test-admin',password:'private-test-password'});assert.equal(r.status,200);data=await r.json();assert.equal(data.role,'admin');csrf=data.csrf;cookie=r.headers.get('set-cookie').split(';')[0];
+ assert.match(await(await req('/')).text(),/data-panel-role="admin"/);assert.equal((await req('/gameplay.js')).status,200);
+ assert.equal((await req('/api/gameplay',{confirmed:false})).status,400);
+ assert.equal((await req('/api/auth/logout',{})).status,200);assert.equal((await req('/api/config')).status,401);
+ cookie=guestCookie;csrf=guestCsrf;assert.equal((await req('/api/config')).status,401);
+});

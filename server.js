@@ -21,6 +21,10 @@ const { createCloudDownloads } = require('./cloud downloads');
 const { createPlayerManager } = require('./player manager');
 const { createModeration, BAN_DAYS } = require('./player moderation');
 const { createRestartController, inspectGame } = require('./server controls');
+const { createGameplayController } = require('./gameplay controls');
+const { createAccess, sameOrigin, PUBLIC_FILES } = require('./access control');
+const { createAccounts } = require('./panel accounts');
+const { createRegions, requestIP } = require('./ip regions');
 
 const root = __dirname;
 const port = Number(process.env.PORT || 4174);
@@ -37,6 +41,13 @@ if (!/^[A-Za-z0-9_.-]+$/.test(screenSession)) throw new Error('L4D2_SCREEN_SESSI
 const panelUser = process.env.PANEL_USER || process.env.PANEL_USERNAME || 'admin';
 const panelPassword = process.env.PANEL_PASSWORD || '';
 const panelToken = process.env.PANEL_AUTH_TOKEN || '';
+const privateAccountDir = process.env.PANEL_ACCOUNT_STATE_DIR || path.join(os.homedir(), '.local', 'state', 'dead-air-panel', 'accounts');
+const trustedProxies = String(process.env.PANEL_TRUSTED_PROXIES || '').split(',').map(value => value.trim()).filter(Boolean);
+const regions = createRegions({ directory: process.env.IP_REGION_DIR || path.join(os.homedir(), '.local', 'share', 'dead-air-panel', 'ip regions') });
+const bannedIdentity = async id => (await moderation.list()).some(ban => ban.steam64 === id);
+const accounts = createAccounts({ directory: privateAccountDir, regions, isBanned: bannedIdentity });
+const access = createAccess({ username: panelUser, password: panelPassword, token: panelToken, trustedProxies, isBanned: bannedIdentity, authenticateGuest: (body, ip, register) => accounts.authenticate(body, ip, register), audit: event => accounts.audit(event) });
+const accountCleanupTimer = setInterval(() => accounts.cleanup().catch(() => console.error('Private account cleanup failed')), 3600000); accountCleanupTimer.unref();
 const workshopProxy = process.env.WORKSHOP_SOCKS_PROXY || '';
 if (workshopProxy && !/^socks5h:\/\/127\.0\.0\.1:\d{2,5}$/.test(workshopProxy)) throw new Error('WORKSHOP_SOCKS_PROXY must be a local socks5h URL');
 const gameMaps = createSource(workshopProxy);
@@ -54,7 +65,7 @@ async function refreshPlayerSnapshot(reload = false) {
   if (!output.includes('L4D2CONTROL_SNAPSHOT ' + nonce) || /Unknown command.*sm_reloadadmins/i.test(output)) throw new Error('SourceMod 未确认玩家状态更新');
 }
 const playerManager = createPlayerManager({ serverRoot, stateDir: process.env.PLAYER_STATE_DIR || path.join(os.homedir(), '.local', 'state', 'dead-air-panel', 'players'), reloadAdmins: () => refreshPlayerSnapshot(true), refreshSnapshot: () => refreshPlayerSnapshot() });
-const moderation = createModeration({ serverRoot, playerManager,
+const moderation = createModeration({ serverRoot, playerManager, registeredPlayers: () => accounts.list(),
   syncBans: async revision => {
     const output = await captureDiagnosticConsole([`l4d2_control_bans ${revision}`]);
     if (!output.includes('L4D2CONTROL_BANS ' + revision)) throw new Error('游戏插件未确认黑名单同步');
@@ -154,7 +165,12 @@ async function status() {
 }
 
 // A fresh nonce frame excludes old scrollback, while bounded retries allow a busy game tick.
-async function captureDiagnosticConsole(commands) {
+let consoleQueue = Promise.resolve();
+function captureDiagnosticConsole(commands) {
+  const job = consoleQueue.then(() => captureConsoleFrame(commands));
+  consoleQueue = job.catch(() => {}); return job;
+}
+async function captureConsoleFrame(commands) {
   const id = crypto.randomBytes(8).toString('hex');
   const begin = `L4D2CHECK_BEGIN_${id}`, end = `L4D2CHECK_END_${id}`;
   const consoleDir = path.join(os.homedir(), '.local', 'state', 'dead-air-panel', 'console');
@@ -180,6 +196,12 @@ async function captureDiagnosticConsole(commands) {
     throw new Error('Fresh console response timed out');
   } finally { await fs.promises.rm(file, { force: true }); }
 }
+
+const gameplay = createGameplayController({
+  capture: commands => captureDiagnosticConsole(commands),
+  directory: path.join(serverRoot, 'left4dead2', 'addons', 'sourcemod', 'data', 'l4d2 control'),
+  onlineCount: async () => { await refreshPlayerSnapshot(); const live = await playerManager.snapshot(); if (!live.available) throw Object.assign(new Error('无法确认当前在线人数，未调整人数'), { status: 409 }); return live.players.length; }
+});
 
 let diagnosticsPending;
 function diagnostics() {
@@ -292,6 +314,17 @@ printf 'INSTALLED:%s:%s\\n' "$installed_name" "$size"`;
   return `bash -lc ${shellQuote(script)}`;
 }
 
+let guestStatusCache = null, guestStatusAt = 0, guestStatusPending = null;
+async function guestStatus() {
+  if (guestStatusCache && Date.now() - guestStatusAt < 10000) return guestStatusCache;
+  if (!guestStatusPending) guestStatusPending = (async () => {
+    const data = await status();
+    const snapshot = localMode ? await playerManager.snapshot().catch(() => null) : null;
+    guestStatusCache = { connected: data.connected, online: data.online, currentMap: data.currentMap, mapConfirmed: data.mapConfirmed, lastSync: data.lastSync, playerCount: snapshot?.available ? snapshot.players.length : null };
+    guestStatusAt = Date.now(); return guestStatusCache;
+  })().finally(() => { guestStatusPending = null; });
+  return guestStatusPending;
+}
 async function handleApi(req, res, body) {
   res.setHeader('content-type', 'application/json; charset=utf-8');
   res.setHeader('cache-control', 'no-store');
@@ -318,7 +351,7 @@ async function handleApi(req, res, body) {
       if (pathname === '/api/proxy/delete') { res.end(JSON.stringify(await proxyManager.deleteNode(payload.id))); return; }
       res.statusCode = 404; res.end(JSON.stringify({ error: 'not found' })); return;
     }
-    if (req.method === 'GET' && req.url === '/api/config') { res.end(JSON.stringify({ gameAddress, openList: cloudMaps.publicConfig() })); return; }
+    if (req.method === 'GET' && req.url === '/api/config') { const config = cloudMaps.publicConfig(); res.end(JSON.stringify({ gameAddress, openList: req.access.role === 'guest' ? { enabled: config.enabled } : config })); return; }
     if (req.method === 'GET' && pathname === '/api/openlist') {
       res.end(JSON.stringify(cloudMaps.publicConfig()));
       return;
@@ -338,7 +371,10 @@ async function handleApi(req, res, body) {
     }
     if (req.method === 'POST' && pathname === '/api/openlist/map-download-info') {
       const payload = body ? JSON.parse(body) : {};
-      res.end(JSON.stringify(await cloudDownloads.infoForServerPackage(payload.package))); return;
+      req.auditTarget = typeof payload.package === 'string' ? payload.package.slice(0,250) : '';
+      const info = await cloudDownloads.infoForServerPackage(payload.package);
+      if (req.access.role === 'guest' && !info.direct) throw Object.assign(new Error('此地图暂不支持直连下载，请联系管理员'), { status: 409 });
+      res.end(JSON.stringify(info)); return;
     }
     if (req.method === 'GET' && pathname === '/api/openlist/direct-download') {
       if (req.headers['sec-fetch-site'] === 'cross-site' || req.headers.origin && req.headers.origin !== `${req.socket.encrypted ? 'https' : 'http'}://${req.headers.host}`) throw Object.assign(new Error('跨站下载请求已拒绝'), { status: 403 });
@@ -368,7 +404,13 @@ async function handleApi(req, res, body) {
       res.end(JSON.stringify(await cloudMaps.shareCloud(file.name)));
       return;
     }
-    if (req.method === 'GET' && req.url === '/api/status') { res.end(JSON.stringify(await status())); return; }
+    if (req.method === 'GET' && req.url === '/api/status') { res.end(JSON.stringify(await (req.access.role === 'guest' ? guestStatus() : status()))); return; }
+    if (pathname === '/api/gameplay') {
+      if (!localMode) throw Object.assign(new Error('玩法管理需要在游戏服务器本机运行面板'), { status: 400 });
+      if (req.method === 'GET') { res.end(JSON.stringify(await gameplay.read())); return; }
+      if (req.method === 'POST') { res.end(JSON.stringify(await gameplay.apply(body ? JSON.parse(body) : {}))); return; }
+      res.statusCode = 405; res.end(JSON.stringify({error:'method not allowed'})); return;
+    }
     if (pathname === '/api/server/restart') {
       if (!localMode || process.platform !== 'linux') throw Object.assign(new Error('重启功能需要在 Linux 游戏服务器本机运行面板'), { status: 400 });
       if (req.method === 'GET') { res.end(JSON.stringify(restartController.get())); return; }
@@ -378,6 +420,10 @@ async function handleApi(req, res, body) {
       if (!localMode) throw Object.assign(new Error('玩家管理需要在游戏服务器本机运行面板'), { status: 400 });
       if (req.method === 'GET' && pathname === '/api/players') {
         const data = await playerManager.list();
+        const registered = await accounts.list(), players = new Map(data.players.map(player => [player.steam64, player]));
+        for (const account of registered) { const old = players.get(account.steam64); players.set(account.steam64, { flags:'', permissionSource:'none', readOnly:false, online:false, firstSeen:account.createdAt, lastSeen:null, ...account, ...old, panelAccount:true, panelName:account.name, lastLoginAt:account.lastLoginAt, lastLoginIp:account.lastLoginIp, lastLoginRegion:account.lastLoginRegion, loginCount:account.loginCount, identityVerified:false }); }
+        data.players = await Promise.all([...players.values()].map(async player => ({ ...player, gameRegion:player.gameIp ? await regions.locate(player.gameIp) : null })));
+        data.total = data.players.length; data.accessEvents = await accounts.events();
         let bans = [], moderationError = '';
         try { bans = await moderation.list(); } catch { moderationError = '黑名单读取失败，玩家处置已禁用，请检查服务器文件'; }
         res.end(JSON.stringify({ ...data, bans, banDays: BAN_DAYS, moderationAvailable: data.moderationAvailable && !moderationError, moderationError })); return;
@@ -399,7 +445,8 @@ async function handleApi(req, res, body) {
     }
     if (req.method === 'GET' && pathname === '/api/plugins') {
       if (!localMode) throw new Error('plugin inventory requires local mode');
-      res.end(JSON.stringify({ plugins: pluginInventory(pluginPath) })); return;
+      const plugins = pluginInventory(pluginPath);
+      res.end(JSON.stringify({ plugins: req.access.role === 'guest' ? plugins.map(({ id, name, category, type, enabled }) => ({ id, name, category, type, enabled })) : plugins })); return;
     }
     if (pathname === '/api/maps/export' || pathname === '/api/plugins/export') {
       if (!['GET', 'HEAD'].includes(req.method)) { res.statusCode = 405; res.end(JSON.stringify({ error: 'method not allowed' })); return; }
@@ -510,7 +557,7 @@ async function handleApi(req, res, body) {
   } catch (error) {
     const badRequest = /^(invalid map|map not installed|invalid plugin|protected core plugin|invalid workshop query|invalid workshop id|invalid gamemaps query|invalid plugin store query|invalid download|invalid origin|proxy manager requires HTTPS|proxy manager requires local mode|内容导出需要|只能导出|文件名或文件类型|插件不存在|不支持的导出类型|节点不存在|请先切换|请导入|仅支持|节点链接|OpenList 已存在同名|插件商店)/.test(error.message) || error instanceof SyntaxError || error.code === 'STEAM_IDENTITY_MISMATCH';
     res.statusCode = error.status || (['ENOENT', 'ENOTDIR'].includes(error.code) ? 404 : badRequest ? 400 : 502);
-    res.end(JSON.stringify({ error: error instanceof SyntaxError ? 'invalid json' : error.message }));
+    res.end(JSON.stringify({ error: error instanceof SyntaxError ? 'invalid json' : req.access?.role === 'guest' && res.statusCode >= 500 ? '服务暂时不可用，请稍后再试或联系管理员' : error.message }));
   }
 }
 
@@ -548,11 +595,6 @@ function serveFile(req, res) {
     const types = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png', '.woff2': 'font/woff2', '.ico': 'image/x-icon' };
     res.setHeader('content-type', types[path.extname(file)] || 'application/octet-stream');
     res.setHeader('cache-control', 'no-cache');
-    if (relative === 'index.html' && (panelPassword || panelToken)) {
-      const expires = Math.floor(Date.now() / 1000) + 8 * 3600;
-      const signature = crypto.createHmac('sha256', panelToken || panelPassword).update(`mihomo:${expires}`).digest('hex');
-      res.setHeader('set-cookie', `mihomo-session=${expires}.${signature}; Path=/mihomo; HttpOnly; SameSite=Strict; Max-Age=28800${req.socket.encrypted ? '; Secure' : ''}`);
-    }
     fs.createReadStream(file).pipe(res); return;
   }
   const extensionAsset = requestPath === '/downloads/baidu-download-helper.zip'
@@ -573,61 +615,50 @@ function serveFile(req, res) {
     stream.on('error', () => res.destroy()); res.on('close', () => stream.destroy());
     stream.pipe(res); return;
   }
-  const relative = requestPath === '/' ? 'index.html' : requestPath.replace(/^\/+/, '');
-  if (!['index.html', 'app.js', 'players.js', 'styles.css'].includes(relative)) { res.statusCode = 404; res.end('Not found'); return; }
+  const relative = requestPath === '/' ? 'index.html' : requestPath === '/login' ? 'login.html' : requestPath.replace(/^\/+/, '');
+  if (!['index.html', 'app.js', 'players.js', 'gameplay.js', 'styles.css', 'login.html', 'login.js', 'login.css'].includes(relative)) { res.statusCode = 404; res.end('Not found'); return; }
   const filePath = path.resolve(root, relative);
   const relativeToRoot = path.relative(root, filePath);
   if (relativeToRoot.startsWith('..') || path.isAbsolute(relativeToRoot) || !fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) { res.statusCode = 404; res.end('Not found'); return; }
   const types = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.json': 'application/json; charset=utf-8' };
   res.setHeader('content-type', types[path.extname(filePath)] || 'application/octet-stream');
   res.setHeader('cache-control', 'no-store');
+  if (req.method === 'HEAD') { res.end(); return; }
+  if (relative === 'index.html') { const html = fs.readFileSync(filePath, 'utf8').replace('<body>', `<body data-panel-role="${req.access.role}" data-panel-csrf="${req.access.csrf || ''}">`); res.end(html); return; }
   fs.createReadStream(filePath).pipe(res);
 }
 
-function isAuthorized(req) {
-  if (!panelPassword && !panelToken) return bindHost === '127.0.0.1' || bindHost === '::1';
-  if (req.url.startsWith('/mihomo/')) {
-    const cookie = String(req.headers.cookie || '').split(';').map(value => value.trim()).find(value => value.startsWith('mihomo-session='))?.slice('mihomo-session='.length);
-    const match = cookie?.match(/^(\d{10})\.([a-f0-9]{64})$/);
-    if (match && Number(match[1]) >= Math.floor(Date.now() / 1000) && Number(match[1]) <= Math.floor(Date.now() / 1000) + 8 * 3600) {
-      const expected = crypto.createHmac('sha256', panelToken || panelPassword).update(`mihomo:${match[1]}`).digest('hex');
-      if (crypto.timingSafeEqual(Buffer.from(match[2]), Buffer.from(expected))) return true;
-    }
-  }
-  const header = req.headers.authorization || '';
-  if (panelPassword && header.startsWith('Basic ')) {
-    try {
-      const decoded = Buffer.from(header.slice(6), 'base64').toString('utf8');
-      const separator = decoded.indexOf(':');
-      const user = separator > 0 ? decoded.slice(0, separator) : '';
-      const pass = separator > 0 ? decoded.slice(separator + 1) : '';
-      const equal = (left, right) => { const a = Buffer.from(String(left)); const b = Buffer.from(String(right)); return a.length === b.length && crypto.timingSafeEqual(a, b); };
-      if (equal(user, panelUser) && equal(pass, panelPassword)) return true;
-    } catch { /* malformed credentials remain unauthorized */ }
-  }
-  const token = req.headers['x-panel-token'] || (header.startsWith('Bearer ') ? header.slice(7) : '');
-  if (panelToken) { const a = Buffer.from(String(token)); const b = Buffer.from(panelToken); if (a.length === b.length && crypto.timingSafeEqual(a, b)) return true; }
-  return false;
+function isAuthorized(req) { return access.identify(req)?.role === 'admin'; }
+function accessError(req, res, error) {
+  req.resume(); res.statusCode = error.status || 500;
+  res.setHeader('content-type', 'application/json; charset=utf-8'); res.setHeader('cache-control', 'no-store');
+  res.end(JSON.stringify({ error: error.status ? error.message : '服务暂时不可用' }));
 }
-
-const serve = (req, res) => {
-  if (!isAuthorized(req)) {
-    res.statusCode = 401;
-    res.setHeader('WWW-Authenticate', 'Basic realm="L4D2-Control", charset="UTF-8"');
-    res.setHeader('cache-control', 'no-store');
-    res.end('Authentication required');
-    return;
+const serve = async (req, res) => {
+  res.setHeader('x-content-type-options', 'nosniff'); res.setHeader('referrer-policy', 'no-referrer');
+  res.setHeader('x-frame-options', 'SAMEORIGIN');
+  let pathname; try { pathname = new URL(req.url, 'http://localhost').pathname; } catch { accessError(req, res, Object.assign(new Error('无效请求'), {status:400})); return; }
+  if (pathname.startsWith('/api/auth/')) {
+    res.setHeader('cache-control', 'no-store'); res.setHeader('content-type', 'application/json; charset=utf-8');
+    let body = '', tooLarge = false;
+    req.on('data', chunk => { if (tooLarge) return; body += chunk; if (Buffer.byteLength(body) > 8192) { tooLarge = true; accessError(req, res, Object.assign(new Error('请求过大'), {status:413})); } });
+    req.on('end', async () => { if (tooLarge) return; try { const data = body ? JSON.parse(body) : {}; if (!data || typeof data !== 'object' || Array.isArray(data)) throw Object.assign(new Error('请求格式无效'), {status:400}); res.end(JSON.stringify(await access.auth(req, res, pathname, data))); } catch (error) { accessError(req, res, error instanceof SyntaxError ? Object.assign(new Error('请求格式无效'), {status:400}) : error); } }); return;
+  }
+  if (PUBLIC_FILES.has(pathname) && ['GET', 'HEAD'].includes(req.method)) { serveFile(req, res); return; }
+  if ((pathname === '/' || pathname === '/index.html') && !access.identify(req, false)) { res.writeHead(303, { Location:'/login', 'Cache-Control':'no-store' }); res.end(); return; }
+  try { req.access = await access.authorize(req, pathname); } catch (error) { accessError(req, res, error); return; }
+  if (req.method === 'POST' && !pathname.startsWith('/mihomo/')) {
+    res.once('finish', () => { accounts.audit({ actor:req.access.name, role:req.access.role, steam64:req.access.steam64 || '', action:pathname, target:req.auditTarget || '', ok:res.statusCode < 400, ip:requestIP(req,trustedProxies) }).catch(() => console.error('Private access audit write failed')); });
   }
   if (req.url.startsWith('/mihomo/') && proxyManager.bridge) {
-    if (req.headers.origin && req.headers.origin !== `${req.socket.encrypted ? 'https' : 'http'}://${req.headers.host}`) { res.writeHead(403); res.end('Invalid origin'); return; }
+    if (!sameOrigin(req)) { res.writeHead(403); res.end('Invalid origin'); return; }
     proxyManager.bridge(req, res, req.url.slice('/mihomo'.length)); return;
   }
-  if (/^\/api\/(maps|plugins)\/import(?:\?|$)/.test(req.url)) {
-    handleImport(req, res); return;
-  }
+  if (/^\/api\/(maps|plugins)\/import(?:\?|$)/.test(req.url)) { handleImport(req, res); return; }
   if (req.url.startsWith('/api/')) {
     let body = ''; req.on('data', chunk => { body += chunk; if (Buffer.byteLength(body) > (req.url === '/api/proxy/import' ? 2 * 1024 * 1024 : 100000)) req.destroy(); }); req.on('end', () => handleApi(req, res, body)); return;
   }
+  if (!['GET','HEAD'].includes(req.method)) { res.writeHead(405); res.end('Method not allowed'); return; }
   serveFile(req, res);
 };
 const useTls = fs.existsSync(tlsKey) && fs.existsSync(tlsCert);
@@ -639,4 +670,4 @@ server.on('upgrade', (req, socket, head) => {
 });
 server.listen(port, bindHost, () => console.log(`L4D2-Control listening on ${useTls ? 'https' : 'http'}://${bindHost}:${server.address().port} (${localMode ? 'local control' : 'ssh control'})`));
 
-process.once('SIGTERM', () => { cloudMaps.close(); server.close(() => process.exit(0)); setTimeout(() => process.exit(0), 8000).unref(); });
+process.once('SIGTERM', () => { clearInterval(accountCleanupTimer); regions.close(); cloudMaps.close(); server.close(() => process.exit(0)); setTimeout(() => process.exit(0), 8000).unref(); });

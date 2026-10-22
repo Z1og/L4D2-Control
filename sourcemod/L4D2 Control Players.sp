@@ -4,8 +4,8 @@
 
 public Plugin myinfo = {
     name = "L4D2 Control Players", author = "L4D2-Control",
-    description = "Server-local player identity and permission snapshot; no player IPs or credentials",
-    version = "1.1.0", url = ""
+    description = "Private server-local player identity, permission and connection address snapshot",
+    version = "1.3.0", url = ""
 };
 KeyValues gHistory;
 char gSnapshotPath[PLATFORM_MAX_PATH];
@@ -49,6 +49,7 @@ void Remember(int client) {
     gHistory.Rewind(); gHistory.JumpToKey(steam2, true);
     if (!gHistory.GetNum("firstSeen")) gHistory.SetNum("firstSeen", GetTime());
     gHistory.SetNum("lastSeen", GetTime()); gHistory.SetString("name", name);
+    char address[64]; if (GetClientIP(client, address, sizeof(address), true)) gHistory.SetString("ip", address);
     gHistory.Rewind(); gHistoryDirty = true;
 }
 bool ExportAtomic(KeyValues kv, const char[] destination) {
@@ -58,6 +59,11 @@ bool ExportAtomic(KeyValues kv, const char[] destination) {
     return RenameFile(destination, temp);
 }
 void SaveHistory() {
+    gHistory.Rewind();
+    if (gHistory.GotoFirstSubKey()) {
+        do { if (GetTime() - gHistory.GetNum("lastSeen") > 2592000 && gHistory.DeleteKey("ip")) gHistoryDirty = true; } while (gHistory.GotoNextKey());
+    }
+    gHistory.Rewind();
     if (gHistoryDirty && ExportAtomic(gHistory, gHistoryPath)) { gHistoryDirty = false; gLastSave = GetTime(); }
 }
 bool WriteSnapshot() {
@@ -75,6 +81,7 @@ bool WriteSnapshot() {
         IntToString(GetClientUserId(client), key, sizeof(key)); GetClientName(client, name, sizeof(name));
         FlagBitsToString(GetUserFlagBits(client), flags, sizeof(flags));
         snapshot.JumpToKey(key, true);
+        char address[64]; if (GetClientIP(client, address, sizeof(address), true)) snapshot.SetString("ip", address);
         snapshot.SetString("steam2", steam2); snapshot.SetString("steam64", steam64); snapshot.SetString("name", name);
         snapshot.SetNum("userid", GetClientUserId(client)); snapshot.SetNum("team", GetClientTeam(client));
         snapshot.SetNum("ping", RoundToNearest(GetClientAvgLatency(client, NetFlow_Both) * 1000.0));
@@ -142,4 +149,28 @@ public Action CommandKick(int args) {
     KickClient(client, "You were kicked by the server administrator.");
     PrintToServer("L4D2CONTROL_KICK %s", nonce);
     return Plugin_Handled;
+}
+
+// Only panel-managed, validated values are restored after map configs execute.
+public void OnConfigsExecuted() {
+    char file[PLATFORM_MAX_PATH]; BuildPath(Path_SM, file, sizeof(file), "data/l4d2 control/gameplay.txt");
+    if (!FileExists(file)) return;
+    KeyValues kv = new KeyValues("PanelGameplay");
+    if (!kv.ImportFromFile(file)) { delete kv; LogError("Invalid panel gameplay settings"); return; }
+    char mode[32], difficulty[24]; kv.GetString("mp_gamemode", mode, sizeof(mode)); kv.GetString("z_difficulty", difficulty, sizeof(difficulty));
+    bool coop = StrEqual(mode, "coop") || StrEqual(mode, "realism");
+    bool validMode = coop || StrEqual(mode, "versus") || StrEqual(mode, "survival") || StrEqual(mode, "scavenge");
+    bool validDifficulty = StrEqual(difficulty, "Easy") || StrEqual(difficulty, "Normal") || StrEqual(difficulty, "Hard") || StrEqual(difficulty, "Impossible");
+    int lobby = kv.GetNum("sv_allow_lobby_connect_only", -1), slots = kv.GetNum("sv_maxplayers", 0), bots = kv.GetNum("bots_limit", 0), join = kv.GetNum("bots_join_limit", -1);
+    if (!validMode || !validDifficulty || lobby < 0 || lobby > 1 || (slots && (slots < 4 || slots > MaxClients)) || (bots && (bots < 1 || bots > slots)) || join < -1 || join > MaxClients) { delete kv; LogError("Panel gameplay settings outside supported limits"); return; }
+    char names[][] = {"mp_gamemode", "z_difficulty", "sv_allow_lobby_connect_only", "sv_maxplayers", "sv_visiblemaxplayers", "bots_limit", "bots_join_limit"};
+    for (int i = 0; i < sizeof(names); i++) {
+        char value[32]; kv.GetString(names[i], value, sizeof(value)); if (!value[0]) continue;
+        ConVar setting = FindConVar(names[i]); if (setting == null) { LogError("Missing gameplay convar: %s", names[i]); delete kv; return; }
+    }
+    for (int i = 0; i < sizeof(names); i++) {
+        char value[32]; kv.GetString(names[i], value, sizeof(value)); if (!value[0]) continue;
+        ConVar setting = FindConVar(names[i]); setting.SetString(value);
+    }
+    delete kv;
 }

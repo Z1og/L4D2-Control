@@ -9,7 +9,7 @@ const quoted = value => JSON.stringify(String(value));
 function encodeBans(revision, bans) {
   return '"PanelBans"\n{\n"version" "1"\n"revision" ' + quoted(revision) + '\n"bans"\n{\n' + bans.map(ban => quoted(ban.steam2) + '\n{\n' + Object.entries({ steam64: ban.steam64, name: ban.name, expires: Math.floor(ban.expiresAt / 1000), created: ban.createdAt, updated: ban.updatedAt, days: ban.days }).map(([key, value]) => quoted(key) + ' ' + quoted(value)).join('\n') + '\n}').join('\n') + '\n}\n}\n';
 }
-function createModeration({ serverRoot, playerManager, syncBans, kickPlayer, now = Date.now }) {
+function createModeration({ serverRoot, playerManager, registeredPlayers = async () => [], syncBans, kickPlayer, now = Date.now }) {
   const directory = path.join(serverRoot, 'left4dead2', 'addons', 'sourcemod', 'data', 'l4d2 control');
   const file = path.join(directory, 'bans.txt'), auditFile = path.join(directory, 'moderation audit.jsonl');
   let pending = Promise.resolve();
@@ -47,7 +47,7 @@ function createModeration({ serverRoot, playerManager, syncBans, kickPlayer, now
       const live = await playerManager.list();
       if (!live.available || !live.moderationAvailable) throw fail('玩家管理插件未就绪，请刷新后重试', 503);
       const state = await read(), active = new Map(state.bans.filter(ban => ban.expiresAt > now()).map(ban => [ban.steam64, ban]));
-      const known = new Map(live.players.map(player => [player.steam64, player]));
+      const known = new Map([...(await registeredPlayers()), ...live.players].map(player => [player.steam64, player]));
       for (const id of identities) if (!known.has(id.steam64) && !active.has(id.steam64)) throw fail('包含未记录的玩家，请刷新后重新选择');
       const results = [];
       if (action === 'kick') {
