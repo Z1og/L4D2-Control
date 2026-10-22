@@ -24,7 +24,7 @@ OpenList 和百度网盘均为可选组件；不配置网盘仍可使用本地�
 
 | 普通 / 授权登录 | 游戏模式 |
 | --- | --- |
-| ![普通 / 授权登录](https://raw.githubusercontent.com/Z1og/L4D2-Control/4f40dcf23a2b36ca37f4e0a26329fe786cda3131/docs/Project%20Preview/Login.png) | ![游戏模式](https://raw.githubusercontent.com/Z1og/L4D2-Control/793f96b31fb4f850f895460b391b8c71fea33f8d/docs/Project%20Preview/Gameplay.png) |
+| ![普通 / 授权登录](https://raw.githubusercontent.com/Z1og/L4D2-Control/555a66700d2991c1341c788333c6cbf1dbf84d48/docs/Project%20Preview/Login.png) | ![游戏模式](https://raw.githubusercontent.com/Z1og/L4D2-Control/793f96b31fb4f850f895460b391b8c71fea33f8d/docs/Project%20Preview/Gameplay.png) |
 
 | 总览 | 登录管理 | 普通 / 授权登录；Steam 数字资料链接 + 独立面板密码，无 Steam 授权；普通账号仅查看和直连下载 |
 | 游戏模式 | 读取实时模式与难度、管理扩展多人和开局 Bot；保存与重载二次确认，按插件能力限额，跨地图保留配置 |
