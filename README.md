@@ -8,7 +8,7 @@
 
 一个为《求生之路 2》专用服务器打造的网页管理面板，提供地图、插件、创意工坊/GameMaps 内容下载和内容专用代理管理。
 
-> **网盘适配说明：**本项目的云端地图备份与直连下载导出功能当前适配 **OpenList 挂载的百度网盘**。随项目提供的 Chrome/Edge 下载助手也专用于百度网盘直链；其他网盘驱动尚未完成同等验证。基础地图与插件管理不依赖网盘。
+> **网盘适配说明：** 本项目的云端地图备份与直连下载导出功能当前适配 **OpenList 挂载的百度网盘**。随项目提供的 Chrome/Edge 下载助手也专用于百度网盘直链；其他网盘驱动尚未完成同等验证。基础地图与插件管理不依赖网盘。
 >
 > **Cloud-drive compatibility:** Map cloud backup and direct-download export are currently adapted and tested with **Baidu Netdisk mounted through OpenList**. The bundled Chrome/Edge download helper is specific to Baidu direct links. Other storage drivers have not received equivalent validation. Basic map and plugin management does not require a cloud drive.
 
