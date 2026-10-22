@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "projectId": "l4d2-control-bf312edc896c79baad5c",
-  "fingerprint": "28a32a63384a1f180f9f8bd6f3b4d6f5a4c3b7c6a201d6c6b7070ad7007cfacf",
+  "fingerprint": "584c44babd1653753f5bdd426f5b6b08b16d8831d67d4b88113b615975a82507",
   "files": [
     {
       "path": "Build project fingerprint.js",
@@ -21,7 +21,7 @@
     },
     {
       "path": "access control.js",
-      "sha256": "104c0584829e23d0546bcc57bfb83243adf3f9f65cd09b2efcf15af24cfb7380"
+      "sha256": "a3656b3599fd7734e4811495a70729232ea229aa0726bdb8b44bd0dc454b7609"
     },
     {
       "path": "account password.js",
@@ -57,7 +57,7 @@
     },
     {
       "path": "index.html",
-      "sha256": "ae2010af55200c6cf53be44a8e6974c27bdc2aacd8eafc4cf1562b3d0c1aa1ed"
+      "sha256": "ec6274d9fbd0836efe2423fc45edaa7def0187caacc6a6d0478a1cbf20b735f1"
     },
     {
       "path": "login.css",
@@ -65,7 +65,7 @@
     },
     {
       "path": "login.html",
-      "sha256": "62e1e33e75432ae64bd3b2cf1c2945b91ed752d077f7e78f263cdbce137932f8"
+      "sha256": "4a525dfabf0b8cf8c2d52759a94472fca0cd40d9105d383df1eafe0e45c39225"
     },
     {
       "path": "login.js",
@@ -85,15 +85,15 @@
     },
     {
       "path": "project about.js",
-      "sha256": "57d208c7a19d1a8eb4fda21661e2c67ac7f01db1a01537370a8f3ea332a3067c"
+      "sha256": "68f1d4ff86109a5847361f762e4f5b64e07f2394edaad2c5f19dcb43e46652a5"
     },
     {
       "path": "project community.css",
-      "sha256": "2678b646c4525090cdaac06b5c2ed8d216e50b1ad634a6d62297fdb92f3987bc"
+      "sha256": "d3c42157c54b85d6ef4995d76dc836a85fb8969b40c74d2a7f5a7f52f19ee51a"
     },
     {
       "path": "project community.js",
-      "sha256": "3487731d8b46e9760fb6a5f402312803bd0b7b95eaa9f998c4c6b16efe4a1246"
+      "sha256": "533abed7f14dc3fabde6f4557e71dee7a05ec235141a3d54ca3be1aed32fd548"
     },
     {
       "path": "project fingerprint.js",
@@ -101,7 +101,7 @@
     },
     {
       "path": "server.js",
-      "sha256": "a8f98b55cd4c049d5eb6e7d0eb8fcd7e879eed0329a5616347d5f980f9319b1c"
+      "sha256": "636958fa834400e45be0c316b278284c91faddce385f577775df54d48caeafa1"
     },
     {
       "path": "styles.css",

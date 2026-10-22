@@ -615,7 +615,7 @@ function serveFile(req, res) {
     res.setHeader('cache-control', 'no-cache');
     fs.createReadStream(file).pipe(res); return;
   }
-  const communityAssets = new Set(["/assets/Project poster desktop.png","/assets/Project poster mobile.png","/assets/Project poster desktop.webp","/assets/Project poster mobile.webp","/assets/Project mobile banner.webp"]);
+  const communityAssets = new Set(["/assets/Project poster desktop.webp","/assets/Project poster mobile.webp","/assets/Project mobile banner.webp"]);
   const extensionAsset = communityAssets.has(requestPath) ? {file:path.join(root,requestPath.slice(1)),type:requestPath.endsWith('.webp')?'image/webp':'image/png',publicAsset:true} : requestPath === '/assets/Steam profile guide.png' ? {file:path.join(root,'assets','Steam profile guide.png'),type:'image/png'} : requestPath === '/project-license' ? {file:path.join(root,'LICENSE'),type:'text/plain; charset=utf-8'} : requestPath === '/downloads/baidu-download-helper.zip'
     ? { file: path.join(root, 'downloads', 'L4D2 Baidu Download Helper.zip'), type: 'application/zip', disposition: 'attachment; filename="L4D2 Baidu Download Helper.zip"; filename*=UTF-8\'\'L4D2%20Baidu%20Download%20Helper.zip' }
     : requestPath === '/downloads/baidu-download-helper-guide'
@@ -658,6 +658,12 @@ const serve = async (req, res) => {
   res.setHeader('x-content-type-options', 'nosniff'); res.setHeader('referrer-policy', 'no-referrer');
   res.setHeader('x-frame-options', 'SAMEORIGIN');
   let pathname; try { pathname = new URL(req.url, 'http://localhost').pathname; } catch { accessError(req, res, Object.assign(new Error('无效请求'), {status:400})); return; }
+  let decodedPath; try { decodedPath = decodeURIComponent(pathname); } catch { accessError(req, res, Object.assign(new Error('无效请求'), {status:400})); return; }
+  // Original posters are no longer downloadable; WebP previews remain available.
+  if (/^\/assets\/Project poster (?:desktop|mobile)\.png$/.test(decodedPath)) {
+    req.resume(); res.writeHead(404, {'content-type':'text/plain; charset=utf-8','cache-control':'no-store'});
+    res.end(req.method === 'HEAD' ? undefined : 'Not found'); return;
+  }
   if(pathname==='/.well-known/l4d2-control.json'){res.setHeader('cache-control','no-store');res.setHeader('content-type','application/json; charset=utf-8');if(!['GET','HEAD'].includes(req.method)){res.writeHead(405,{Allow:'GET, HEAD'});res.end(JSON.stringify({error:'method not allowed'}));return;}res.end(req.method==='HEAD'?undefined:JSON.stringify(projectProvenance));return;}
   if (pathname.startsWith('/api/auth/')) {
     res.setHeader('cache-control', 'no-store'); res.setHeader('content-type', 'application/json; charset=utf-8');

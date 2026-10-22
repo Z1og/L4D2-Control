@@ -6,7 +6,7 @@ const GUEST_READ = new Set(['/api/config', '/api/status', '/api/maps', '/api/plu
 const GUEST_WRITE = new Set(['/api/openlist/map-download-info']);
 const PUBLIC_FILES = new Set(['/login', '/login.html', '/login.js', '/login.css', '/assets/Steam%20profile%20guide.png', '/assets/Steam profile guide.png', '/project-license']);
 const PANEL_FILES = new Set(['/', '/index.html', '/app.js', '/account password.js', '/account%20password.js', '/panel state.js', '/panel%20state.js', '/players.js', '/gameplay.js', '/styles.css', '/downloads/baidu-download-helper.zip', '/downloads/baidu-download-helper-guide']);
-for (const file of ["/project community.js","/project community.css","/assets/Project poster desktop.png","/assets/Project poster mobile.png","/assets/Project poster desktop.webp","/assets/Project poster mobile.webp","/assets/Project mobile banner.webp"]) { PUBLIC_FILES.add(file); PUBLIC_FILES.add(encodeURI(file)); }
+for (const file of ["/project community.js","/project community.css","/assets/Project poster desktop.webp","/assets/Project poster mobile.webp","/assets/Project mobile banner.webp"]) { PUBLIC_FILES.add(file); PUBLIC_FILES.add(encodeURI(file)); }
 const COOKIE = 'l4d2-session';
 const fail = (message, status = 403) => Object.assign(new Error(message), { status });
 const equal = (left, right) => { const a = crypto.createHash('sha256').update(String(left)).digest(), b = crypto.createHash('sha256').update(String(right)).digest(); return crypto.timingSafeEqual(a, b); };

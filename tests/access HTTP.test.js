@@ -9,12 +9,23 @@ test('HTTP authentication, privacy projection, forbidden operations, ban invalid
  const req=(url,body,extra={})=>fetch(base+url,{method:body===undefined?'GET':'POST',redirect:'manual',headers:{cookie,...(body===undefined?{}:{'content-type':'application/json',origin:base,'x-csrf-token':csrf}),...extra},...(body===undefined?{}:{body:JSON.stringify(body)})});
  assert.equal((await req('/')).status,303);assert.match(await(await req('/login')).text(),/普通登录/);assert.equal((await req('/api/maps')).status,401);
  const guide=await req('/assets/Steam%20profile%20guide.png');assert.equal(guide.status,200);assert.equal(guide.headers.get('content-type'),'image/png');assert.ok((await guide.arrayBuffer()).byteLength>1000);
- for(const asset of ['/assets/Project%20poster%20desktop.webp','/assets/Project%20poster%20mobile.webp','/assets/Project%20mobile%20banner.webp','/assets/Project%20poster%20desktop.png','/assets/Project%20poster%20mobile.png','/project%20community.js','/project%20community.css']){const r=await req(asset);assert.equal(r.status,200,asset);if(asset.endsWith('.webp'))assert.equal(r.headers.get('content-type'),'image/webp');assert.ok((await r.arrayBuffer()).byteLength>100);const head=await fetch(base+asset,{method:'HEAD'});assert.equal(head.status,200);assert.equal((await head.arrayBuffer()).byteLength,0);}
+ for(const asset of ['/assets/Project%20poster%20desktop.webp','/assets/Project%20poster%20mobile.webp','/assets/Project%20mobile%20banner.webp','/project%20community.js','/project%20community.css']){const r=await req(asset);assert.equal(r.status,200,asset);if(asset.endsWith('.webp'))assert.equal(r.headers.get('content-type'),'image/webp');assert.ok((await r.arrayBuffer()).byteLength>100);const head=await fetch(base+asset,{method:'HEAD'});assert.equal(head.status,200);assert.equal((await head.arrayBuffer()).byteLength,0);}
  for(const asset of ['/assets/panel%20accounts.json','/assets/unknown.png','/assets/../.env','/project%20community.js/extra'])assert.notEqual((await req(asset)).status,200,asset);
  assert.match(await(await req('/login')).text(),/1002677414/);
+ async function assertPosterPreviewsOnly(role){
+  for(const format of ['desktop','mobile']){
+   for(const method of ['GET','HEAD']){
+    const r=await fetch(base+'/assets/Project%20poster%20'+format+'.png?download=1',{method,headers:{cookie}});assert.equal(r.status,404,role+' '+format+' '+method);assert.equal(r.headers.get('cache-control'),'no-store');assert.equal((await r.text()),method==='HEAD'?'':'Not found');
+    const preview=await fetch(base+'/assets/Project%20poster%20'+format+'.webp',{method,headers:{cookie}});assert.equal(preview.status,200,role+' preview '+method);assert.equal(preview.headers.get('content-type'),'image/webp');assert.equal((await preview.arrayBuffer()).byteLength>0,method==='GET');
+   }
+  }
+ }
+ await assertPosterPreviewsOnly('anonymous');
+
  const provenanceReply=await req('/.well-known/l4d2-control.json');assert.equal(provenanceReply.status,200);const provenance=await provenanceReply.json();assert.equal(provenance.integrity,'verified');assert.equal(provenanceReply.headers.get('x-l4d2-fingerprint'),provenance.sourceFingerprint);assert.ok(!JSON.stringify(provenance).includes('game.example'));
  assert.match(await(await req('/login')).text(),new RegExp(provenance.sourceFingerprint));assert.equal((await req('/project-license')).status,200);
  let r=await req('/api/auth/register',{profile:'76561197960265729',password:'ordinary-password',nickname:'Ordinary test',acceptPrivacy:true});assert.equal(r.status,200);let data=await r.json();csrf=data.csrf;cookie=r.headers.get('set-cookie').split(';')[0];assert.equal(data.identityVerified,false);
+ await assertPosterPreviewsOnly('guest');
  const guestPage=await(await req('/')).text();assert.match(guestPage,/data-panel-role="guest"/);assert.match(guestPage,/id="aboutView"/);assert.match(guestPage,/class="project-identity"/);assert.match(guestPage,/1002677414/);assert.doesNotMatch(guestPage,/__L4D2_ABOUT_/);
  data=await(await req('/api/config')).json();assert.deepEqual(Object.keys(data).sort(),['gameAddress','openList']);assert.deepEqual(Object.keys(data.openList),['enabled']);
  for(const url of ['/api/players','/api/gameplay','/api/diagnostics','/api/proxy/nodes','/api/maps/export?package=a.vpk','/api/openlist/maps','/server.js'])assert.equal((await req(url)).status,403,url);
@@ -34,6 +45,7 @@ test('HTTP authentication, privacy projection, forbidden operations, ban invalid
  fs.writeFileSync(path.join(sm,'data/l4d2 control/bans.txt'),encodeBans('fixture',[{...identity,name:'test',createdAt:at,updatedAt:at,expiresAt:at+86400000,days:1}]));
  assert.equal((await req('/api/maps')).status,401);assert.equal((await req('/api/auth/guest',{profile:identity.steam64,password:'ordinary-password'})).status,403);
  cookie='';csrf='';r=await req('/api/auth/login',{username:'test-admin',password:'private-test-password'});assert.equal(r.status,200);data=await r.json();assert.equal(data.role,'admin');csrf=data.csrf;cookie=r.headers.get('set-cookie').split(';')[0];
+ await assertPosterPreviewsOnly('admin');
  assert.match(await(await req('/')).text(),/data-panel-role="admin"/);assert.equal((await req('/gameplay.js')).status,200);
  assert.equal((await req('/api/gameplay',{confirmed:false})).status,400);
  r=await req('/api/players/notes',{steamId:identity.steam64,note:'熟悉的队友 <b>原样文本</b>'});assert.equal(r.status,200);assert.equal((await r.json()).note,'熟悉的队友 <b>原样文本</b>');
