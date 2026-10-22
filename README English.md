@@ -196,3 +196,10 @@ Changes require confirmation and read-back; mismatches restore previous values. 
 - Once the verified direct download is handed to the browser, its dialog closes. Verification errors keep the dialog open.
 - Authorized administrators can add, edit, search and clear player notes. Notes are attached to the SteamID and remain available when a player renames or goes offline; ordinary accounts cannot read or modify them.
 - The login page uses concise login/access explanations. Existing private login and operational record handling remains documented in the deployment guide.
+
+## Ordinary account passwords
+
+- Signed-in ordinary users can choose “Change password” in the panel header, supply their current password, and confirm the new one twice.
+- Authorized administrators can open Online Players → Panel Accounts and choose “Reset panel password”, enter and confirm a replacement, then explicitly confirm the reset. This does not alter Steam credentials or remove bans.
+- Both operations invalidate all existing panel sessions for that SteamID while preserving other accounts. Passwords are 8–128 characters, stored only as salted hashes, and never included in audit events.
+- Forgotten passwords require a server-owner reset. A prominent first-time registration button is available on the login page.

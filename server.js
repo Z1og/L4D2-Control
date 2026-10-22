@@ -47,7 +47,7 @@ const trustedProxies = String(process.env.PANEL_TRUSTED_PROXIES || '').split(','
 const regions = createRegions({ directory: process.env.IP_REGION_DIR || path.join(os.homedir(), '.local', 'share', 'dead-air-panel', 'ip regions') });
 const bannedIdentity = async id => (await moderation.list()).some(ban => ban.steam64 === id);
 const accounts = createAccounts({ directory: privateAccountDir, regions, isBanned: bannedIdentity });
-const access = createAccess({ username: panelUser, password: panelPassword, token: panelToken, trustedProxies, isBanned: bannedIdentity, authenticateGuest: (body, ip, register) => accounts.authenticate(body, ip, register), audit: event => accounts.audit(event) });
+const access = createAccess({ username: panelUser, password: panelPassword, token: panelToken, trustedProxies, isBanned: bannedIdentity, authenticateGuest: (body, ip, register) => accounts.authenticate(body, ip, register), changeGuestPassword: (id, body) => accounts.changePassword(id, body), resetGuestPassword: (id, body) => accounts.resetPassword(id, body), validateGuestSession: session => accounts.sessionCurrent(session), audit: event => accounts.audit(event) });
 const accountCleanupTimer = setInterval(() => accounts.cleanup().catch(() => console.error('Private account cleanup failed')), 3600000); accountCleanupTimer.unref();
 const workshopProxy = process.env.WORKSHOP_SOCKS_PROXY || '';
 if (workshopProxy && !/^socks5h:\/\/127\.0\.0\.1:\d{2,5}$/.test(workshopProxy)) throw new Error('WORKSHOP_SOCKS_PROXY must be a local socks5h URL');
@@ -630,7 +630,7 @@ function serveFile(req, res) {
     stream.pipe(res); return;
   }
   const relative = requestPath === '/' ? 'index.html' : requestPath === '/login' ? 'login.html' : requestPath.replace(/^\/+/, '');
-  if (!['index.html', 'app.js', 'panel state.js', 'players.js', 'gameplay.js', 'styles.css', 'login.html', 'login.js', 'login.css'].includes(relative)) { res.statusCode = 404; res.end('Not found'); return; }
+  if (!['index.html', 'app.js', 'account password.js', 'panel state.js', 'players.js', 'gameplay.js', 'styles.css', 'login.html', 'login.js', 'login.css'].includes(relative)) { res.statusCode = 404; res.end('Not found'); return; }
   const filePath = path.resolve(root, relative);
   const relativeToRoot = path.relative(root, filePath);
   if (relativeToRoot.startsWith('..') || path.isAbsolute(relativeToRoot) || !fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) { res.statusCode = 404; res.end('Not found'); return; }

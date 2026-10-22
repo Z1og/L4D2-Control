@@ -86,7 +86,7 @@ function navigate(view) {
 document.addEventListener('DOMContentLoaded', () => navigate(savedPanelView()), { once: true });
 window.addEventListener('hashchange', () => navigate(savedPanelView()));
 async function api(url, options) {
-  if (isGuest && !['/api/config','/api/status','/api/maps','/api/plugins','/api/openlist/map-download-info','/api/auth/session','/api/auth/logout'].includes(new URL(url,location.origin).pathname)) throw new Error('普通账号没有此操作权限');
+  if (isGuest && !['/api/config','/api/status','/api/maps','/api/plugins','/api/openlist/map-download-info','/api/auth/session','/api/auth/logout','/api/auth/password'].includes(new URL(url,location.origin).pathname)) throw new Error('普通账号没有此操作权限');
   const settings = { ...options, headers: { ...options?.headers } };
   if (!['GET', 'HEAD'].includes((settings.method || 'GET').toUpperCase())) { settings.headers['x-csrf-token'] = panelCsrf; if (!settings.headers['content-type']) settings.headers['content-type'] = 'application/json'; }
   const response = await fetch(url, settings);

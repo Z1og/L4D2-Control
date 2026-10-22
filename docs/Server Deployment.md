@@ -567,3 +567,12 @@ Player notes are stored in `PLAYER_STATE_DIR/player notes.json` (the panel user�
 浏览状态使用当前标签页的 `sessionStorage`，按普通/授权角色分开；清除站点数据或关闭标签页后不保证保留。只保留浏览筛选与公开搜索结果，不缓存备注、密码、下载签名或代理凭据。异步内容加载后恢复滚动位置；用户滚动或点击时立即让出控制。
 
 Browsing state uses per-tab `sessionStorage`, separated by ordinary/authorized role. It stores browsing filters and public search results, not player notes, passwords, signed download links or proxy credentials. Scroll restoration waits for asynchronous layout growth and stops when the user interacts.
+
+## 普通账号密码管理
+
+- 普通用户登录后，可点击面板顶部的“修改密码”，输入当前密码并两次确认新密码。
+- 授权管理员可在“在线玩家 → 面板账号”找到玩家，点击“重置面板密码”，填写新密码并勾选确认；重置不修改 Steam 密码，也不解除拉黑。
+- 修改或重置成功后，该 SteamID 的全部现有面板登录失效；其他账号保持登录。新密码为 8–128 个字符，仅保存加盐哈希，不写入操作日志。
+- 忘记密码需联系服主重置。登录页的“首次使用？设置面板密码”使用醒目按钮进入注册。
+
+Existing accounts migrate without manual edits: credential versions are added when passwords change. Keep the private account directory across deployments. No new environment variables or dependencies are required.

@@ -41,7 +41,7 @@ function createAccounts({ directory, regions, isBanned = async () => false, now 
     if(await isBanned(id.steam64))throw fail('此 SteamID 已被拉黑，暂时禁止登录',403);
     const data=await read(), existing=data.accounts[id.steam64];let account;
     if(register){
-      if(payload.acceptPrivacy!==true)throw fail('请阅读并勾选登录与 IP 记录说明');
+      if(payload.acceptPrivacy!==true)throw fail('请阅读并勾选登录与记录说明');
       if(existing)throw fail('该 SteamID 已注册，请使用原面板密码登录',409);
       if(Object.keys(data.accounts).length>=5000)throw fail('账号数量已达上限，请联系管理员',503);
       const salt=crypto.randomBytes(16).toString('hex'),hash=(await scrypt(password,salt,64,{N:16384,r:8,p:1,maxmem:64*1024*1024})).toString('hex');
@@ -53,11 +53,44 @@ function createAccounts({ directory, regions, isBanned = async () => false, now 
     account.lastLoginAt=now();account.lastLoginIp=normalizeIP(ip);account.lastLoginRegion=await regions.locate(account.lastLoginIp);account.loginCount=(account.loginCount||0)+1;
     data.accounts[id.steam64]=account;await write(data);
     await audit({actor:account.name,role:'guest',steam64:id.steam64,action:register?'register':'login',ok:true,ip});
-    return {...id,name:account.name,identityVerified:false};
+    return {...id,name:account.name,identityVerified:false,credentialVersion:account.credentialVersion || ''};
   }).finally(()=>{queued--;});}
+  function validatePasswordChange(payload) {
+    if (!payload || typeof payload.newPassword !== 'string' || payload.newPassword.length < 8 || payload.newPassword.length > 128 || !payload.newPassword.trim()) throw fail('新密码需为 8–128 个字符，请勿使用 Steam 密码');
+    if (payload.newPassword !== payload.confirmPassword) throw fail('两次输入的新密码不一致');
+  }
+  function updatePassword(steamId, payload, reset) {
+    if (queued >= 16) return Promise.reject(fail('账号请求较多，请稍后再试', 429));
+    queued++;
+    return serial(async () => {
+      const identity = steamIdentity(steamId);
+      validatePasswordChange(payload);
+      if (reset && payload.confirmed !== true) throw fail('请确认重置该普通账号的面板密码');
+      const data = await read(), account = data.accounts[identity.steam64];
+      if (!account) throw fail('普通面板账号不存在，请刷新列表', 404);
+      if (!reset) {
+        if (await isBanned(identity.steam64)) throw fail('此 SteamID 已被拉黑，暂时禁止登录', 403);
+        if (typeof payload.currentPassword !== 'string' || payload.currentPassword.length < 8 || payload.currentPassword.length > 128) throw fail('当前密码不正确');
+        const actual = await scrypt(payload.currentPassword, account.salt, 64, {N:16384,r:8,p:1,maxmem:64*1024*1024});
+        if (!/^[a-f0-9]{128}$/.test(account.hash) || !crypto.timingSafeEqual(actual, Buffer.from(account.hash, 'hex'))) throw fail('当前密码不正确');
+        if (payload.newPassword === payload.currentPassword) throw fail('新密码不能与当前密码相同');
+      }
+      const salt = crypto.randomBytes(16).toString('hex');
+      const hash = (await scrypt(payload.newPassword, salt, 64, {N:16384,r:8,p:1,maxmem:64*1024*1024})).toString('hex');
+      Object.assign(account, {salt, hash, credentialVersion:crypto.randomUUID(), passwordChangedAt:now()});
+      await write(data);
+      return {steam64:identity.steam64};
+    }).finally(() => { queued--; });
+  }
+  async function sessionCurrent(session) {
+    const data = await read(), account = data.accounts[session.steam64];
+    return Boolean(account && (account.credentialVersion || '') === (session.credentialVersion || ''));
+  }
+  const changePassword = (steamId, payload) => updatePassword(steamId, payload, false);
+  const resetPassword = (steamId, payload) => updatePassword(steamId, payload, true);
   async function list(){const data=await read();return Object.values(data.accounts).map(({steam2,steam3,steam64,name,createdAt,lastLoginAt,lastLoginIp,lastLoginRegion,loginCount})=>({steam2,steam3,steam64,name,createdAt,lastLoginAt,loginCount,identityVerified:false,...(now()-lastLoginAt<=RETENTION?{lastLoginIp,lastLoginRegion}:{})}));}
   async function events(limit=100){let names;try{names=await fs.promises.readdir(auditDir);}catch(error){if(error.code==='ENOENT')return [];throw error;}const rows=[];for(const name of names.filter(n=>/^\d{4}-\d{2}-\d{2}\.jsonl$/.test(n)&&Date.parse(n.slice(0,10))>=now()-RETENTION).sort().reverse()){const handle=await fs.promises.open(path.join(auditDir,name),fs.constants.O_RDONLY | (fs.constants.O_NOFOLLOW || 0));let buf;try{const stat=await handle.stat();if(!stat.isFile())continue;const length=Math.min(stat.size,1024*1024),bytes=Buffer.alloc(length);await handle.read(bytes,0,length,stat.size-length);buf=bytes.toString('utf8');if(stat.size>length)buf=buf.slice(buf.indexOf('\n')+1);}finally{await handle.close();}for(const line of buf.trim().split('\n').reverse()){if(line){try{const row=JSON.parse(line);if(row.at>=now()-RETENTION)rows.push(row);}catch{}}if(rows.length>=limit)return rows;} }return rows;}
   function cleanup(){return serial(async()=>{const data=await read();if(Object.keys(data.accounts).length)await write(data);let names=[];try{names=await fs.promises.readdir(auditDir);}catch(e){if(e.code!=='ENOENT')throw e;}for(const name of names)if(/^\d{4}-\d{2}-\d{2}\.jsonl$/.test(name)&&Date.parse(name.slice(0,10))<now()-RETENTION)await fs.promises.rm(path.join(auditDir,name),{force:true});});}
-  return {authenticate,list,events,audit,cleanup};
+  return {authenticate,list,events,audit,cleanup,changePassword,resetPassword,sessionCurrent};
 }
 module.exports={createAccounts,profileIdentity};

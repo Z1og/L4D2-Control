@@ -4,7 +4,7 @@ const { requestIP } = require('./ip regions');
 const GUEST_READ = new Set(['/api/config', '/api/status', '/api/maps', '/api/plugins']);
 const GUEST_WRITE = new Set(['/api/openlist/map-download-info']);
 const PUBLIC_FILES = new Set(['/login', '/login.html', '/login.js', '/login.css']);
-const PANEL_FILES = new Set(['/', '/index.html', '/app.js', '/panel state.js', '/panel%20state.js', '/players.js', '/gameplay.js', '/styles.css', '/downloads/baidu-download-helper.zip', '/downloads/baidu-download-helper-guide']);
+const PANEL_FILES = new Set(['/', '/index.html', '/app.js', '/account password.js', '/account%20password.js', '/panel state.js', '/panel%20state.js', '/players.js', '/gameplay.js', '/styles.css', '/downloads/baidu-download-helper.zip', '/downloads/baidu-download-helper-guide']);
 const COOKIE = 'l4d2-session';
 const fail = (message, status = 403) => Object.assign(new Error(message), { status });
 const equal = (left, right) => { const a = crypto.createHash('sha256').update(String(left)).digest(), b = crypto.createHash('sha256').update(String(right)).digest(); return crypto.timingSafeEqual(a, b); };
@@ -13,7 +13,7 @@ function sameOrigin(req) {
   if (!req.headers.origin) return true;
   return req.headers.origin === `${req.socket.encrypted ? 'https' : 'http'}://${req.headers.host}`;
 }
-function createAccess({ username = 'admin', password = '', token = '', authenticateGuest, isBanned = async () => false, audit = async () => {}, trustedProxies = [], now = Date.now, randomBytes = crypto.randomBytes, maxSessions = 2000 } = {}) {
+function createAccess({ username = 'admin', password = '', token = '', authenticateGuest, changeGuestPassword, resetGuestPassword, validateGuestSession = async () => true, isBanned = async () => false, audit = async () => {}, trustedProxies = [], now = Date.now, randomBytes = crypto.randomBytes, maxSessions = 2000 } = {}) {
   const sessions = new Map(), attempts = new Map();
   const sessionCookie = req => String(req.headers.cookie || '').split(';').map(value => value.trim()).find(value => value.startsWith(COOKIE + '='))?.slice(COOKIE.length + 1);
   function prune() { for (const [key, value] of sessions) if (value.expires <= now()) sessions.delete(key); for (const [key, value] of attempts) if (value.until <= now()) attempts.delete(key); }
@@ -47,6 +47,7 @@ function createAccess({ username = 'admin', password = '', token = '', authentic
   async function authorize(req, pathname) {
     const session = identify(req); if (!session) throw fail('请先登录', 401);
     if (session.role === 'guest' && (!session.steam64 || await isBanned(session.steam64))) { sessions.delete(session.id); throw fail('该账号已被拉黑，登录已失效', 401); }
+    if (session.role === 'guest' && !await validateGuestSession(session)) { sessions.delete(session.id); throw fail('密码已变更，请重新登录', 401); }
     checkMutation(req, session, pathname);
     if (session.role === 'admin') return session;
     const allowed = ['GET', 'HEAD'].includes(req.method) && (PANEL_FILES.has(pathname) || req.method === 'GET' && GUEST_READ.has(pathname)) || req.method === 'POST' && GUEST_WRITE.has(pathname);
@@ -55,7 +56,7 @@ function createAccess({ username = 'admin', password = '', token = '', authentic
     return session;
   }
   async function auth(req, res, pathname, body = {}) {
-    if (req.method === 'GET' && pathname === '/api/auth/session') { const session=identify(req,false); if(session?.role==='guest'&&await isBanned(session.steam64)){sessions.delete(session.id);return publicSession(null);}return publicSession(session); }
+    if (req.method === 'GET' && pathname === '/api/auth/session') { const session=identify(req,false); if(session?.role==='guest'&&(await isBanned(session.steam64)||!await validateGuestSession(session))){sessions.delete(session.id);return publicSession(null);}return publicSession(session); }
     if (req.method !== 'POST') throw fail('不支持的请求方法', 405);
     if (!sameOrigin(req) || !/^application\/json(?:;|$)/i.test(req.headers['content-type'] || '')) throw fail('登录请求来源或格式无效');
     if (['/api/auth/login','/api/auth/guest','/api/auth/register'].includes(pathname)) {
@@ -74,6 +75,26 @@ function createAccess({ username = 'admin', password = '', token = '', authentic
         attempts.set(key, { count: (entry?.count || 0) + 1, until: entry?.until || now() + 15 * 60 * 1000 }); await audit({role:'admin',actor:'授权登录',action:'login-denied',ok:false,ip}).catch(()=>{}); throw fail('用户名或密码不正确', 401);
       }
       attempts.delete(key); await audit({role:'admin',actor:username,action:'login',ok:true,ip});return issue(req, res, 'admin');
+    }
+    if (pathname === '/api/auth/password' || pathname === '/api/auth/reset-password') {
+      const current = identify(req), reset = pathname.endsWith('/reset-password');
+      if (!current) throw fail('请先登录', 401);
+      checkMutation(req, current, pathname);
+      if (reset ? current.role !== 'admin' : current.role !== 'guest') throw fail(reset ? '只有授权管理员可以重置普通账号密码' : '此入口仅用于修改普通账号密码');
+      if (!reset && (await isBanned(current.steam64) || !await validateGuestSession(current))) { sessions.delete(current.id); throw fail('登录已失效，请重新登录', 401); }
+      if (reset ? !resetGuestPassword : !changeGuestPassword) throw fail('密码管理暂不可用', 503);
+      prune();
+      const key = 'password:' + current.steam64, entry = attempts.get(key), ip = requestIP(req,trustedProxies);
+      if (!reset && entry?.count >= 8) { res.setHeader('retry-after', Math.max(1, Math.ceil((entry.until-now())/1000))); throw fail('当前密码尝试次数较多，请 15 分钟后再试',429); }
+      if (!reset) { if (!entry && attempts.size >= 5000) throw fail('请求较多，请稍后再试',429); attempts.set(key,{count:(entry?.count||0)+1,until:entry?.until||now()+15*60000}); }
+      let result;
+      try { result = reset ? await resetGuestPassword(body.steamId,body) : await changeGuestPassword(current.steam64,body); }
+      catch (error) { await audit({actor:current.name,role:current.role,steam64:current.steam64 || '',action:reset?'password-reset-denied':'password-change-denied',ok:false,ip}).catch(()=>{}); throw error; }
+      for (const [id,session] of sessions) if (session.role === 'guest' && session.steam64 === result.steam64) sessions.delete(id);
+      attempts.delete('password:' + result.steam64);
+      if (!reset) res.setHeader('set-cookie',cookie(req,'signed-out',86400));
+      await audit({actor:current.name,role:current.role,steam64:current.steam64 || '',target:result.steam64,action:reset?'password-reset':'password-change',ok:true,ip}).catch(()=>{});
+      return {ok:true,reauthenticate:!reset,message:reset?'普通账号密码已重置，该账号的现有登录已失效':'密码已修改，请使用新密码重新登录'};
     }
     if (pathname === '/api/auth/logout') { const current = identify(req, false); if (current) checkMutation(req, current, pathname); const id = sessionCookie(req); if (id) sessions.delete(id); res.setHeader('set-cookie', cookie(req, 'signed-out', 86400)); return { ok: true }; }
     throw fail('接口不存在', 404);
