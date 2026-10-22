@@ -1,0 +1,11 @@
+// L4D2-Control project identity: l4d2-control-bf312edc896c79baad5c | SPDX-License-Identifier: LicenseRef-L4D2-Control-NonCommercial-1.0
+'use strict';
+const {PROJECT}=require('./project fingerprint');
+const escape=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function renderProjectSummary(){return escape(PROJECT.description);}
+function renderProjectAbout(provenance={}){
+ const fingerprint=/^[a-f0-9]{64}$/.test(provenance.sourceFingerprint||'')?provenance.sourceFingerprint:'未生成';
+ const status=provenance.integrity==='verified'?'与当前构建清单一致':'源文件或构建清单有变动，请核对版本';
+ return `<div class="project-identity" data-project-id="${escape(PROJECT.projectId)}"><h2 class="project-identity-name">${escape(PROJECT.name)}</h2><p class="project-identity-subtitle">${escape(PROJECT.chineseName)}</p><p class="project-identity-description">${renderProjectSummary()}</p><div class="community-card-wrap" data-community><div class="community-card"><div class="community-copy"><h2>QQ 交流群</h2><p>交流地图、插件和开服经验，一起活到下一关。</p></div><button type="button" class="community-copy-button" data-copy-group aria-label="复制 QQ 群号 ${PROJECT.communityGroup}"><strong>${PROJECT.communityGroup}</strong><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"></rect><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"></path></svg><span>复制群号</span></button></div><p class="community-status" data-community-status role="status" aria-live="polite"></p><input class="community-fallback" data-group-fallback aria-label="手动复制 QQ 群号" readonly hidden value="${PROJECT.communityGroup}"></div><div class="project-attribution"><strong>非商业使用 · 商用需授权</strong><p>${escape(PROJECT.copyright)}</p><p>分发与对外提供界面时须保留项目名称、来源及许可声明。具体使用范围以项目许可为准。</p></div><nav class="project-about-links" aria-label="项目与社区"><a href="${escape(PROJECT.repository)}" target="_blank" rel="noopener noreferrer">GitHub 项目 · Star ⭐</a><a href="/project-license" target="_blank" rel="noopener">查看完整许可</a><button type="button" data-open-project>查看与下载项目海报</button></nav><p class="project-build-info">文件校验：${status}<br>构建指纹：<code>${fingerprint}</code></p></div>`;
+}
+module.exports={renderProjectAbout,renderProjectSummary};

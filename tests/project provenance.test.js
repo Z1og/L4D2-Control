@@ -3,7 +3,7 @@ const {PROJECT,SOURCE_FILES,computeFingerprint,inspectFingerprint}=require('../p
 test('release fingerprint matches the selected source and exposes no private deployment data',()=>{
  const result=inspectFingerprint();assert.equal(result.integrity,'verified');assert.match(result.sourceFingerprint,/^[a-f0-9]{64}$/);assert.equal(result.projectId,PROJECT.projectId);assert.equal(result.fileCount,SOURCE_FILES.length);
  for(const file of SOURCE_FILES)assert.ok(!/\.env|panel accounts\.json|node_modules|state|subscriptions/.test(file),file);
- assert.deepEqual(Object.keys(result).sort(),['chineseName','copyright','fileCount','integrity','license','name','projectId','releaseFingerprint','repository','schema','sourceFingerprint'].sort());
+ assert.deepEqual(Object.keys(result).sort(),['chineseName','communityGroup','description','copyright','fileCount','integrity','license','name','projectId','releaseFingerprint','repository','schema','sourceFingerprint'].sort());
 });
 test('source modifications are detected and checking never silently rewrites the manifest',t=>{
  const root=fs.mkdtempSync(path.join(os.tmpdir(),'Provenance test '));t.after(()=>fs.rmSync(root,{recursive:true,force:true}));
@@ -21,4 +21,16 @@ test('guide is a real image and source identifiers and license appear in shipped
  const root=path.join(__dirname,'..'),png=fs.readFileSync(path.join(root,'assets/Steam profile guide.png'));assert.equal(png.subarray(0,8).toString('hex'),'89504e470d0a1a0a');
  for(const file of ['index.html','login.html']){const html=fs.readFileSync(path.join(root,file),'utf8');assert.ok(html.includes(PROJECT.projectId));assert.match(html,/name="l4d2-fingerprint"/);assert.match(html,/非商业使用/);}
  assert.match(fs.readFileSync(path.join(root,'login.html'),'utf8'),/profileGuideDialog/);assert.match(fs.readFileSync(path.join(root,'LICENSE'),'utf8'),/Commercial permission/);
+});
+
+test('official build refuses removed About attribution and changed community metadata',t=>{
+ const root=fs.mkdtempSync(path.join(os.tmpdir(),'Attribution retention '));t.after(()=>fs.rmSync(root,{recursive:true,force:true}));
+ for(const f of [...SOURCE_FILES,'Project fingerprint.json']){const p=path.join(root,f);fs.mkdirSync(path.dirname(p),{recursive:true});fs.copyFileSync(path.join(__dirname,'..',f),p);}
+ const original=fs.readFileSync(path.join(root,'index.html'),'utf8');fs.writeFileSync(path.join(root,'index.html'),original.replace('__L4D2_ABOUT_CONTENT__',''));assert.throws(()=>computeFingerprint(root),/About entry/);
+ const attempt=spawnSync(process.execPath,[path.join(root,'Build project fingerprint.js')],{encoding:'utf8'});assert.equal(attempt.status,1);assert.match(attempt.stderr,/About entry/);
+ fs.writeFileSync(path.join(root,'index.html'),original);const p=path.join(root,'Project identity.json'),identity=JSON.parse(fs.readFileSync(p));identity.communityGroup='changed';fs.writeFileSync(p,JSON.stringify(identity));assert.throws(()=>computeFingerprint(root),/communityGroup/);
+});
+test('server-rendered About uses built-in identity and treats untrusted provenance as text',()=>{
+ const {renderProjectAbout}=require('../project about');const html=renderProjectAbout({name:'fake',communityGroup:'fake',sourceFingerprint:'<script>alert(1)</script>',integrity:'modified'});
+ for(const v of [PROJECT.name,PROJECT.chineseName,PROJECT.repository,PROJECT.communityGroup])assert.ok(html.includes(v));assert.doesNotMatch(html,/<script>|fake/);assert.match(html,/请核对版本/);assert.match(html,/非商业使用 · 商用需授权/);
 });

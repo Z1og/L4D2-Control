@@ -6,7 +6,7 @@ const vm = require('node:vm');
 const app = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
 const code = app.slice(app.indexOf('const panelViews ='), app.indexOf('async function api('));
 function fixture(hash = '', saved = null, blocked = false) {
-  const views = ['overview', 'gameplay', 'maps', 'plugins', 'diagnostics', 'workshop', 'proxy', 'players', 'logs', 'settings'];
+  const views = ['overview', 'gameplay', 'maps', 'plugins', 'diagnostics', 'workshop', 'proxy', 'players', 'settings', 'about'];
   const events = {}, calls = [];
   const nodes = views.map(view => ({ id: view + 'View', dataset: { view }, classList: { toggle() {} }, setAttribute() {}, removeAttribute() {} }));
   const title = {}, location = { hash };
@@ -19,7 +19,7 @@ function fixture(hash = '', saved = null, blocked = false) {
   vm.runInContext(code, context); return { context, events, location, title, calls, saved: () => saved };
 }
 test('all panel sections restore on reload, after dependent scripts are initialized', () => {
-  for (const view of ['overview', 'gameplay', 'maps', 'plugins', 'diagnostics', 'workshop', 'proxy', 'players', 'logs', 'settings']) {
+  for (const view of ['overview', 'gameplay', 'maps', 'plugins', 'diagnostics', 'workshop', 'proxy', 'players', 'settings', 'about']) {
     const first = fixture(); first.context.navigate(view); assert.equal(first.location.hash, '#' + view);
     const second = fixture(first.location.hash, first.saved()); assert.equal(second.calls.length, 0);
     second.events.DOMContentLoaded(); assert.equal(second.location.hash, '#' + view); assert.equal(second.saved(), view);
@@ -181,4 +181,10 @@ test('download and plugin introductions include their requested notices', () => 
   const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
   assert.ok(html.includes('<p>分开查找地图和 SourceMod 插件，下载任务统一显示。</p><p>内容下载需要在代理管理中开启魔法功能。</p>'));
   assert.ok(html.includes('<p>按功能查找服务器实际安装的 SourceMod 插件。</p><p>插件可能因插件平台版本差异而不可用。</p>'));
+});
+
+test('legacy activity URLs and storage migrate to settings without losing the new About route',()=>{
+ for(const f of [fixture('#logs'),fixture('', 'logs')]){f.events.DOMContentLoaded();assert.equal(f.location.hash,'#settings');assert.equal(f.saved(),'settings');}
+ const about=fixture('#about');about.context.isGuest=true;about.events.DOMContentLoaded();assert.equal(about.location.hash,'#about');
+ const denied=fixture('#settings');denied.context.isGuest=true;denied.events.DOMContentLoaded();assert.equal(denied.location.hash,'#overview');
 });

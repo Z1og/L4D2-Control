@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "projectId": "l4d2-control-bf312edc896c79baad5c",
-  "fingerprint": "0e3e4f471edcda552550c4e060b083c006672b6b67335ee7b51c656ec9c8d164",
+  "fingerprint": "28a32a63384a1f180f9f8bd6f3b4d6f5a4c3b7c6a201d6c6b7070ad7007cfacf",
   "files": [
     {
       "path": "Build project fingerprint.js",
@@ -13,11 +13,11 @@
     },
     {
       "path": "NOTICE.md",
-      "sha256": "81c12ace93a11dc80b65c588d8c6e7fa61b2a9243393b1d5a296221fc96bdbf4"
+      "sha256": "155fede8eb43aa4b2e72a0faa491125ebf896b6cb1fdf77b5ac875c1f14a74c4"
     },
     {
       "path": "Project identity.json",
-      "sha256": "51bfaa76a45a5a38321a2447c73643596efafeae154fe841ca43debb8f8ef08d"
+      "sha256": "f3c509d81e9bfb1e0a1120a4b85ff6771de44956fc69c3d96c835523de1a3635"
     },
     {
       "path": "access control.js",
@@ -29,7 +29,7 @@
     },
     {
       "path": "app.js",
-      "sha256": "b3e941ac8e25f7a32eb75d4e62bf51123fb0acaf05a5d9344f316b6c6a7a4fb8"
+      "sha256": "e1f145c2062f8f5d6dfd1b1ad80ba5aaf3dd4ba413774479e9ea0072efdaed19"
     },
     {
       "path": "assets/Project mobile banner.webp",
@@ -57,15 +57,15 @@
     },
     {
       "path": "index.html",
-      "sha256": "26f6c4c9c51a14fdde9f33ee7a9999e63ca318703b491cf1553440a302ca7b6a"
+      "sha256": "ae2010af55200c6cf53be44a8e6974c27bdc2aacd8eafc4cf1562b3d0c1aa1ed"
     },
     {
       "path": "login.css",
-      "sha256": "bed6a905208588bfe9d4cc37da4c8e668d781dc99801edbdeb0b1d3e6993c44d"
+      "sha256": "ccc636f818f505dd8dace5eed32bfbf2b5451c84a873980270a88926f09ac456"
     },
     {
       "path": "login.html",
-      "sha256": "8ede1543025d820677854c322f75bd7a5df0233adb67a971a30f1cefe55037f1"
+      "sha256": "62e1e33e75432ae64bd3b2cf1c2945b91ed752d077f7e78f263cdbce137932f8"
     },
     {
       "path": "login.js",
@@ -84,6 +84,10 @@
       "sha256": "47bbac2a0523361a095aa28d38c94ddcf928b21b1166e44bd579ffb33e400dc7"
     },
     {
+      "path": "project about.js",
+      "sha256": "57d208c7a19d1a8eb4fda21661e2c67ac7f01db1a01537370a8f3ea332a3067c"
+    },
+    {
       "path": "project community.css",
       "sha256": "2678b646c4525090cdaac06b5c2ed8d216e50b1ad634a6d62297fdb92f3987bc"
     },
@@ -93,15 +97,15 @@
     },
     {
       "path": "project fingerprint.js",
-      "sha256": "325f9e2f0f7d9e6f775d96424e5ba440a1e32899559c91e34ed788de2cc44605"
+      "sha256": "7c2516ee63a8b60fccfa3852fa753809899135297e90d87ab31371d44d9747ab"
     },
     {
       "path": "server.js",
-      "sha256": "bbdac178d22da633757e793fb5764134ceecf889d8d2e66189883611cd20d635"
+      "sha256": "a8f98b55cd4c049d5eb6e7d0eb8fcd7e879eed0329a5616347d5f980f9319b1c"
     },
     {
       "path": "styles.css",
-      "sha256": "7712106a00ba322cdc2481dca86e114519f251a3a94e0f86e9febd0f1d96c259"
+      "sha256": "34d598dfbc2083957c130cc9995e96f6f1b25cfdfbdfeae1a4899e1dbe2cf9f3"
     }
   ]
 }

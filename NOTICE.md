@@ -20,3 +20,5 @@ devices, player accounts, or server operators. It contains no private server
 address, password, subscription, proxy node, machine identifier, or telemetry.
 An openly published source tree can be modified; fingerprints support comparison
 and evidence collection, not an absolute technical prohibition on copying.
+
+The built-in System → About page retains the project identity, community group, and license information. Official fingerprint builds validate attribution retention. This is local integrity checking, not encryption, DRM, telemetry, or proof of an official cryptographic release signature.

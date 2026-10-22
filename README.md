@@ -7,6 +7,8 @@
 
 [电脑横版海报](assets/Project%20poster%20desktop.png) · [手机竖版海报](assets/Project%20poster%20mobile.png)
 
+[关于与 QQ 交流群](docs/Project%20Preview/About.png) · [服务器设置与操作日志](docs/Project%20Preview/Settings.png)
+
 > 项目原创部分仅限非商业使用，商业使用需事先取得书面授权。参见 [LICENSE](LICENSE) 与[来源指纹说明](docs/Project%20Provenance.md)。
 
 
@@ -128,3 +130,6 @@ Changes require confirmation and read-back; mismatches restore previous values. 
 - 忘记密码需联系服主清除密码后重新注册。登录页的“首次使用？设置面板密码”使用醒目按钮进入注册。
 
 普通登录页提供已隐去示例账号信息的 Steam 资料链接图示。清除密码会删除 salt/hash 凭据，不设置临时密码；重新注册后保存新的随机盐 scrypt 哈希，保留原账号记录。项目指纹只识别核心代码与页面，不识别访客设备；公开源码中的标记仍可被移除。
+
+### 内置项目介绍与来源标识
+“系统 → 关于”提供项目简介、QQ 交流群和许可说明，由服务器内置身份信息生成，没有隐藏开关。正式构建会检查关于入口、来源与身份元信息是否保留；缺失或不一致时拒绝生成构建指纹。哈希校验用于发现文件变化，不是发布签名或 DRM，不能阻止持有源码的人同时修改校验逻辑。操作日志现位于“服务器设置”，自检入口统一为“服务检查”。

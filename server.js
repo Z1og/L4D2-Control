@@ -27,6 +27,7 @@ const { createGameplayController } = require('./gameplay controls');
 const { createAccess, sameOrigin, PUBLIC_FILES } = require('./access control');
 const { createAccounts } = require('./panel accounts');
 const { inspectFingerprint } = require('./project fingerprint');
+const { renderProjectAbout, renderProjectSummary } = require('./project about');
 const projectProvenance = inspectFingerprint(__dirname);
 const { createRegions, requestIP } = require('./ip regions');
 
@@ -642,7 +643,7 @@ function serveFile(req, res) {
   res.setHeader('content-type', types[path.extname(filePath)] || 'application/octet-stream');
   res.setHeader('cache-control', 'no-store');
   if (req.method === 'HEAD') { res.end(); return; }
-  if (relative === 'index.html' || relative === 'login.html') { let html=fs.readFileSync(filePath,'utf8');if(relative==='index.html')html=html.replace('<body>',`<body data-panel-role="${req.access.role}" data-panel-csrf="${req.access.csrf || ''}">`);html=html.replaceAll('__L4D2_PROJECT_ID__',projectProvenance.projectId).replaceAll('__L4D2_FINGERPRINT__',projectProvenance.sourceFingerprint || 'unavailable').replaceAll('__L4D2_FINGERPRINT_SHORT__',(projectProvenance.sourceFingerprint || 'unavailable').slice(0,12));res.end(html);return; }
+  if (relative === 'index.html' || relative === 'login.html') { let html=fs.readFileSync(filePath,'utf8');if(relative==='index.html')html=html.replace('<body>',`<body data-panel-role="${req.access.role}" data-panel-csrf="${req.access.csrf || ''}">`);html=html.replaceAll('__L4D2_ABOUT_CONTENT__',()=>renderProjectAbout(projectProvenance)).replaceAll('__L4D2_ABOUT_SUMMARY__',()=>renderProjectSummary());html=html.replaceAll('__L4D2_PROJECT_ID__',projectProvenance.projectId).replaceAll('__L4D2_FINGERPRINT__',projectProvenance.sourceFingerprint || 'unavailable').replaceAll('__L4D2_FINGERPRINT_SHORT__',(projectProvenance.sourceFingerprint || 'unavailable').slice(0,12));res.end(html);return; }
   fs.createReadStream(filePath).pipe(res);
 }
 

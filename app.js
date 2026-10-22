@@ -61,15 +61,16 @@ function renderCurrentMap(id = currentMap) {
   $('#currentMapEnglish').textContent = id || 'UNKNOWN';
   $('#currentMapSubtitle').textContent = selected ? `${selected.campaign.name} · ${selected.campaign.english}` : '服务器当前章节';
 }
-const panelViews = { overview: '总览', gameplay: '游戏模式', maps: '地图管理', plugins: '插件管理', diagnostics: '服务器自检', workshop: '内容下载', proxy: '代理管理', players: '在线玩家', logs: '操作日志', settings: '服务器设置' };
+const panelViews = { overview: '总览', gameplay: '游戏模式', maps: '地图管理', plugins: '插件管理', diagnostics: '服务检查', workshop: '内容下载', proxy: '代理管理', players: '在线玩家', settings: '服务器设置', about: '关于' };
 function savedPanelView() {
-  const hash = location.hash.slice(1);
+  const hash = location.hash.slice(1) === 'logs' ? 'settings' : location.hash.slice(1);
   if (hash) return Object.hasOwn(panelViews, hash) ? hash : 'overview';
-  try { const saved = sessionStorage.getItem('l4d2-panel-view'); return Object.hasOwn(panelViews, saved) ? saved : 'overview'; }
+  try { const stored = sessionStorage.getItem('l4d2-panel-view'); const saved = stored === 'logs' ? 'settings' : stored; return Object.hasOwn(panelViews, saved) ? saved : 'overview'; }
   catch { return 'overview'; }
 }
 function navigate(view) {
-  if (!Object.hasOwn(panelViews, view) || typeof isGuest !== 'undefined' && isGuest && !['overview', 'maps', 'plugins'].includes(view)) view = 'overview';
+  if (view === 'logs') view = 'settings';
+  if (!Object.hasOwn(panelViews, view) || typeof isGuest !== 'undefined' && isGuest && !['overview', 'maps', 'plugins', 'about'].includes(view)) view = 'overview';
   try { sessionStorage.setItem('l4d2-panel-view', view); } catch {}
   try { if (location.hash !== `#${view}`) history.replaceState(null, '', `#${view}`); } catch {}
   window.panelState?.activate(view);

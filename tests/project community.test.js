@@ -12,5 +12,10 @@ test('public community resources are individually allowed without opening privat
 });
 test('published community number and gallery are consistent across both login roles and project documentation',()=>{
   for(const file of ['login.html','index.html','README.md','README Chinese.md','README English.md'])assert.match(fs.readFileSync(path.join(root,file),'utf8'),/1002677414/);
-  for(const file of ['login.html','index.html']){const html=fs.readFileSync(path.join(root,file),'utf8');assert.equal((html.match(/id="projectAboutDialog"/g)||[]).length,1);assert.match(html,/data-group-fallback/);assert.match(html,/data-open-project/);}
+  for(const file of ['login.html','index.html']){const html=fs.readFileSync(path.join(root,file),'utf8');assert.equal((html.match(/id="projectAboutDialog"/g)||[]).length,1);assert.match(html,/data-group-fallback/);assert.match(html,file==='login.html'?/data-open-project/:/data-view="about"/);}
+});
+
+test('Steam guide lives only in its dialog and activity log lives inside server settings',()=>{
+ const login=fs.readFileSync(path.join(root,'login.html'),'utf8'),form=login.slice(login.indexOf('id="ordinaryForm"'),login.indexOf('</form>'));assert.match(form,/id="openProfileGuide"/);assert.doesNotMatch(form,/<img|<details/);assert.equal((login.match(/id="openProfileGuide"/g)||[]).length,1);
+ const html=fs.readFileSync(path.join(root,'index.html'),'utf8'),settings=html.slice(html.indexOf('id="settingsView"'),html.indexOf('id="aboutView"'));assert.match(settings,/id="logPanel"/);assert.doesNotMatch(html,/id="logsView"|data-view="logs"|服务器自检/);assert.match(html,/服务检查/);
 });

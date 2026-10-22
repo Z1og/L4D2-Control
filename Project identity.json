@@ -5,5 +5,7 @@
   "projectId": "l4d2-control-bf312edc896c79baad5c",
   "repository": "https://github.com/Z1og/L4D2-Control",
   "license": "LicenseRef-L4D2-Control-NonCommercial-1.0",
-  "copyright": "Copyright 2026 Z1og and original contributors"
+  "copyright": "Copyright 2026 Z1og and original contributors",
+  "communityGroup": "1002677414",
+  "description": "面向求生之路 2 好友联机的服务器管理面板，集中管理地图、插件、玩家与服务器状态，让开服和分享地图更方便。"
 }

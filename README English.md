@@ -7,6 +7,8 @@
 
 [Desktop poster](assets/Project%20poster%20desktop.png) · [Mobile poster](assets/Project%20poster%20mobile.png)
 
+[About and QQ community](docs/Project%20Preview/About.png) · [Server settings and activity log](docs/Project%20Preview/Settings.png)
+
 > Original project contributions are available for non-commercial use. Commercial use requires written authorization. See [LICENSE](LICENSE) and [project provenance](docs/Project%20Provenance.md).
 
 
@@ -217,3 +219,6 @@ Changes require confirmation and read-back; mismatches restore previous values. 
 - Forgotten passwords require a server-owner clear followed by re-registration. A prominent first-time registration button is available on the login page.
 
 The ordinary login page includes a sanitized Steam profile-link guide. Password clears remove the salt and hash instead of assigning a temporary password. Re-registration writes a fresh salted scrypt hash and retains the account record. Project fingerprints identify selected source files, never visitors or devices; they do not prevent removal of publicly available source markers.
+
+### Built-in project attribution
+The System → About page contains the project introduction, QQ group and license notice. This identity is rendered by the server and has no dashboard switch to hide it. Official fingerprint builds reject missing attribution entries or inconsistent identity metadata. Hash checks detect changes; they are not release signatures or DRM and cannot prevent a source-code owner from modifying the checker. The activity log is under Server settings; the health-check entry is named 服务检查.
