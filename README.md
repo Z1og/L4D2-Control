@@ -48,7 +48,7 @@
 
 | 普通 / 授权登录 | 游戏模式 |
 | --- | --- |
-| ![普通 / 授权登录](https://raw.githubusercontent.com/Z1og/L4D2-Control/46842a0ef55cac655c4c9eff98c526da7125448b/docs/Project%20Preview/Login.png) | ![游戏模式](https://raw.githubusercontent.com/Z1og/L4D2-Control/793f96b31fb4f850f895460b391b8c71fea33f8d/docs/Project%20Preview/Gameplay.png) |
+| ![普通 / 授权登录](https://raw.githubusercontent.com/Z1og/L4D2-Control/200a958e860dacaf8c7b6f77f032f288ae828479/docs/Project%20Preview/Login.png) | ![游戏模式](https://raw.githubusercontent.com/Z1og/L4D2-Control/793f96b31fb4f850f895460b391b8c71fea33f8d/docs/Project%20Preview/Gameplay.png) |
 
 | 总览 | 地图管理 |
 | --- | --- |
