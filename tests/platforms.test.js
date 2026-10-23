@@ -212,3 +212,43 @@ test('version picker changes cautions, preserves choice and confirms the selecte
   await node('#platformGrid').onclick({ target: { closest: () => ({ dataset: { platformId: 'metamod', platformAction: 'update' } }) } });
   assert.equal(posts.length, 1); assert.equal(posts[0].body.releaseId, 'old'); assert.equal(posts[0].body.version, '1'); assert.equal(posts[0].body.confirmed, true);
 });
+
+test('catalogs persist across panel restarts and only manual checks contact official sources', async t => {
+  let calls = 0, offline = false;
+  const options = { catalogResolver: async id => { calls++; if (offline) throw Error('offline'); const release = { id, version: '1', url: 'https://mms.alliedmods.net/test.tar.gz' }; return { versions: [release], latest: release }; } };
+  const f = await fixture(t, options);
+  assert.ok((await f.manager.snapshot()).components.every(item => !item.versions.length)); assert.equal(calls, 0);
+  await Promise.all([f.manager.checkUpdates(), f.manager.checkUpdates()]); assert.equal(calls, 4);
+  const first = await f.manager.snapshot(); assert.ok(first.components.every(item => item.versions.length === 1 && item.catalogCheckedAt));
+  const restarted = createPlatforms({ serverRoot: f.directory, stateDir: f.stateDir, capture: async () => '', ...options });
+  offline = true;
+  for (let i = 0; i < 3; i++) assert.deepEqual((await restarted.snapshot()).components.map(item => item.versions), first.components.map(item => item.versions));
+  assert.equal(calls, 4);
+  const failed = await restarted.checkUpdates(); assert.equal(calls, 8); assert.match(failed.updateErrors.metamod, /offline/);
+  assert.deepEqual(failed.components.map(item => item.catalogCheckedAt), first.components.map(item => item.catalogCheckedAt));
+  const again = createPlatforms({ serverRoot: f.directory, stateDir: f.stateDir, capture: async () => '', ...options });
+  assert.deepEqual((await again.snapshot()).components.map(item => item.versions), first.components.map(item => item.versions)); assert.equal(calls, 8);
+});
+
+test('corrupt catalog cache does not trigger a network request and manual refresh repairs it', async t => {
+  let calls = 0;
+  const f = await fixture(t, { catalogResolver: async () => { calls++; return { versions: [{ id: 'fixture', version: '1' }] }; } });
+  await fs.mkdir(f.stateDir); await fs.writeFile(path.join(f.stateDir, 'Version cache metamod.json'), '{broken');
+  const snapshot = await f.manager.snapshot(); assert.equal(calls, 0); assert.equal(snapshot.components[0].versions.length, 0); assert.match(snapshot.components[0].catalogWarnings[0], /缓存不可用/);
+  const refreshed = await f.manager.checkUpdates(); assert.equal(calls, 4); assert.equal(refreshed.components[0].versions.length, 1); assert.deepEqual(refreshed.components[0].catalogWarnings, []);
+  assert.equal(JSON.parse(await fs.readFile(path.join(f.stateDir, 'Version cache metamod.json'), 'utf8')).schema, 1);
+});
+
+test('opening and reloading platform page reads cached catalogs without automatic check POST', async () => {
+  const source = await fs.readFile(path.join(__dirname, '../platforms.js'), 'utf8');
+  const nodes = new Map(), requests = [];
+  const node = id => { if (!nodes.has(id)) nodes.set(id, { classList: { toggle() {} }, setAttribute() {} }); return nodes.get(id); };
+  const data = { components: [], dependencies: { platforms: {} }, supported: true, checkedAt: new Date().toISOString() };
+  const makeContext = () => vm.createContext({ window: {}, $: node, isGuest: false, api: async url => { requests.push('GET ' + url); return data; }, post: async url => { requests.push('POST ' + url); return data; }, icons() {}, escapeHtml: String, Date, Map });
+  let context = makeContext(); vm.runInContext(source, context); await context.window.selectPluginPage('platforms');
+  assert.deepEqual(requests, ['GET /api/platforms']); assert.match(node('#platformStatus').textContent, /尚无版本缓存/);
+  await node('#refreshPlatforms').onclick(); assert.deepEqual(requests, ['GET /api/platforms', 'GET /api/platforms']);
+  context = makeContext(); vm.runInContext(source, context); await context.window.selectPluginPage('platforms');
+  assert.equal(requests.filter(value => value.startsWith('POST')).length, 0);
+  await node('#checkPlatformUpdates').onclick(); assert.equal(requests.at(-1), 'POST /api/platforms/check');
+});

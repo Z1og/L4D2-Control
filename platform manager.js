@@ -125,7 +125,7 @@ async function officialRelease(id, fetchImpl = fetch) {
 
 function createPlatforms({ serverRoot, pluginPath = path.join(serverRoot, 'left4dead2/addons/sourcemod/plugins'), capture, exclusive = action => action(), fetchImpl = fetch, releaseResolver, catalogResolver = releaseResolver ? async id => { const release = await releaseResolver(id); return { latest: release, versions: [release], warnings: [] }; } : id => officialCatalog(id, fetchImpl), system = process.platform, stateDir = path.join(os.homedir(), '.local/state/dead-air-panel/platforms'), fault = () => {} }) {
   const game = path.resolve(serverRoot, 'left4dead2');
-  let busy = false, pendingStatus, last = null, releases = new Map();
+  let busy = false, pendingStatus, pendingCheck, cachedCatalogs, last = null, releases = new Map();
   async function safeFile(base, relative, create = false) {
     const pieces = archivePath(relative).split('/'); let current = path.resolve(base);
     const baseStat = await fs.lstat(current);
@@ -152,6 +152,24 @@ function createPlatforms({ serverRoot, pluginPath = path.join(serverRoot, 'left4
     try { await fs.writeFile(temp, data, { flag: 'wx', mode }); await fs.rename(temp, target); } finally { await fs.rm(temp, { force: true }); }
   }
   const saveState = (id, data) => atomic(stateDir, id + '.json', JSON.stringify(data), 0o600);
+  const catalogErrors = {};
+  function loadCachedCatalogs() {
+    if (!cachedCatalogs) cachedCatalogs = (async () => {
+      await privateState();
+      await Promise.all(COMPONENTS.map(async ({ id }) => {
+        try {
+          const file = await safeFile(stateDir, 'Version cache ' + id + '.json');
+          if ((await fs.stat(file)).size > 32 * 1024 * 1024) throw Error('缓存超过大小限制');
+          const saved = JSON.parse(await fs.readFile(file, 'utf8'));
+          if (saved.schema !== 1 || !Array.isArray(saved.catalog?.versions) || !Number.isFinite(saved.at)) throw Error('缓存格式无效');
+          releases.set(id, { catalog: saved.catalog, at: saved.at });
+        } catch (error) {
+          if (error.code !== 'ENOENT') catalogErrors[id] = '版本缓存不可用，请手动刷新：' + error.message;
+        }
+      }));
+    })();
+    return cachedCatalogs;
+  }
   async function restore(changes) {
     for (const change of [...changes].reverse()) {
       if (change.before === null) await fs.rm(await safeFile(game, change.name), { force: true });
@@ -173,6 +191,7 @@ function createPlatforms({ serverRoot, pluginPath = path.join(serverRoot, 'left4
     if (busy) return { ...(last || { components: [], dependencies: dependencies(pluginInventory(pluginPath)) }), busy: true };
     if (pendingStatus) return pendingStatus;
     pendingStatus = (async () => {
+      await loadCachedCatalogs();
       let runtime = parseRuntime(''), runtimeError = '';
       try { runtime = parseRuntime(await capture(['meta version', 'meta list', 'sm version'])); } catch { runtimeError = '未取得本次游戏控制台响应；磁盘安装状态不代表已运行。'; }
       const components = [];
@@ -184,7 +203,7 @@ function createPlatforms({ serverRoot, pluginPath = path.join(serverRoot, 'left4
         const normalizeVersion = value => String(value || '').replace(/-git|-dev\+/g, '.').replace(/^v/, '');
         const restartRequired = !!saved.receipt?.restartRequired && !(verified && runtime[component.id].status === 'running' && normalizeVersion(runtime[component.id].version) === normalizeVersion(saved.receipt.version));
         const catalog = releases.get(component.id)?.catalog;
-        components.push({ ...component, probes: undefined, installed: present, diskVersion: present && verified ? saved.receipt.version : null, diskReleaseId: verified ? saved.receipt?.releaseId : null, runtime: runtime[component.id], latest: catalog?.latest || null, versions: catalog?.versions || [], catalogWarnings: catalog?.warnings || [], catalogCheckedAt: catalog?.checkedAt || null, canRollback: !!saved.rollback, restartRequired, checkedAt: new Date().toISOString() });
+        components.push({ ...component, probes: undefined, installed: present, diskVersion: present && verified ? saved.receipt.version : null, diskReleaseId: verified ? saved.receipt?.releaseId : null, runtime: runtime[component.id], latest: catalog?.latest || null, versions: catalog?.versions || [], catalogWarnings: [...(catalog?.warnings || []), ...(catalogErrors[component.id] ? [catalogErrors[component.id]] : [])], catalogCheckedAt: catalog?.checkedAt || null, canRollback: !!saved.rollback, restartRequired, checkedAt: new Date().toISOString() });
       }
       return last = { components, dependencies: dependencies(pluginInventory(pluginPath)), runtimeError, busy: false, supported: system === 'linux', checkedAt: new Date().toISOString() };
     })().finally(() => { pendingStatus = null; });
@@ -192,9 +211,22 @@ function createPlatforms({ serverRoot, pluginPath = path.join(serverRoot, 'left4
   }
   async function checkUpdates() {
     if (busy) throw fail('平台操作正在执行', 409);
-    const errors = {};
-    await Promise.all(COMPONENTS.map(async component => { try { const catalog = await catalogResolver(component.id); releases.set(component.id, { catalog, at: Date.now() }); } catch (error) { errors[component.id] = error.message; } }));
-    return { ...await snapshot(), updateErrors: errors };
+    if (pendingCheck) return pendingCheck;
+    pendingCheck = (async () => {
+      await loadCachedCatalogs();
+      const errors = {};
+      await Promise.all(COMPONENTS.map(async ({ id }) => {
+        try {
+          const catalog = { ...await catalogResolver(id), checkedAt: new Date().toISOString() }, at = Date.now();
+          const serialized = JSON.stringify({ schema: 1, catalog, at });
+          if (Buffer.byteLength(serialized) > 32 * 1024 * 1024) throw Error('版本列表超过缓存大小限制');
+          await atomic(stateDir, 'Version cache ' + id + '.json', serialized, 0o600);
+          releases.set(id, { catalog, at }); delete catalogErrors[id];
+        } catch (error) { errors[id] = error.message; }
+      }));
+      return { ...await snapshot(), updateErrors: errors };
+    })().finally(() => { pendingCheck = null; });
+    return pendingCheck;
   }
   async function act(payload) {
     const { id, action, confirmed } = payload;
@@ -202,7 +234,7 @@ function createPlatforms({ serverRoot, pluginPath = path.join(serverRoot, 'left4
     if (!component || !['install', 'update', 'rollback'].includes(action)) throw fail('平台操作无效');
     if (confirmed !== true) throw fail('请先确认平台变更');
     if (system !== 'linux') throw fail('自动安装仅支持 Linux x86 的 L4D2 服务端', 400);
-    if (busy) throw fail('已有平台操作正在执行', 409);
+    if (busy || pendingCheck) throw fail('已有平台操作正在执行', 409);
     busy = true;
     try {
       // Wait for an in-flight read before opening a transaction.

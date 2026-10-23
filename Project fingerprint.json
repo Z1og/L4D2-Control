@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "projectId": "l4d2-control-bf312edc896c79baad5c",
-  "fingerprint": "585ca25357485c353aa56f541e4346dd929099bb63feba20a3c4726df9067052",
+  "fingerprint": "6717ccc1b3c6b5444916a25e4d385fbe256b96390b18526e1c8363453b10d03f",
   "files": [
     {
       "path": "Build project fingerprint.js",
@@ -81,7 +81,7 @@
     },
     {
       "path": "platform manager.js",
-      "sha256": "465aa143efa533631c59d61a79739e79e11999d86dc35f896835678d684c44e1"
+      "sha256": "9b85b2576e2505362c706be8c1eb46d2ba1e88af840146dd8876fbcd3660622a"
     },
     {
       "path": "platform versions.js",
@@ -89,7 +89,7 @@
     },
     {
       "path": "platforms.js",
-      "sha256": "322ab4c397bca8f55fddf64660a23dc126d7c32ddcde75ed526c02253ad596a1"
+      "sha256": "eac989f977442ffc0e003667e357d998c977d73f25de90cdb6761775989dd7b7"
     },
     {
       "path": "player manager.js",

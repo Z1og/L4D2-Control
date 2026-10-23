@@ -20,7 +20,7 @@
       const active = page === selected, tab = $('#' + id);
       tab.classList.toggle('active', active); tab.setAttribute('aria-selected', String(active)); tab.tabIndex = active ? 0 : -1;
     }
-    if (selected === 'platforms') load(data === null);
+    if (selected === 'platforms') return load();
   };
   for (const [id, page] of [['pluginTab', 'plugins'], ['platformTab', 'platforms']]) {
     $('#' + id).onclick = () => window.selectPluginPage(page);
@@ -72,7 +72,9 @@
         data = check ? await post('/api/platforms/check', {}) : await api('/api/platforms');
         if (check) updateErrors = data.updateErrors || {};
         window.pluginDependencies = data.dependencies;
-        message(!data.supported ? '当前系统不支持自动安装；请在 Linux 游戏服务器本机运行面板。' : data.runtimeError || (data.busy ? '平台任务正在执行，稍后刷新查看结果。' : `检查时间：${new Date(data.checkedAt).toLocaleString()} · 安装状态与游戏运行状态分别显示。`));
+        const cachedDates = data.components.map(item => item.catalogCheckedAt).filter(Boolean).sort();
+        const catalogStatus = cachedDates.length ? `版本列表来自服务器缓存（${new Date(cachedDates[0]).toLocaleString()}）；点击“获取 / 刷新版本”才会联网更新。` : '尚无版本缓存，请点击“获取 / 刷新版本”手动读取官方列表。';
+        message(!data.supported ? '当前系统不支持自动安装；请在 Linux 游戏服务器本机运行面板。' : data.runtimeError || (data.busy ? '平台任务正在执行，稍后刷新查看结果。' : `状态检查：${new Date(data.checkedAt).toLocaleString()} · ${catalogStatus}`));
       } catch (error) { message('读取失败：' + error.message); }
       finally { busy = false; loading = null; render(); }
     })();
