@@ -25,6 +25,8 @@ async function fixture(t, options = {}) {
 }
 const payload = (action, version = '1', id = 'metamod') => ({ id, action, version, confirmed: true });
 test('runtime versions require actual command output and failed MetaMod entries stay failed', () => {
+  assert.equal(parseRuntime('Metamod:Source Version Information\n    Metamod:Source version 1.12.0-dev+1219').metamod.version, '1.12.0-dev+1219');
+  assert.equal(parseRuntime('Metamod:Source Version Information').metamod.status, 'unknown');
   const parsed = parseRuntime('meta version\nMetamod:Source version 1.12.0-dev+1228\n [01] SourceMod (1.12.0.7255) by AlliedModders\nSourceMod Version: 1.12.0.7255\n [02] L4DToolZ (2.2.0) by Accelerator\n [03] <FAILED> Stripper');
   assert.equal(parsed.metamod.status, 'running'); assert.equal(parsed.sourcemod.version, '1.12.0.7255'); assert.equal(parsed.l4dtoolz.status, 'running'); assert.equal(parsed.stripper.status, 'error'); assert.equal(parseRuntime('Unknown command "meta"').metamod.status, 'unknown');
 });

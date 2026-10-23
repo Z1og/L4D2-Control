@@ -58,7 +58,7 @@ function elf32(data) { return data.length > 20 && data.subarray(0, 4).equals(Buf
 
 function parseRuntime(output) {
   const text = String(output).replace(/\x1b\[[0-9;]*m/g, '');
-  const mm = text.match(/^\s*Metamod:Source\s+version\s+([^\s]+)/im);
+  const mm = text.match(/^\s*Metamod:Source\s+version\s+([0-9][^\s]*)/im);
   const sm = text.match(/^\s*SourceMod\s+Version:\s*([^\s]+)/im);
   const metaLine = pattern => text.split('\n').find(line => /^\s*\[\s*\d+\]/.test(line) && pattern.test(line));
   const result = {};
