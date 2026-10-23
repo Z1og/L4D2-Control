@@ -8,11 +8,13 @@ const { pluginInventory } = require('./inventory');
 const { officialCatalog } = require('./platform versions');
 
 const COMPONENTS = [
-  { id: 'metamod', name: 'MetaMod:Source', description: '底层插件加载器，SourceMod、L4DToolZ 和 Stripper 的前置组件。', caution: '更新后需重启游戏进程；请使用匹配 Source 1 / L4D2 的版本。', requires: [], probes: ['addons/metamod/bin/server.so', 'addons/metamod/bin/server_i486.so'], home: 'https://www.metamodsource.net/' },
+  { id: 'metamod', name: 'MetaMod:Source', description: '底层插件加载器，SourceMod、MetaMod 版 L4DToolZ 和 Stripper 的前置组件。', caution: '更新后需重启游戏进程；请使用匹配 Source 1 / L4D2 的版本。', requires: [], probes: ['addons/metamod/bin/server.so', 'addons/metamod/bin/server_i486.so'], home: 'https://www.metamodsource.net/' },
   { id: 'sourcemod', name: 'SourceMod', description: '运行 SMX 插件，提供管理员权限、菜单与扩展接口。', caution: '保留已有配置和 SMX；插件、扩展与 gamedata 可能有版本兼容要求。', requires: ['metamod'], probes: ['addons/sourcemod/bin/sourcemod.2.l4d2.so'], home: 'https://www.sourcemod.net/' },
   { id: 'l4dtoolz', name: 'L4DToolZ', description: '解除游戏人数限制，扩展多人房间的底层能力。', caution: '人数、Bot 与大厅规则仍需在“游戏模式”中配置；避免同时安装多个同类人数扩展。', requires: ['metamod'], probes: ['addons/l4dtoolz/l4dtoolz_mm.so', 'addons/l4dtoolz/l4dtoolz_mm_i486.so'], home: 'https://github.com/accelerator74/l4dtoolz' },
   { id: 'stripper', name: 'Stripper:Source', description: '按配置增加、删除或调整地图实体，常用于地图修复。', caution: '实体规则可能改变地图流程；保留现有 maps 和 global_filters 配置，并核对所选构建要求的 MetaMod 版本。', requires: ['metamod'], probes: ['addons/stripper/bin/stripper_mm_i486.so'], home: 'https://github.com/alliedmodders/stripper-source' }
 ];
+const NATIVE_TOOLZ_PROBES = ['addons/l4dtoolz.so', 'addons/l4dtoolz_i486.so'];
+const NATIVE_TOOLZ_NOTE = '当前检测到原生 Source 版 L4DToolZ；下方版本列表为 MetaMod 版，不可直接混装或跨加载器切换。';
 const fail = (message, status = 400) => Object.assign(new Error(message), { status });
 const hash = data => crypto.createHash('sha256').update(data).digest('hex');
 const LIMIT = 96 * 1024 * 1024;
@@ -93,6 +95,13 @@ function parseRuntime(output) {
   for (const [id, pattern] of [['l4dtoolz', /L4DToolZ/i], ['stripper', /Stripper/i]]) {
     const line = metaLine(pattern), failed = line && /<FAILED>|<ERROR>|<NOFILE>/i.test(line);
     result[id] = { status: failed ? 'error' : line && /\([^()]+\)/.test(line) ? 'running' : 'unknown', version: !failed && line?.match(/\(([^()]+)\)/)?.[1] || null };
+  }
+  const nativeLine = text.split('\n').find(line => /^\s*\d+\s*:\s*(?:<(?:FAILED|ERROR|NOFILE)>\s*)?["']?L4DToolZ\b/i.test(line));
+  if (nativeLine) {
+    const version = nativeLine.match(/L4DToolZ\s+(?:v|\()?([0-9][0-9A-Za-z.+-]*)/i)?.[1] || null;
+    const failed = /<FAILED>|<ERROR>|<NOFILE>/i.test(nativeLine);
+    const mixed = Boolean(metaLine(/L4DToolZ/i));
+    result.l4dtoolz = { status: failed || mixed ? 'error' : version ? 'running' : 'unknown', version: failed ? null : version, loader: mixed ? 'mixed' : 'native' };
   }
   return result;
 }
@@ -184,8 +193,8 @@ function createPlatforms({ serverRoot, pluginPath = path.join(serverRoot, 'left4
     for (const probe of component.probes) { try { const file = await safeFile(game, probe); if ((await fs.stat(file)).isFile()) return true; } catch (error) { if (error.code !== 'ENOENT') throw error; } }
     return false;
   }
-  function dependencies(disk) {
-    return { platforms: { metamod: [], sourcemod: ['metamod'], l4dtoolz: ['metamod'], stripper: ['metamod'] }, plugins: disk.filter(plugin => /^left4dhooks(?:[ _-].*)?$/i.test(plugin.id)).map(plugin => ({ ...plugin, requires: ['sourcemod'], managedIn: 'plugins' })) };
+  function dependencies(disk, nativeToolz = false) {
+    return { platforms: { metamod: [], sourcemod: ['metamod'], l4dtoolz: nativeToolz ? [] : ['metamod'], stripper: ['metamod'] }, plugins: disk.filter(plugin => /^left4dhooks(?:[ _-].*)?$/i.test(plugin.id)).map(plugin => ({ ...plugin, requires: ['sourcemod'], managedIn: 'plugins' })) };
   }
   async function snapshot() {
     if (busy) return { ...(last || { components: [], dependencies: dependencies(pluginInventory(pluginPath)) }), busy: true };
@@ -193,19 +202,20 @@ function createPlatforms({ serverRoot, pluginPath = path.join(serverRoot, 'left4
     pendingStatus = (async () => {
       await loadCachedCatalogs();
       let runtime = parseRuntime(''), runtimeError = '';
-      try { runtime = parseRuntime(await capture(['meta version', 'meta list', 'sm version'])); } catch { runtimeError = '未取得本次游戏控制台响应；磁盘安装状态不代表已运行。'; }
+      try { runtime = parseRuntime(await capture(['meta version', 'meta list', 'sm version', 'plugin_print'])); } catch { runtimeError = '未取得本次游戏控制台响应；磁盘安装状态不代表已运行。'; }
       const components = [];
       for (const component of COMPONENTS) {
         const saved = await recover(component.id, await readState(component.id));
-        const present = await installed(component);
+        const nativeToolz = component.id === 'l4dtoolz' && (['native', 'mixed'].includes(runtime.l4dtoolz.loader) || await installed({ probes: NATIVE_TOOLZ_PROBES }));
+        const present = nativeToolz || await installed(component);
         let verified = !!saved.receipt;
         for (const [name, digest] of Object.entries(saved.receipt?.probes || {})) { try { if (hash(await fs.readFile(await safeFile(game, name))) !== digest) verified = false; } catch { verified = false; } }
         const normalizeVersion = value => String(value || '').replace(/-git|-dev\+/g, '.').replace(/^v/, '');
         const restartRequired = !!saved.receipt?.restartRequired && !(verified && runtime[component.id].status === 'running' && normalizeVersion(runtime[component.id].version) === normalizeVersion(saved.receipt.version));
         const catalog = releases.get(component.id)?.catalog;
-        components.push({ ...component, probes: undefined, installed: present, diskVersion: present && verified ? saved.receipt.version : null, diskReleaseId: verified ? saved.receipt?.releaseId : null, runtime: runtime[component.id], latest: catalog?.latest || null, versions: catalog?.versions || [], catalogWarnings: [...(catalog?.warnings || []), ...(catalogErrors[component.id] ? [catalogErrors[component.id]] : [])], catalogCheckedAt: catalog?.checkedAt || null, canRollback: !!saved.rollback, restartRequired, checkedAt: new Date().toISOString() });
+        components.push({ ...component, ...(nativeToolz ? { requires: [], home: 'https://github.com/lakwsh/l4dtoolz', variantLabel: '原生 Source 版', catalogLabel: 'MetaMod 版稳定版', actionBlockedReason: NATIVE_TOOLZ_NOTE } : {}), probes: undefined, installed: present, diskVersion: present && verified ? saved.receipt.version : null, diskReleaseId: verified ? saved.receipt?.releaseId : null, runtime: runtime[component.id], latest: catalog?.latest || null, versions: catalog?.versions || [], catalogWarnings: [...(catalog?.warnings || []), ...(catalogErrors[component.id] ? [catalogErrors[component.id]] : [])], catalogCheckedAt: catalog?.checkedAt || null, canRollback: !!saved.rollback, restartRequired, checkedAt: new Date().toISOString() });
       }
-      return last = { components, dependencies: dependencies(pluginInventory(pluginPath)), runtimeError, busy: false, supported: system === 'linux', checkedAt: new Date().toISOString() };
+      return last = { components, dependencies: dependencies(pluginInventory(pluginPath), components.some(item => item.id === 'l4dtoolz' && item.actionBlockedReason)), runtimeError, busy: false, supported: system === 'linux', checkedAt: new Date().toISOString() };
     })().finally(() => { pendingStatus = null; });
     return pendingStatus;
   }
@@ -240,6 +250,11 @@ function createPlatforms({ serverRoot, pluginPath = path.join(serverRoot, 'left4
       // Wait for an in-flight read before opening a transaction.
       if (pendingStatus) await pendingStatus;
       return await exclusive(async () => {
+        if (id === 'l4dtoolz') {
+          let nativeToolz = await installed({ probes: NATIVE_TOOLZ_PROBES });
+          if (!nativeToolz) { try { nativeToolz = ['native', 'mixed'].includes(parseRuntime(await capture(['plugin_print'])).l4dtoolz.loader); } catch {} }
+          if (nativeToolz) throw fail(NATIVE_TOOLZ_NOTE, 409);
+        }
         let saved = await recover(id, await readState(id));
         if (action === 'rollback') {
           if (!saved.rollback) throw fail('没有可回退的版本', 409);

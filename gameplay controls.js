@@ -24,7 +24,7 @@ function createGameplayController({capture, directory, onlineCount = async()=>0,
     return {mode:values.mp_gamemode,difficulty:values.z_difficulty,maxPlayers:values.sv_maxplayers===null?null:+values.sv_maxplayers,
       botCount:values.bots_limit===null?null:+values.bots_limit,allowDirect:values.sv_allow_lobby_connect_only==='0',maxPlayersSupported:Boolean(supported),
       maxSlots,modes:MODES,difficulties:DIFFICULTIES,saved,updatedAt:now(),values,
-      capabilityMessage:supported?'已检测到扩展人数与 bots 插件；当前引擎支持最多 '+maxSlots+' 人':'未检测到可用的扩展人数 / bots 插件，人数设置不可修改'};
+      capabilityMessage:supported?'已检测到 l4d2_sv_maxplayers 与 bots；当前配置上限为 '+maxSlots+' 人':'未检测到可用的扩展人数 / bots 插件，人数设置不可修改'};
   }
   async function apply(body) {
     if(busy)throw fail('设置正在保存，请勿重复提交');

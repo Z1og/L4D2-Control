@@ -30,6 +30,53 @@ test('runtime versions require actual command output and failed MetaMod entries 
   const parsed = parseRuntime('meta version\nMetamod:Source version 1.12.0-dev+1228\n [01] SourceMod (1.12.0.7255) by AlliedModders\nSourceMod Version: 1.12.0.7255\n [02] L4DToolZ (2.2.0) by Accelerator\n [03] <FAILED> Stripper');
   assert.equal(parsed.metamod.status, 'running'); assert.equal(parsed.sourcemod.version, '1.12.0.7255'); assert.equal(parsed.l4dtoolz.status, 'running'); assert.equal(parsed.stripper.status, 'error'); assert.equal(parseRuntime('Unknown command "meta"').metamod.status, 'unknown');
 });
+
+test('native Source L4DToolZ is detected from plugin_print, not confused with MetaMod or echoed commands', () => {
+  const native = 'Loaded plugins:\n0: "L4DToolZ v2.4.3, https://github.com/lakwsh/l4dtoolz"';
+  assert.deepEqual(parseRuntime(native).l4dtoolz, { status: 'running', version: '2.4.3', loader: 'native' });
+  assert.equal(parseRuntime('echo L4DToolZ v2.4.3').l4dtoolz.status, 'unknown');
+  assert.equal(parseRuntime('0: <FAILED> "L4DToolZ v2.4.3"').l4dtoolz.status, 'error');
+  assert.equal(parseRuntime('0: "L4DToolZ"').l4dtoolz.status, 'unknown');
+  const mixed = parseRuntime(native + '\n [02] L4DToolZ (2.2.0) by Accelerator').l4dtoolz;
+  assert.equal(mixed.status, 'error'); assert.equal(mixed.loader, 'mixed');
+});
+
+test('native L4DToolZ binary is installed, uses its own dependency relation and blocks cross-loader mutations', async t => {
+  const commands = [];
+  const f = await fixture(t, { capture: async value => { commands.push(value); return value.includes('plugin_print') ? '0: "L4DToolZ v2.4.3, https://github.com/lakwsh/l4dtoolz"' : ''; } });
+  const bytes = elf(7); await f.write('addons/l4dtoolz.so', bytes);
+  const state = await f.manager.snapshot(), item = state.components.find(x => x.id === 'l4dtoolz');
+  assert.equal(item.installed, true); assert.equal(item.runtime.version, '2.4.3'); assert.equal(item.runtime.status, 'running');
+  assert.equal(item.diskVersion, null); assert.equal(item.home, 'https://github.com/lakwsh/l4dtoolz');
+  assert.deepEqual(item.requires, []); assert.deepEqual(state.dependencies.platforms.l4dtoolz, []);
+  assert.match(item.variantLabel, /原生/); assert.match(item.catalogLabel, /MetaMod/); assert.match(item.actionBlockedReason, /不可直接混装/);
+  assert.ok(commands[0].includes('plugin_print'));
+  for (const action of ['install', 'update', 'rollback']) await assert.rejects(f.manager.act(payload(action, '2.2.0', 'l4dtoolz')), error => error.status === 409 && /原生 Source/.test(error.message));
+  assert.deepEqual(await f.read('addons/l4dtoolz.so'), bytes); assert.equal(f.calls(), 0);
+  await assert.rejects(f.read('addons/l4dtoolz/l4dtoolz_mm.so'), /ENOENT/);
+});
+
+test('runtime-only native installations are protected, while MetaMod variants retain their dependency', async t => {
+  const f = await fixture(t, { capture: async () => '0: "L4DToolZ v2.4.3, https://github.com/lakwsh/l4dtoolz"' });
+  assert.equal((await f.manager.snapshot()).components.find(x => x.id === 'l4dtoolz').installed, true);
+  await assert.rejects(f.manager.act(payload('install', '2.2.0', 'l4dtoolz')), /原生 Source/); assert.equal(f.calls(), 0);
+  const meta = await fixture(t, { capture: async () => ' [03] L4DToolZ (2.2.0) by Accelerator' });
+  await meta.write('addons/l4dtoolz/l4dtoolz_mm.so', elf());
+  const item = (await meta.manager.snapshot()).components.find(x => x.id === 'l4dtoolz');
+  assert.equal(item.installed, true); assert.equal(item.runtime.status, 'running'); assert.equal(item.actionBlockedReason, undefined); assert.deepEqual(item.requires, ['metamod']);
+});
+
+test('native L4DToolZ UI labels the variant and never opens managed MetaMod actions', async () => {
+  const source = await fs.readFile(path.join(__dirname, '../platforms.js'), 'utf8'), nodes = new Map(), posts = [];
+  const node = id => { if (!nodes.has(id)) nodes.set(id, { classList: { toggle() {} }, setAttribute() {} }); return nodes.get(id); };
+  const release = { id: 'metamod-release', version: '2.2.0' };
+  const data = { supported: true, checkedAt: Date.now(), dependencies: { platforms: {} }, components: [{ id: 'l4dtoolz', name: 'L4DToolZ', installed: true, requires: [], runtime: { status: 'running', version: '2.4.3' }, variantLabel: '原生 Source 版', catalogLabel: 'MetaMod 版稳定版', actionBlockedReason: '不混装', latest: release, versions: [release] }] };
+  const context = vm.createContext({ window: {}, $: node, isGuest: false, api: async () => data, post: async (...args) => posts.push(args), icons() {}, escapeHtml: String, Date, Map });
+  vm.runInContext(source, context); await node('#refreshPlatforms').onclick();
+  const html = node('#platformGrid').innerHTML; assert.match(html, /已安装 · 原生 Source 版/); assert.match(html, /MetaMod 版稳定版/); assert.match(html, /data-platform-action="update" disabled/); assert.match(html, /原生版已检测/);
+  await node('#platformGrid').onclick({ target: { closest: () => ({ dataset: { platformId: 'l4dtoolz', platformAction: 'update' } }) } });
+  assert.equal(posts.length, 0);
+});
 test('archive rejects traversal, links, duplicate members and checksum corruption', () => {
   for (const entries of [[['../outside', elf()]], [['addons/link', Buffer.alloc(0), '2']], [['addons/file', elf()], ['addons/file', elf()]]]) assert.throws(() => unpackArchive(tar(entries)));
   const broken = Buffer.alloc(1024, 1); assert.throws(() => unpackArchive(gzipSync(broken)));

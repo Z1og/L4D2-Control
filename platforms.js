@@ -47,19 +47,20 @@
     $('#platformGrid').innerHTML = data.components.map(item => {
       const required = item.requires.filter(id => !data.components.some(component => component.id === id && component.installed));
       const release = chosen(item), versions = item.versions || [];
-      const disabled = pending || !data.supported || required.length || !release;
+      const disabled = pending || !data.supported || required.length || !release || item.actionBlockedReason;
       const branches = [...new Set(versions.map(version => version.branch || '官方发行'))];
       const branch = release?.branch || branches[0];
-      return `<article class="panel platform-card"><header><div><h2>${escapeHtml(item.name)}</h2><span class="platform-install-status ${item.installed ? 'installed' : ''}">${item.installed ? '已安装' : '未安装'}</span></div><span class="platform-runtime ${item.runtime.status}">${escapeHtml(label[item.runtime.status] || '未确认')}</span></header>
+      return `<article class="panel platform-card"><header><div><h2>${escapeHtml(item.name)}</h2><span class="platform-install-status ${item.installed ? 'installed' : ''}">${item.installed ? '已安装' : '未安装'}${item.variantLabel ? ' · ' + escapeHtml(item.variantLabel) : ''}</span></div><span class="platform-runtime ${item.runtime.status}">${escapeHtml(label[item.runtime.status] || '未确认')}</span></header>
         <p class="platform-description">${escapeHtml(item.description)}</p>
-        <dl class="platform-versions"><div><dt>磁盘版本</dt><dd>${escapeHtml(item.diskVersion || (item.installed ? '版本未知' : '—'))}</dd></div><div><dt>运行版本</dt><dd>${escapeHtml(item.runtime.version || '未取得')}</dd></div><div><dt>官方稳定版</dt><dd>${escapeHtml(item.latest?.version || '点击检查更新')}</dd></div></dl>
+        <dl class="platform-versions"><div><dt>磁盘版本</dt><dd>${escapeHtml(item.diskVersion || (item.installed ? '版本未知' : '—'))}</dd></div><div><dt>运行版本</dt><dd>${escapeHtml(item.runtime.version || '未取得')}</dd></div><div><dt>${escapeHtml(item.catalogLabel || '官方稳定版')}</dt><dd>${escapeHtml(item.latest?.version || '点击检查更新')}</dd></div></dl>
         <div class="platform-version-picker"><label for="platformBranch-${item.id}">分支 / 兼容构建<select id="platformBranch-${item.id}" data-platform-branch="${item.id}" ${pending || !versions.length ? 'disabled' : ''}>${branches.length ? branches.map(value => `<option value="${escapeHtml(value)}" ${value === branch ? 'selected' : ''}>${escapeHtml(value)}</option>`).join('') : '<option>请先获取版本</option>'}</select></label><label for="platformVersion-${item.id}">目标版本 <small>共 ${versions.length} 个可用构建</small><select id="platformVersion-${item.id}" data-platform-version="${item.id}" ${pending || !versions.length ? 'disabled' : ''}>${versions.length ? versions.filter(version => (version.branch || '官方发行') === branch).map(version => `<option value="${escapeHtml(version.id)}" ${version.id === release?.id ? 'selected' : ''}>${escapeHtml(version.version)}${version.recommended ? ' · 推荐' : ''}${version.channel ? ' · ' + escapeHtml(version.channel) : ''}</option>`).join('') : '<option>点击右上方获取版本</option>'}</select></label></div>
         ${release ? `<section class="platform-version-notes" aria-live="polite"><h3>${escapeHtml(release.version)} · 使用注意</h3><p class="platform-caution"><i data-lucide="info"></i><span>${escapeHtml(notes(item, release))}</span></p><details><summary>官方发行说明${release.publishedAt ? ' · ' + escapeHtml(new Date(release.publishedAt).toLocaleDateString()) : ''}</summary><pre>${escapeHtml(release.releaseNotes || '官方未提供该版本的详细说明。')}</pre></details></section>` : `<p class="platform-caution">${escapeHtml(item.caution)}</p>`}
         ${(item.catalogWarnings || []).map(warning => `<p class="platform-error">版本列表未完整：${escapeHtml(warning)}</p>`).join('')}
+        ${item.actionBlockedReason ? `<p class="platform-caution"><i data-lucide="info"></i><span>${escapeHtml(item.actionBlockedReason)}</span></p>` : ''}
         ${item.restartRequired ? '<p class="platform-restart">磁盘文件已变更，需重启游戏进程后核验。</p>' : ''}
         ${required.length ? `<p class="platform-restart">请先安装 ${required.map(id => escapeHtml(names[id])).join('、')}。</p>` : ''}
         ${updateErrors[item.id] ? `<p class="platform-error">检查更新失败：${escapeHtml(updateErrors[item.id])}</p>` : ''}
-        <footer><a class="secondary-button" href="${escapeHtml(item.home)}" target="_blank" rel="noopener noreferrer">使用说明<i data-lucide="external-link"></i></a><button type="button" class="primary-button" data-platform-id="${item.id}" data-platform-action="${item.installed ? 'update' : 'install'}" ${disabled ? 'disabled' : ''}>${item.installed ? '切换 / 修复所选版本' : '安装所选版本'}</button><button type="button" class="secondary-button" data-platform-id="${item.id}" data-platform-action="rollback" ${pending || !data.supported || !item.canRollback ? 'disabled' : ''}>回退</button></footer></article>`;
+        <footer><a class="secondary-button" href="${escapeHtml(item.home)}" target="_blank" rel="noopener noreferrer">使用说明<i data-lucide="external-link"></i></a><button type="button" class="primary-button" data-platform-id="${item.id}" data-platform-action="${item.installed ? 'update' : 'install'}" ${disabled ? 'disabled' : ''}>${item.actionBlockedReason ? '原生版已检测' : item.installed ? '切换 / 修复所选版本' : '安装所选版本'}</button><button type="button" class="secondary-button" data-platform-id="${item.id}" data-platform-action="rollback" ${pending || !data.supported || !item.canRollback || item.actionBlockedReason ? 'disabled' : ''}>回退</button></footer></article>`;
     }).join('');
     renderDependencies(); icons();
   }
@@ -101,7 +102,7 @@
   $('#platformGrid').onclick = async event => {
     const button = event.target.closest('[data-platform-action]'); if (!button || busy || !data || data.busy) return;
     const id = button.dataset.platformId, action = button.dataset.platformAction, item = data.components.find(component => component.id === id);
-    if (!item || !data.supported) return;
+    if (!item || !data.supported || item.actionBlockedReason) return;
     const release = chosen(item); if (action !== 'rollback' && !release) return;
     const title = action === 'rollback' ? `回退 ${item.name} 的上一次文件变更` : `${action === 'install' ? '安装' : '切换 / 修复'} ${item.name} 至 ${release.version}（${release.branch || '官方发行'}）`;
     if (!await window.PanelDialogs.confirm(`${title}？\n\n${action === 'rollback' ? item.caution : notes(item, release)}\n保留已有配置与 SMX 插件。操作后需要重启游戏进程，当前不会自动重启。${action === 'rollback' ? '\n回退后将清除这次回退记录。' : '\n包含升级和降级；只保留本次改动文件的上一版本。'}`, { title: action === 'rollback' ? '确认回退平台' : action === 'install' ? '确认安装平台' : '确认切换 / 修复平台', confirmLabel: action === 'rollback' ? '确认回退' : action === 'install' ? '确认安装' : '确认切换 / 修复', danger: action === 'rollback' })) return;

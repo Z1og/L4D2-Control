@@ -13,6 +13,7 @@ function fixture(t,options={}){
 const payload={confirmed:true,mode:'coop',difficulty:'Normal',allowDirect:true,multiplayer:true,maxPlayers:8,botCount:4};
 test('runtime queries detect actual engine limit and hidden convars',async t=>{
  const f=fixture(t),s=await f.control.read();assert.equal(s.maxSlots,18);assert.equal(s.maxPlayersSupported,true);assert.equal(s.mode,'coop');assert.equal(f.writes.length,0);
+ assert.match(s.capabilityMessage,/l4d2_sv_maxplayers 与 bots/);assert.match(s.capabilityMessage,/当前配置上限为 18 人/);assert.doesNotMatch(s.capabilityMessage,/当前引擎/);
  assert.equal(cvarValue('Unknown command "mp_gamemode"','mp_gamemode'),null);
 });
 test('save reads values back and persists only allowlisted settings',async t=>{
