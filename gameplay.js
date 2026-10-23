@@ -34,7 +34,7 @@ $('#gameplayMode').onchange=$('#gameplayMultiplayer').onchange=$('#gameplayMaxPl
 $('#gameplayForm').onsubmit=async event=>{
   event.preventDefault();if(gameplayBusy||!gameplayState||!$('#gameplayForm').reportValidity())return;
   const payload={mode:$('#gameplayMode').value,difficulty:$('#gameplayDifficulty').value,multiplayer:$('#gameplayMultiplayer').checked,maxPlayers:Number($('#gameplayMaxPlayers').value),botCount:Number($('#gameplayBotCount').value),allowDirect:$('#gameplayAllowDirect').checked,confirmed:true};
-  if(!confirm('确认保存玩法设置？\n模式：'+$('#gameplayMode').selectedOptions[0].textContent+'\n难度：'+$('#gameplayDifficulty').selectedOptions[0].textContent+'\n'+(payload.multiplayer?'扩展多人：'+payload.maxPlayers+' 人，开局 '+payload.botCount+' 个 Bot':'标准房间人数')+'\n新模式和开局 Bot 数量在切图后生效。'))return;
+  if(!await window.PanelDialogs.confirm('确认保存玩法设置？\n模式：'+$('#gameplayMode').selectedOptions[0].textContent+'\n难度：'+$('#gameplayDifficulty').selectedOptions[0].textContent+'\n'+(payload.multiplayer?'扩展多人：'+payload.maxPlayers+' 人，开局 '+payload.botCount+' 个 Bot':'标准房间人数')+'\n新模式和开局 Bot 数量在切图后生效。'))return;
   gameplayBusy=true;$('#gameplayFields').disabled=true;$('#refreshGameplay').disabled=true;
   try{const result=await post('/api/gameplay',payload);renderGameplay(result);$('#gameplayStatus').textContent=result.message;record('保存游戏模式与多人房间设置');toast('玩法设置已保存并核验');}
   catch(error){$('#gameplayStatus').textContent='未完成保存：'+error.message;toast('保存失败，请重新读取设置');gameplayState=null;$('#gameplayFields').disabled=true;}
@@ -43,7 +43,7 @@ $('#gameplayForm').onsubmit=async event=>{
 $('#reloadGameplayMap').onclick=async()=>{
   if(gameplayBusy||!gameplayState)return;
   try{const live=await api('/api/status');if(!live.mapConfirmed||!live.currentMap)throw Error('无法确认当前地图');
-    if(!confirm('确认重载当前地图 '+live.currentMap+'？\n当前进度会丢失。请确认这张地图支持所选玩法。'))return;
+    if(!await window.PanelDialogs.confirm('确认重载当前地图 '+live.currentMap+'？\n当前进度会丢失。请确认这张地图支持所选玩法。'))return;
     gameplayBusy=true;$('#reloadGameplayMap').disabled=true;await post('/api/map',{map:live.currentMap});record('重载地图以应用玩法设置');$('#gameplayStatus').textContent='切图请求已发送，请稍后读取实时设置确认。';
   }catch(error){toast(error.message);}finally{gameplayBusy=false;$('#reloadGameplayMap').disabled=false;}
 };

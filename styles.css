@@ -681,3 +681,16 @@ body.modal-open { overflow: hidden; }
 .platform-dependencies p > span { flex: 1; color: var(--muted); }
 @media (max-width: 1050px) { .platform-grid { grid-template-columns: 1fr; } }
 @media (max-width: 540px) { .platform-card, .platform-dependencies { padding: 18px; } .management-tabs { width: 100%; } .management-tabs button { flex: 1; padding: 10px 16px; } .platform-card footer .primary-button { flex: 1; } }
+
+/* Shared site confirmations match the download-export dialog in both themes. */
+.panel-confirm-dialog{box-sizing:border-box;width:min(880px,calc(100vw - 36px));padding:32px;max-height:calc(100dvh - 36px)}
+.panel-confirm-dialog h2{padding-right:42px;font-size:28px;line-height:1.45;margin:10px 0 12px}
+.panel-confirm-dialog>.eyebrow{font-size:12px;margin:0 0 22px;color:var(--muted)}
+.panel-confirm-message{white-space:pre-wrap;overflow-wrap:anywhere;font-size:16px;line-height:1.9;padding:20px 22px;border:1px solid var(--line);border-radius:16px;background:var(--surface-2);max-height:48vh;overflow:auto}
+.panel-confirm-field{display:grid;gap:10px;margin-top:18px;font-size:16px;font-weight:600}
+.panel-confirm-field input{box-sizing:border-box;width:100%;min-width:0;background:var(--surface-2);color:var(--text);border:1px solid var(--line);border-radius:12px;padding:14px;font:16px/1.6 var(--mono)}
+.panel-confirm-dialog [hidden]{display:none!important}
+.panel-confirm-dialog :is(button,input):focus-visible{outline:3px solid var(--blue);outline-offset:3px}
+.panel-confirm-dialog .player-dialog-actions{margin-top:26px}
+.panel-confirm-dialog .player-dialog-actions button{min-width:120px;font-size:16px;min-height:46px}
+@media(max-width:600px){.panel-confirm-dialog{padding:24px 20px;width:calc(100vw - 24px);max-height:calc(100dvh - 24px)}.panel-confirm-dialog h2{font-size:23px;padding-right:38px}.panel-confirm-message{padding:16px;font-size:15px;max-height:48dvh}.panel-confirm-dialog .player-dialog-actions{display:grid;grid-template-columns:1fr 1fr}.panel-confirm-dialog .player-dialog-actions button{min-width:0}.panel-confirm-dialog .modal-close{width:38px;height:38px}}

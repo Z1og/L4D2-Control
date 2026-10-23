@@ -104,7 +104,8 @@
     if (!item || !data.supported) return;
     const release = chosen(item); if (action !== 'rollback' && !release) return;
     const title = action === 'rollback' ? `回退 ${item.name} 的上一次文件变更` : `${action === 'install' ? '安装' : '切换 / 修复'} ${item.name} 至 ${release.version}（${release.branch || '官方发行'}）`;
-    if (!confirm(`${title}？\n\n${action === 'rollback' ? item.caution : notes(item, release)}\n保留已有配置与 SMX 插件。操作后需要重启游戏进程，当前不会自动重启。${action === 'rollback' ? '\n回退后将清除这次回退记录。' : '\n包含升级和降级；只保留本次改动文件的上一版本。'}`)) return;
+    if (!await window.PanelDialogs.confirm(`${title}？\n\n${action === 'rollback' ? item.caution : notes(item, release)}\n保留已有配置与 SMX 插件。操作后需要重启游戏进程，当前不会自动重启。${action === 'rollback' ? '\n回退后将清除这次回退记录。' : '\n包含升级和降级；只保留本次改动文件的上一版本。'}`, { title: action === 'rollback' ? '确认回退平台' : action === 'install' ? '确认安装平台' : '确认切换 / 修复平台', confirmLabel: action === 'rollback' ? '确认回退' : action === 'install' ? '确认安装' : '确认切换 / 修复', danger: action === 'rollback' })) return;
+    if (busy || data.busy) return;
     busy = true; render(); message('正在' + title + '，请等待完成…');
     let result;
     try {

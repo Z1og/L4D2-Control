@@ -70,7 +70,7 @@ function openPlayerPermission(steam64 = '') {
 $('#refreshPlayers').onclick = loadPlayers;
 $('#playerSearch').oninput = () => { selectedPlayers.clear(); renderPlayers(); };
 $('#playerTabs').onclick = e => { const b = e.target.closest('[data-player-tab]'); if (!b) return; playerTab = b.dataset.playerTab; window.panelState?.set('playerTab', playerTab); selectedPlayers.clear(); $$('#playerTabs button').forEach(x => { x.classList.toggle('active', x === b); x.setAttribute('aria-pressed', String(x === b)); }); renderPlayers(); };
-$('#playerList').onclick = async e => { const reset = e.target.closest('[data-player-password]'); if (reset && !reset.disabled) { const player = playerData?.players.find(p => p.steam64 === reset.dataset.playerPassword && p.panelAccount); if (player) openAccountPassword(player); return; } const note = e.target.closest('[data-player-note]'); if (note && !note.disabled) { openPlayerNote(note.dataset.playerNote); return; } const action = e.target.closest('[data-player-action]'); if (action && !action.disabled) { openPlayerModeration(action.dataset.playerAction, [action.dataset.playerId]); return; } const copy = e.target.closest('[data-player-copy]'); if (copy) { try { await navigator.clipboard.writeText(copy.dataset.playerCopy); toast('SteamID64 已复制'); } catch { prompt('复制 SteamID64', copy.dataset.playerCopy); } return; } const edit = e.target.closest('[data-player-edit]'); if (edit && !edit.disabled) openPlayerPermission(edit.dataset.playerEdit); };
+$('#playerList').onclick = async e => { const reset = e.target.closest('[data-player-password]'); if (reset && !reset.disabled) { const player = playerData?.players.find(p => p.steam64 === reset.dataset.playerPassword && p.panelAccount); if (player) openAccountPassword(player); return; } const note = e.target.closest('[data-player-note]'); if (note && !note.disabled) { openPlayerNote(note.dataset.playerNote); return; } const action = e.target.closest('[data-player-action]'); if (action && !action.disabled) { openPlayerModeration(action.dataset.playerAction, [action.dataset.playerId]); return; } const copy = e.target.closest('[data-player-copy]'); if (copy) { try { await navigator.clipboard.writeText(copy.dataset.playerCopy); toast('SteamID64 已复制'); } catch { await window.PanelDialogs.prompt('可手动复制以下 SteamID64。', copy.dataset.playerCopy, { title: '复制 SteamID64', label: 'SteamID64', readOnly: true, confirmLabel: '完成', cancelLabel: '关闭' }); } return; } const edit = e.target.closest('[data-player-edit]'); if (edit && !edit.disabled) openPlayerPermission(edit.dataset.playerEdit); };
 $('#addPlayerAdmin').onclick = () => openPlayerPermission();
 $('#closePlayerPermission').onclick = () => { if (!playerSaving) $('#playerPermissionDialog').close(); };
 $('#cancelPlayerPermission').onclick = () => { if (!playerSaving) $('#playerPermissionDialog').close(); };
@@ -82,7 +82,8 @@ $('#playerPermissionForm').onsubmit = async e => {
   e.preventDefault(); if (playerSaving) return;
   const flags = selectedPlayerFlags(), steamId = $('#playerSteamId').value.trim();
   if (flags.includes('z') && !$('#playerRootConfirm').checked) { $('#playerPermissionMessage').textContent = '请先确认最高权限授权'; return; }
-  if (!confirm(`确认${flags ? '设置' : '撤销面板授予的'}游戏内管理员权限？\nSteamID：${steamId}\n权限标记：${flags || '无'}\n将重载 SourceMod 管理员缓存，不重启游戏。`)) return;
+  if (!await window.PanelDialogs.confirm(`确认${flags ? '设置' : '撤销面板授予的'}游戏内管理员权限？\nSteamID：${steamId}\n权限标记：${flags || '无'}\n将重载 SourceMod 管理员缓存，不重启游戏。`)) return;
+  if (playerSaving) return;
   playerSaving = true; $$('#playerPermissionForm button, #playerPermissionForm input, #playerPermissionForm select').forEach(x => x.disabled = true); $('#closePlayerPermission').disabled = true;
   try { const result = await post('/api/players/permissions', { steamId, flags, immunity: flags ? Number($('#playerImmunity').value) : 0, confirmRoot: $('#playerRootConfirm').checked }); toast(result.message); record(`更新玩家权限 ${result.steam2}：${result.flags || '普通玩家'}`); $('#playerPermissionDialog').close(); await loadPlayers(); }
   catch (error) { $('#playerPermissionMessage').textContent = error.message; }
@@ -119,14 +120,14 @@ async function updatePlayerWhitelist(payload) {
   finally { playerWhitelistBusy = false; renderPlayerWhitelist(); }
   return succeeded;
 }
-$('#playerWhitelistEnabled').onchange = event => {
+$('#playerWhitelistEnabled').onchange = async event => {
   const enabled = event.target.checked;
-  if (!confirm(`${enabled ? '开启' : '关闭'}白名单模式？${enabled ? '\n仅白名单玩家和 SourceMod 管理员可以加入。' : '\n已有白名单记录会保留，之后可再次开启。'}`)) { event.target.checked = !enabled; return; }
+  if (!await window.PanelDialogs.confirm(`${enabled ? '开启' : '关闭'}白名单模式？${enabled ? '\n仅白名单玩家和 SourceMod 管理员可以加入。' : '\n已有白名单记录会保留，之后可再次开启。'}`)) { event.target.checked = !enabled; return; }
   updatePlayerWhitelist({ action: 'set-enabled', enabled, confirmed: true });
 };
 $('#playerWhitelistForm').onsubmit = event => { event.preventDefault(); const input = $('#playerWhitelistIdentity'); const identity = input.value.trim(); if (!identity) return; updatePlayerWhitelist({ action: 'add', identity }).then(succeeded => { if (succeeded) input.value = ''; }); };
-$('#playerWhitelistList').onclick = event => { const button = event.target.closest('[data-player-whitelist-remove]'); if (!button || button.disabled) return; if (confirm(`确定将 ${button.dataset.playerWhitelistRemove} 移出白名单？`)) updatePlayerWhitelist({ action: 'remove', steamId: button.dataset.playerWhitelistRemove }); };
-$('#playerList').addEventListener('click', event => { const button = event.target.closest('[data-player-whitelist]'); if (!button || button.disabled) return; const action = button.dataset.whitelistAction; if (action === 'remove' && !confirm(`确定将 ${button.dataset.playerWhitelist} 移出白名单？`)) return; updatePlayerWhitelist(action === 'add' ? { action, identity: button.dataset.playerWhitelist } : { action, steamId: button.dataset.playerWhitelist }); });
+$('#playerWhitelistList').onclick = async event => { const button = event.target.closest('[data-player-whitelist-remove]'); if (!button || button.disabled) return; if (await window.PanelDialogs.confirm(`确定将 ${button.dataset.playerWhitelistRemove} 移出白名单？`)) updatePlayerWhitelist({ action: 'remove', steamId: button.dataset.playerWhitelistRemove }); };
+$('#playerList').addEventListener('click', async event => { const button = event.target.closest('[data-player-whitelist]'); if (!button || button.disabled) return; const action = button.dataset.whitelistAction; if (action === 'remove' && !await window.PanelDialogs.confirm(`确定将 ${button.dataset.playerWhitelist} 移出白名单？`)) return; updatePlayerWhitelist(action === 'add' ? { action, identity: button.dataset.playerWhitelist } : { action, steamId: button.dataset.playerWhitelist }); });
 
 function playerRows() {
   if (!playerData) return [];

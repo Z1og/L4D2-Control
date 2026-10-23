@@ -201,14 +201,14 @@ test('version picker changes cautions, preserves choice and confirms the selecte
   const node = id => { if (!nodes.has(id)) nodes.set(id, { classList: { toggle() {} }, setAttribute() {}, focus() {} }); return nodes.get(id); };
   const versions = [{ id: 'new', version: '2', branch: '1.12', notes: ['NEW CAUTION'], releaseNotes: 'new notes' }, { id: 'old', version: '1', branch: '1.11', notes: ['OLD CAUTION'], releaseNotes: '<script>alert(1)</script>' }];
   const data = { components: [{ id: 'metamod', name: 'MetaMod', caution: 'BASE', requires: [], runtime: { status: 'unknown' }, installed: true, latest: versions[0], versions }], dependencies: { platforms: {} }, supported: true, checkedAt: new Date().toISOString() };
-  const context = vm.createContext({ window: { panelState: { get: (key, fallback) => saved.get(key) || fallback, set: (key, value) => saved.set(key, value) } }, $: node, isGuest: false, api: async () => data, post: async (url, body) => { posts.push({ url, body }); return data; }, icons() {}, escapeHtml: value => String(value ?? '').replaceAll('<', '&lt;').replaceAll('>', '&gt;'), confirm: text => { confirmations.push(text); return false; }, Date, Map });
+  const context = vm.createContext({ window: { PanelDialogs: { confirm: async text => { confirmations.push(text); return false; } }, panelState: { get: (key, fallback) => saved.get(key) || fallback, set: (key, value) => saved.set(key, value) } }, $: node, isGuest: false, api: async () => data, post: async (url, body) => { posts.push({ url, body }); return data; }, icons() {}, escapeHtml: value => String(value ?? '').replaceAll('<', '&lt;').replaceAll('>', '&gt;'), confirm: text => { confirmations.push(text); return false; }, Date, Map });
   vm.runInContext(source, context); await node('#refreshPlatforms').onclick(); assert.match(node('#platformGrid').innerHTML, /NEW CAUTION/);
   node('#platformGrid').onchange({ target: { id: 'platformBranch-metamod', dataset: { platformBranch: 'metamod' }, value: '1.11' } });
   assert.match(node('#platformGrid').innerHTML, /OLD CAUTION/); assert.doesNotMatch(node('#platformGrid').innerHTML, /NEW CAUTION/); assert.ok(node('#platformGrid').innerHTML.includes('&lt;script&gt;')); assert.equal(posts.length, 0); assert.equal(saved.get('platformVersion:metamod'), 'old');
   await node('#platformGrid').onclick({ target: { closest: () => ({ dataset: { platformId: 'metamod', platformAction: 'update' } }) } });
   assert.match(confirmations[0], /至 1（1.11）/); assert.match(confirmations[0], /OLD CAUTION/); assert.equal(posts.length, 0);
   await node('#refreshPlatforms').onclick(); assert.match(node('#platformGrid').innerHTML, /OLD CAUTION/);
-  context.confirm = text => { confirmations.push(text); return true; }; context.record = () => {}; context.toast = () => {}; context.loadPlugins = async () => {};
+  context.window.PanelDialogs.confirm = async text => { confirmations.push(text); return true; }; context.record = () => {}; context.toast = () => {}; context.loadPlugins = async () => {};
   await node('#platformGrid').onclick({ target: { closest: () => ({ dataset: { platformId: 'metamod', platformAction: 'update' } }) } });
   assert.equal(posts.length, 1); assert.equal(posts[0].body.releaseId, 'old'); assert.equal(posts[0].body.version, '1'); assert.equal(posts[0].body.confirmed, true);
 });
