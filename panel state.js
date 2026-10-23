@@ -8,13 +8,31 @@
       set(name, value) { if (['__proto__', 'constructor', 'prototype'].includes(name)) return; try { const next = { ...state, [name]:value }, text = JSON.stringify(next); if (text.length > LIMIT) return; state = next; storage?.setItem(key, text); } catch {} }
     };
   }
-  if (typeof module !== 'undefined') module.exports = { createPanelMemory };
+  function installSearchClear(input, button, EventType) {
+    button.addEventListener('click', event => {
+      event.preventDefault();
+      if (input.disabled || input.readOnly) return;
+      input.value = '';
+      input.dispatchEvent(new EventType('input', { bubbles: true }));
+      input.focus({ preventScroll: true });
+    });
+  }
+  if (typeof module !== 'undefined') module.exports = { createPanelMemory, installSearchClear };
   if (typeof window === 'undefined') return;
   let storage; try { storage = sessionStorage; } catch {}
   const memory = createPanelMemory(storage, 'l4d2-panel-ui-v1-' + (document.body.dataset.panelRole || 'admin'));
   window.panelState = memory;
   const inputs = ['mapSearch', 'pluginSearch', 'playerSearch', 'workshopSearch', 'pluginStoreSearch', 'proxyNodeSearch'];
   for (const id of inputs) { const node = document.getElementById(id); if (!node) continue; const value = memory.get('input:' + id, ''); if (typeof value === 'string') node.value = value.slice(0, 250); node.addEventListener('input', () => memory.set('input:' + id, node.value.slice(0, 250))); }
+  for (const id of inputs) {
+    const input = document.getElementById(id); if (!input) continue;
+    let field = input.closest('.search-box');
+    if (!field) { field = document.createElement('span'); field.className = 'search-clear-field'; input.before(field); field.append(input); }
+    const button = document.createElement('button'); button.type = 'button'; button.className = 'search-clear';
+    button.setAttribute('aria-label', '清除' + (input.getAttribute('aria-label') || '节点搜索').replace(/^搜索/, '') + '内容');
+    button.setAttribute('title', '清除输入'); button.setAttribute('aria-controls', id);
+    button.textContent = '×'; field.append(button); installSearchClear(input, button, window.Event);
+  }
   try { history.scrollRestoration = 'manual'; } catch {}
   let current = null, pending = null, deadline = 0, timer = null, saving = null;
   const sidebar = document.querySelector('.sidebar');

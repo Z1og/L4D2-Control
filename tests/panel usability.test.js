@@ -1,6 +1,15 @@
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs/promises'),path=require('node:path'),os=require('node:os'),vm=require('node:vm');
-const {createPlayerNotes}=require('../player notes'),{createPanelMemory}=require('../panel state');
+const {createPlayerNotes}=require('../player notes'),{createPanelMemory,installSearchClear}=require('../panel state');
 const ids=['76561197960265729','76561197960265730'];
+test('search clear dispatches only input, persists empty search and retains focus without submitting',()=>{
+  const handlers={},events=[],saved=new Map();let focused=false,prevented=false;
+  const input={value:'战役',dispatchEvent(event){events.push(event.type);saved.set('query',this.value);},focus(options){focused=options.preventScroll;}};
+  installSearchClear(input,{addEventListener:(name,fn)=>handlers[name]=fn},class{constructor(type,options){this.type=type;assert.equal(options.bubbles,true);}});
+  handlers.click({preventDefault(){prevented=true;}});
+  assert.equal(input.value,'');assert.deepEqual(events,['input']);assert.equal(saved.get('query'),'');assert.equal(focused,true);assert.equal(prevented,true);
+  input.value='保留';input.disabled=true;handlers.click({preventDefault(){}});assert.equal(input.value,'保留');
+  input.disabled=false;input.readOnly=true;handlers.click({preventDefault(){}});assert.equal(input.value,'保留');
+});
 async function fixture(t){const directory=await fs.mkdtemp(path.join(os.tmpdir(),'Player notes test '));t.after(()=>fs.rm(directory,{recursive:true,force:true}));return {directory,store:createPlayerNotes({directory,now:()=>1000})};}
 test('player notes persist independently by SteamID, survive recreation and support clearing',async t=>{const f=await fixture(t);await Promise.all(ids.map((id,i)=>f.store.update(id,'朋友 '+i,'admin')));let rows=await createPlayerNotes({directory:f.directory}).list();assert.equal(rows[ids[0]].note,'朋友 0');assert.equal(rows[ids[1]].note,'朋友 1');assert.equal(rows[ids[0]].updatedAt,1000);await f.store.update('STEAM_1:1:0','<img src=x onerror=alert(1)>\n第二行','admin');rows=await f.store.list();assert.equal(rows[ids[0]].note,'<img src=x onerror=alert(1)>\n第二行');await f.store.update(ids[0],'  \n ','admin');assert.equal((await f.store.list())[ids[0]],undefined);assert.equal((await f.store.list())[ids[1]].note,'朋友 1');});
 test('invalid notes and corrupt files fail without overwriting the saved bytes',async t=>{const f=await fixture(t);await f.store.update(ids[0],'保留');const file=path.join(f.directory,'player notes.json'),before=await fs.readFile(file);for(const [id,note] of [['BOT','x'],[ids[0],'x'.repeat(501)],[ids[0],{}],[ids[0],'bad\0text']])await assert.rejects(f.store.update(id,note));assert.deepEqual(await fs.readFile(file),before);await fs.writeFile(file,'broken');await assert.rejects(f.store.update(ids[0],'replacement'),/读取失败/);assert.equal(await fs.readFile(file,'utf8'),'broken');});
