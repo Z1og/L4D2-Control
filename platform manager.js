@@ -14,7 +14,7 @@ const COMPONENTS = [
   { id: 'stripper', name: 'Stripper:Source', description: '按配置增加、删除或调整地图实体，常用于地图修复。', caution: '实体规则可能改变地图流程；保留现有 maps 和 global_filters 配置，并核对所选构建要求的 MetaMod 版本。', requires: ['metamod'], probes: ['addons/stripper/bin/stripper_mm_i486.so'], home: 'https://github.com/alliedmodders/stripper-source' }
 ];
 const NATIVE_TOOLZ_PROBES = ['addons/l4dtoolz.so', 'addons/l4dtoolz_i486.so'];
-const NATIVE_TOOLZ_NOTE = '当前检测到原生 Source 版 L4DToolZ；下方版本列表为 MetaMod 版，不可直接混装或跨加载器切换。';
+const NATIVE_TOOLZ_NOTE = '当前检测到原生 Source 版 L4DToolZ；此处版本列表为 MetaMod 版，不可直接混装或跨加载器切换。';
 const fail = (message, status = 400) => Object.assign(new Error(message), { status });
 const hash = data => crypto.createHash('sha256').update(data).digest('hex');
 const LIMIT = 96 * 1024 * 1024;
