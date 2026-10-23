@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "projectId": "l4d2-control-bf312edc896c79baad5c",
-  "fingerprint": "7678843786db1429a8017385e2ed50c066009ca0e5b75997514b5211e510aa95",
+  "fingerprint": "11c0a6bb37d16b37eeb0bd0493f51b59521ad5d3035c8886c5187b83c5425b7b",
   "files": [
     {
       "path": "Build project fingerprint.js",
@@ -93,7 +93,7 @@
     },
     {
       "path": "platform manager.js",
-      "sha256": "25dbbd1c238b4054dbad02bd9d6a3c839c12a26909abec7440154dfc6a15a47e"
+      "sha256": "9b5514bc5f6c783fe56db21cfa31773d9135185d98d5bc070618e60b066d9d88"
     },
     {
       "path": "platform versions.js",

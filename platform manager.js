@@ -49,8 +49,11 @@ function unpackArchive(compressed) {
   return files;
 }
 function allowedFile(id, name) {
+  // Official Linux bundles can mix architectures in directories and filenames.
+  // Skip explicitly foreign targets; unmarked binaries still require ELF x86 validation.
+  if (/(?:^|\/)(?:x64|linux64|amd64|x86_64|aarch64|arm64)(?:\/|$)/i.test(name) || /(?:^|[.\/_-])(?:x64|amd64|x86_64|aarch64|arm64)\.so$/i.test(name) || /\.(?:dll|dylib|exe)$/i.test(name)) return false;
   if (id === 'metamod') return ['addons/metamod/bin/server.so', 'addons/metamod/bin/server_i486.so', 'addons/metamod/bin/metamod.2.l4d2.so', 'addons/metamod.vdf', 'addons/metamod/metaplugins.ini'].includes(name);
-  if (id === 'sourcemod') return name === 'addons/metamod/sourcemod.vdf' || /^(addons\/sourcemod\/(bin|extensions|gamedata|translations|configs|plugins)\/|cfg\/sourcemod\/)/.test(name) && !/\/(x64|linux64)\//.test(name);
+  if (id === 'sourcemod') return name === 'addons/metamod/sourcemod.vdf' || /^(addons\/sourcemod\/(bin|extensions|gamedata|translations|configs|plugins)\/|cfg\/sourcemod\/)/.test(name);
   if (id === 'l4dtoolz') return /^addons\/l4dtoolz\/[^/]+\.so$/.test(name) || name === 'addons/metamod/l4dtoolz.vdf';
   return ['addons/metamod/stripper.vdf', 'addons/stripper/bin/stripper_mm_i486.so', 'addons/stripper/bin/stripper.2.l4d2.so', 'addons/stripper/global_filters.cfg'].includes(name) || /^addons\/stripper\/maps\/[^/]+\.cfg$/.test(name);
 }

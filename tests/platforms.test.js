@@ -89,6 +89,60 @@ test('framework bundles only install the exact L4D2 architecture files', () => {
   assert.equal(allowedFile('stripper', 'addons/stripper/bin/stripper.2.tf2.so'), false);
   assert.equal(allowedFile('stripper', 'addons/stripper/bin/stripper.2.l4d2.so'), true);
 });
+test('mixed platform bundles exclude foreign architecture paths, filename suffixes and operating systems', () => {
+  const { allowedFile } = require('../platform manager');
+  for (const suffix of ['x64', 'amd64', 'x86_64', 'aarch64', 'arm64']) {
+    assert.equal(allowedFile('sourcemod', `addons/sourcemod/bin/sourcemod_mm.${suffix}.so`), false);
+    assert.equal(allowedFile('sourcemod', `addons/sourcemod/extensions/${suffix}/sdkhooks.ext.so`), false);
+    assert.equal(allowedFile('l4dtoolz', `addons/l4dtoolz/l4dtoolz_mm_${suffix}.so`), false);
+  }
+  assert.equal(allowedFile('sourcemod', 'addons/sourcemod/bin/linux64/sourcemod.logic.so'), false);
+  for (const suffix of ['dll', 'dylib', 'exe']) assert.equal(allowedFile('sourcemod', `addons/sourcemod/bin/sourcemod_mm.${suffix}`), false);
+  assert.equal(allowedFile('sourcemod', 'addons/sourcemod/bin/sourcemod_mm_i486.so'), true);
+  assert.equal(allowedFile('sourcemod', 'addons/sourcemod/extensions/sdkhooks.ext.2.l4d2.so'), true);
+});
+
+test('mixed architecture installs and updates write only x86 components and remain rollbackable', async t => {
+  const foreign = elf(); foreign[4] = 2; foreign.writeUInt16LE(62, 18);
+  for (const [id, main, extra] of [
+    ['metamod', 'addons/metamod/bin/server.so', 'addons/metamod/bin/x64/server.so'],
+    ['sourcemod', 'addons/sourcemod/bin/sourcemod.2.l4d2.so', 'addons/sourcemod/bin/sourcemod_mm.x64.so'],
+    ['l4dtoolz', 'addons/l4dtoolz/l4dtoolz_mm.so', 'addons/l4dtoolz/l4dtoolz_mm_x64.so'],
+    ['stripper', 'addons/stripper/bin/stripper_mm_i486.so', 'addons/stripper/bin/x64/stripper_mm.so']
+  ]) {
+    const f = await fixture(t); await f.manager.act(payload('install'));
+    f.setEntries([[main, elf(2)], [extra, foreign]]);
+    await f.manager.act(payload(id === 'metamod' ? 'update' : 'install', '1', id));
+    assert.deepEqual(await f.read(main), elf(2), id);
+    await assert.rejects(f.read(extra), { code: 'ENOENT' });
+    f.setVersion('2'); f.setEntries([[main, elf(3)], [extra, foreign]]); await f.manager.checkUpdates();
+    await f.manager.act(payload('update', '2', id)); assert.deepEqual(await f.read(main), elf(3));
+    await f.manager.act(payload('rollback', '2', id)); assert.deepEqual(await f.read(main), elf(2));
+    await assert.rejects(f.read(extra), { code: 'ENOENT' });
+  }
+});
+
+test('foreign-only, unmarked wrong architecture and corrupt packages fail before changing existing SourceMod files', async t => {
+  const f = await fixture(t); await f.manager.act(payload('install'));
+  const main = 'addons/sourcemod/bin/sourcemod.2.l4d2.so', auxiliary = 'addons/sourcemod/bin/sourcemod.logic.so';
+  f.setEntries([[main, elf(2)]]); await f.manager.act(payload('install', '1', 'sourcemod'));
+  const foreign = elf(); foreign[4] = 2; foreign.writeUInt16LE(62, 18);
+  const arm = elf(); arm.writeUInt16LE(40, 18);
+  f.setVersion('2'); await f.manager.checkUpdates();
+  for (const [entries, error] of [
+    [[[main, foreign]], /ELF/],
+    [[['addons/sourcemod/bin/sourcemod_mm.x64.so', foreign]], /ELF/],
+    [[[main, elf(3)], [auxiliary, foreign]], /不匹配/],
+    [[[main, elf(3)], [auxiliary, arm]], /不匹配/],
+    [[[main, elf(3)], [auxiliary, Buffer.from('MZ wrong operating system')]], /不匹配/],
+    [[[main, elf(3)], [auxiliary, Buffer.from([127, 69, 76, 70])]], /不匹配/]
+  ]) {
+    f.setEntries(entries); await assert.rejects(f.manager.act(payload('update', '2', 'sourcemod')), error);
+    assert.deepEqual(await f.read(main), elf(2)); await assert.rejects(f.read(auxiliary), { code: 'ENOENT' });
+    assert.equal((await f.manager.snapshot()).components.find(item => item.id === 'sourcemod').diskVersion, '1');
+  }
+});
+
 test('install, update, persistent rollback and config preservation use actual file bytes', async t => {
   const f = await fixture(t); await f.write('addons/metamod.vdf', 'custom config');
   await assert.rejects(f.manager.act({ ...payload('install'), confirmed: false }), /确认/); assert.equal(f.calls(), 0);
