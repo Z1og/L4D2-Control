@@ -61,7 +61,7 @@ function renderCurrentMap(id = currentMap) {
   $('#currentMapEnglish').textContent = id || 'UNKNOWN';
   $('#currentMapSubtitle').textContent = selected ? `${selected.campaign.name} · ${selected.campaign.english}` : '服务器当前章节';
 }
-const panelViews = { overview: '总览', gameplay: '游戏模式', maps: '地图管理', plugins: '插件、平台管理', diagnostics: '服务检查', workshop: '内容下载', proxy: '代理管理', players: '玩家管理', settings: '服务器设置', about: '关于' };
+const panelViews = { overview: '总览', gameplay: '游戏模式', maps: '地图管理', plugins: '插件、平台管理', diagnostics: '服务检查', workshop: '内容下载', proxy: '内容下载', players: '玩家管理', settings: '服务器设置', about: '关于' };
 function savedPanelView() {
   const hash = location.hash.slice(1) === 'logs' ? 'settings' : location.hash.slice(1);
   if (hash) return Object.hasOwn(panelViews, hash) ? hash : 'overview';
@@ -70,6 +70,7 @@ function savedPanelView() {
 }
 function navigate(view) {
   if (view === 'logs') view = 'settings';
+  if (view === 'proxy') { selectContentSection('proxy', true); view = 'workshop'; }
   if (!Object.hasOwn(panelViews, view) || typeof isGuest !== 'undefined' && isGuest && !['overview', 'maps', 'plugins', 'about'].includes(view)) view = 'overview';
   try { sessionStorage.setItem('l4d2-panel-view', view); } catch {}
   try { if (location.hash !== `#${view}`) history.replaceState(null, '', `#${view}`); } catch {}
@@ -79,9 +80,8 @@ function navigate(view) {
   $('#pageTitle').textContent = panelViews[view];
   if (view === 'plugins') window.selectPluginPage?.(window.panelState?.get('pluginPage', 'plugins') || 'plugins');
   if (view === 'gameplay') loadGameplay();
-  if (view === 'proxy') loadProxy();
   if (view === 'players') loadPlayers();
-  if (view === 'workshop') loadDownloads();
+  if (view === 'workshop') { if (contentSection === 'proxy') loadProxy(); else loadDownloads(); }
   if (view === 'diagnostics') { loadCloudBackup(); startCloudPolling(); } else stopCloudPolling();
   $$('.nav-item').forEach(button => { if (button.dataset.view === view) button.setAttribute('aria-current', 'page'); else button.removeAttribute('aria-current'); });
   icons();
@@ -371,13 +371,17 @@ function selectContentSource(source, query = $('#workshopSearch').value.trim()) 
 
 }
 function selectContentSection(section, restoring = false) {
+  if (!['maps', 'plugins', 'proxy'].includes(section)) return;
   contentSection = section;
   $$('#contentSections button').forEach(button => { const active = button.dataset.contentSection === section; button.classList.toggle('active', active); button.setAttribute('aria-selected', String(active)); });
   $('#mapDownloadSection').classList.toggle('hidden', section !== 'maps');
   $('#pluginStoreSection').classList.toggle('hidden', section !== 'plugins');
+  $('#proxyView').classList.toggle('hidden', section !== 'proxy');
+  $('#contentDownloadTasks').classList.toggle('hidden', section === 'proxy');
   $('#openWorkshop').classList.toggle('hidden', section !== 'maps');
   $('#downloadHeading').childNodes[0].textContent = section === 'plugins' ? '插件下载任务 ' : '地图下载任务 ';
   renderDownloads();
+  if (section === 'proxy' && !restoring) loadProxy();
   if (section === 'plugins' && !restoring && !pluginStoreLoaded && !pluginStoreBusy) searchPluginStore();
 
 }
@@ -559,7 +563,7 @@ function rememberBrowseState() {
 function restoreBrowseState() {
   if (isGuest) return;
   const saved = window.panelState?.get('contentBrowse', null);
-  if (!saved || typeof saved !== 'object' || !['steam-workshop','gamemaps'].includes(saved.source) || !['maps','plugins'].includes(saved.section)) return;
+  if (!saved || typeof saved !== 'object' || !['steam-workshop','gamemaps'].includes(saved.source) || !['maps','plugins','proxy'].includes(saved.section)) return;
   const page = n => Number.isSafeInteger(n) && n >= 1 && n <= 10000 ? n : 1;
   const text = s => typeof s === 'string' ? s.slice(0, 250) : '';
   selectContentSource(saved.source);
@@ -574,7 +578,7 @@ function restoreBrowseState() {
 window.addEventListener('pagehide',rememberBrowseState);window.addEventListener('beforeunload',rememberBrowseState);
 renderActivity(); renderWorkshop(); applyTheme(themeMode); restoreBrowseState();
 loadDownloads();
-setInterval(() => { if (!document.hidden && (!$('#workshopView').classList.contains('hidden') || downloadJobs.some(job => !['completed', 'failed', 'cancelled'].includes(job.status)))) loadDownloads(); }, 1500);
+setInterval(() => { if (!document.hidden && (!$('#workshopView').classList.contains('hidden') && contentSection !== 'proxy' || downloadJobs.some(job => !['completed', 'failed', 'cancelled'].includes(job.status)))) loadDownloads(); }, 1500);
 loadConnection();
 Promise.all([loadMaps(), loadPlugins()]).then(syncStatus);
 // Shared appearance controller refreshes automatic light/dark mode every minute.

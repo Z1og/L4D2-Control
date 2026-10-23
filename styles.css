@@ -245,7 +245,7 @@ input::placeholder, textarea::placeholder { color: var(--muted); opacity: .8; }
 .content-sources { display: inline-flex; margin-bottom: 18px; background: var(--surface); }
 .content-sources button { display: flex; align-items: center; gap: 9px; font-size: 15px; padding-inline: 20px; }
 .content-sources button.active { background: var(--accent-soft); }
-.content-sections { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; max-width: 620px; padding: 6px; margin: 0 0 22px; background: var(--surface-2); border-radius: 22px; }
+.content-sections { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 8px; max-width: 930px; padding: 6px; margin: 0 0 22px; background: var(--surface-2); border-radius: 22px; }
 .content-sections button { display: flex; align-items: center; justify-content: flex-start; gap: 13px; min-height: 74px; padding: 12px 20px; border: 0; border-radius: 17px; background: transparent; color: var(--muted); text-align: left; }
 .content-sections button>svg { width: 22px; height: 22px; color: var(--blue); flex: none; }
 .content-sections button>span { display: grid; gap: 3px; min-width: 0; margin-left: 0; white-space: normal; }
@@ -694,3 +694,5 @@ body.modal-open { overflow: hidden; }
 .panel-confirm-dialog .player-dialog-actions{margin-top:26px}
 .panel-confirm-dialog .player-dialog-actions button{min-width:120px;font-size:16px;min-height:46px}
 @media(max-width:600px){.panel-confirm-dialog{padding:24px 20px;width:calc(100vw - 24px);max-height:calc(100dvh - 24px)}.panel-confirm-dialog h2{font-size:23px;padding-right:38px}.panel-confirm-message{padding:16px;font-size:15px;max-height:48dvh}.panel-confirm-dialog .player-dialog-actions{display:grid;grid-template-columns:1fr 1fr}.panel-confirm-dialog .player-dialog-actions button{min-width:0}.panel-confirm-dialog .modal-close{width:38px;height:38px}}
+
+@media (max-width:480px) { .content-sections { gap:4px; padding:4px; border-radius:16px; } .content-sections button { justify-content:center; flex-direction:column; gap:6px; padding:10px 5px; text-align:center; border-radius:12px; } .content-sections button strong { font-size:14px; } .content-sections button small { font-size:10px; } }

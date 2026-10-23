@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "projectId": "l4d2-control-bf312edc896c79baad5c",
-  "fingerprint": "61fea2503418d4e850cf7517acddc9155a44fe5f45b331e1f46d3723a7afc6de",
+  "fingerprint": "7678843786db1429a8017385e2ed50c066009ca0e5b75997514b5211e510aa95",
   "files": [
     {
       "path": "Build project fingerprint.js",
@@ -29,7 +29,7 @@
     },
     {
       "path": "app.js",
-      "sha256": "93bd6b226c6f5ae7041e506755cacf5d0bdfa54f16ebe7aa04fd42a9a144d5c3"
+      "sha256": "cd421fe609f20c7b4f3309288e6fe415f8ed36d61634d171e6e4b1e775076962"
     },
     {
       "path": "appearance.css",
@@ -65,7 +65,7 @@
     },
     {
       "path": "index.html",
-      "sha256": "d20b5d6d54ec065e5c4df993eac60900bd568a5c402cd4492c9b90c8ba9ab1ea"
+      "sha256": "c701a21746ea118c6beabb25b5a2e75b010ac337f361c52182a689a8bc2f1057"
     },
     {
       "path": "login.css",
@@ -141,7 +141,7 @@
     },
     {
       "path": "styles.css",
-      "sha256": "0df43854d9e7489d0a605c57adae1affdc4b19d1a7e7ba0289cbb67ef94c97e1"
+      "sha256": "00d3b65fe5785f77a52ffe40d6cb26f8e9f6a42b0c5479d960cc87639fc95d06"
     }
   ]
 }

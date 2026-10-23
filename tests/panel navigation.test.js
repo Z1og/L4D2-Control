@@ -14,15 +14,17 @@ function fixture(hash = '', saved = null, blocked = false) {
     sessionStorage: { getItem() { if (blocked) throw Error('Denied'); return saved; }, setItem(key, value) { if (blocked) throw Error('Denied'); saved = value; } },
     document: { addEventListener(name, fn) { events[name] = fn; } }, window: { addEventListener(name, fn) { events[name] = fn; } },
     $: () => title, $$: () => nodes, icons() {}, loadGameplay() { calls.push('gameplay'); }, loadProxy() { calls.push('proxy'); }, loadPlayers() { calls.push('players'); },
+    contentSection: 'maps', selectContentSection(section) { context.contentSection = section; calls.push('select:' + section); },
     loadDownloads() { calls.push('workshop'); }, loadCloudBackup() { calls.push('diagnostics'); }, startCloudPolling() {}, stopCloudPolling() {}
   });
   vm.runInContext(code, context); return { context, events, location, title, calls, saved: () => saved };
 }
 test('all panel sections restore on reload, after dependent scripts are initialized', () => {
   for (const view of ['overview', 'gameplay', 'maps', 'plugins', 'diagnostics', 'workshop', 'proxy', 'players', 'settings', 'about']) {
-    const first = fixture(); first.context.navigate(view); assert.equal(first.location.hash, '#' + view);
+    const expected = view === 'proxy' ? 'workshop' : view;
+    const first = fixture(); first.context.navigate(view); assert.equal(first.location.hash, '#' + expected);
     const second = fixture(first.location.hash, first.saved()); assert.equal(second.calls.length, 0);
-    second.events.DOMContentLoaded(); assert.equal(second.location.hash, '#' + view); assert.equal(second.saved(), view);
+    second.events.DOMContentLoaded(); assert.equal(second.location.hash, '#' + expected); assert.equal(second.saved(), expected);
     assert.ok(second.title.textContent); if (view === 'players') assert.deepEqual(second.calls, ['players']);
   }
 });
@@ -79,8 +81,8 @@ function contentSearchFixture(respond = async () => ({ items: [], hasMore: false
   const context = vm.createContext({
     $: element, $$: selector => selector === '#contentSources button' ? buttons : [], AbortController,
     contentSource: 'steam-workshop', contentSection: 'maps', workshopPage: 1, workshopQuery: '', workshopResults: [], workshopSearched: false,
-    searchVersion: 0, searchController: null, hasMoreResults: false, downloadJobs: [], pluginStoreLoaded: true, pluginStoreBusy: false,
-    escapeHtml: value => String(value ?? ''), icons() {}, renderDownloads() {}, renderWorkshop() {}, searchPluginStore() {},
+    searchVersion: 0, searchController: null, hasMoreResults: false, downloadJobs: [], pluginStoreLoaded: true, pluginStoreBusy: false, proxyLoads: 0,
+    escapeHtml: value => String(value ?? ''), icons() {}, renderDownloads() {}, renderWorkshop() {}, searchPluginStore() {}, loadProxy() { context.proxyLoads++; },
     api(url, options) { requests.push({ url, signal: options.signal }); return respond(url, options); }
   });
   for (const [start, end] of [
@@ -199,4 +201,44 @@ test('the player section is named Player Management and exposes the persistent w
   assert.match(html, /id="playerWhitelistIdentity"[^>]+placeholder="SteamID64 \/ SteamID2 \/ steamcommunity\.com\/id\/…"/);
   assert.match(html, /名单可在关闭准入限制时维护/);
   assert.doesNotMatch(html, /切换来源不会自动搜索/);
+});
+
+
+test('legacy proxy navigation opens the content-download parent and loads proxy only once', () => {
+  const f = fixture('#proxy'); f.events.DOMContentLoaded();
+  assert.equal(f.location.hash, '#workshop'); assert.equal(f.saved(), 'workshop');
+  assert.equal(f.title.textContent, '内容下载'); assert.equal(f.context.contentSection, 'proxy');
+  assert.deepEqual(f.calls, ['select:proxy', 'proxy']);
+});
+test('proxy joins map and plugin downloads and hides provider searches and download task panel', () => {
+  const f = contentSearchFixture(); const states = new Map();
+  for (const id of ['#mapDownloadSection','#pluginStoreSection','#proxyView','#contentDownloadTasks','#openWorkshop']) {
+    f.element(id).classList.toggle = (name, hidden) => { states.set(id, hidden); };
+  }
+  f.context.selectContentSection('proxy');
+  assert.equal(f.context.contentSection, 'proxy'); assert.equal(f.context.proxyLoads, 1);
+  assert.equal(states.get('#mapDownloadSection'), true); assert.equal(states.get('#pluginStoreSection'), true);
+  assert.equal(states.get('#proxyView'), false); assert.equal(states.get('#contentDownloadTasks'), true); assert.equal(states.get('#openWorkshop'), true);
+  assert.equal(f.requests.length, 0);
+  f.context.selectContentSection('maps'); assert.equal(states.get('#proxyView'), true); assert.equal(states.get('#contentDownloadTasks'), false);
+  f.context.selectContentSection('proxy', true); assert.equal(f.context.proxyLoads, 1);
+  f.context.selectContentSection('invalid'); assert.equal(f.context.contentSection, 'proxy');
+});
+test('proxy is nested inside content downloads with one shared sidebar entry and refresh persistence', () => {
+  const cheerio = require('cheerio'), html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8'), $ = cheerio.load(html);
+  assert.equal($('.nav-item[data-view="proxy"]').length, 0); assert.equal($('.nav-item[data-view="workshop"]').length, 1);
+  assert.deepEqual($('#contentSections [data-content-section]').map((i,el) => $(el).attr('data-content-section')).get(), ['maps','plugins','proxy']);
+  assert.equal($('#workshopView #proxyView').length, 1); assert.equal($('#proxyView.content').length, 0);
+  assert.equal($('#proxyView').attr('role'), 'tabpanel'); assert.equal($('#contentProxyTab').attr('aria-controls'), 'proxyView');
+  assert.equal($('#proxyLinks').length, 1); assert.equal($('#proxyList').length, 1);
+  assert.ok(app.includes("!['maps','plugins','proxy'].includes(saved.section)"));
+});
+
+test('reloading content downloads restores the proxy tab without searching providers', () => {
+  const f = contentSearchFixture();
+  Object.assign(f.context, { isGuest: false, window: { panelState: { get: () => ({ source:'gamemaps', section:'proxy', page:1, pluginPage:1, query:'city', searched:false, items:[], pluginItems:[] }) } }, renderPluginStoreResults() {} });
+  vm.runInContext(app.slice(app.indexOf('function restoreBrowseState()'), app.indexOf("window.addEventListener('pagehide',rememberBrowseState)")), f.context);
+  f.context.restoreBrowseState();
+  assert.equal(f.context.contentSection, 'proxy'); assert.equal(f.context.contentSource, 'gamemaps');
+  assert.equal(f.context.proxyLoads, 0); assert.equal(f.requests.length, 0);
 });

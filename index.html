@@ -28,7 +28,6 @@
         <button class="nav-item" data-view="maps"><i data-lucide="map"></i>地图管理 <span id="navMapCount">…</span></button>
         <button class="nav-item" data-view="plugins"><i data-lucide="puzzle"></i>插件、平台管理 <span id="navPluginCount">…</span></button>
         <button class="nav-item" data-admin-only data-view="workshop"><i data-lucide="store"></i>内容下载 <span class="nav-new">NEW</span></button>
-        <button class="nav-item" data-admin-only data-view="proxy"><i data-lucide="network"></i>代理管理</button>
         <button class="nav-item" data-admin-only data-view="players"><i data-lucide="users"></i>玩家管理</button>
         <p class="nav-label spaced">系统</p>
         <button class="nav-item" data-admin-only data-view="diagnostics"><i data-lucide="shield-check"></i>服务检查</button>
@@ -96,8 +95,8 @@
 
       <section class="content hidden" data-admin-only id="workshopView">
         <div class="page-heading compact"><div><p class="eyebrow">发现内容 · EXPLORE</p><h1>内容下载</h1><p>分开查找地图和 SourceMod 插件，下载任务统一显示。</p><p>内容下载需要在代理管理中开启魔法功能。</p></div><button class="secondary-button" id="openWorkshop"><i data-lucide="search"></i>浏览全部地图</button></div>
-        <div class="filter-tabs content-sections" id="contentSections" role="tablist" aria-label="内容类型"><button class="active" role="tab" aria-selected="true" data-content-section="maps"><i data-lucide="map"></i><span><strong>地图下载</strong><small>Steam 创意工坊 · GameMaps</small></span></button><button role="tab" aria-selected="false" data-content-section="plugins"><i data-lucide="puzzle"></i><span><strong>插件下载</strong><small>LaoYutang 插件商店</small></span></button></div>
-        <section id="mapDownloadSection">
+        <div class="filter-tabs content-sections" id="contentSections" role="tablist" aria-label="内容类型"><button class="active" role="tab" id="contentMapsTab" aria-selected="true" aria-controls="mapDownloadSection" data-content-section="maps"><i data-lucide="map"></i><span><strong>地图下载</strong><small>Steam 创意工坊 · GameMaps</small></span></button><button role="tab" id="contentPluginsTab" aria-selected="false" aria-controls="pluginStoreSection" data-content-section="plugins"><i data-lucide="puzzle"></i><span><strong>插件下载</strong><small>LaoYutang 插件商店</small></span></button><button id="contentProxyTab" role="tab" aria-selected="false" aria-controls="proxyView" data-content-section="proxy"><i data-lucide="network"></i><span><strong>代理管理</strong><small>内容下载专用代理</small></span></button></div>
+        <section id="mapDownloadSection" role="tabpanel" aria-labelledby="contentMapsTab">
           <div class="filter-tabs content-sources" id="contentSources" role="tablist" aria-label="地图下载来源"><button class="active" role="tab" aria-selected="true" data-source="steam-workshop"><i data-lucide="store"></i>Steam 创意工坊</button><button role="tab" aria-selected="false" data-source="gamemaps"><i data-lucide="map"></i>GameMaps</button></div>
           <div class="content-source-line"><strong id="contentSourceName">Steam Workshop · Left 4 Dead 2</strong><span id="contentConnection">内容下载专用代理</span></div>
           <div class="toolbar workshop-toolbar"><label class="search-box workshop-search"><i data-lucide="search"></i><input id="workshopSearch" placeholder="地图、模组或关键词..." aria-label="搜索地图内容" maxlength="120"></label><button class="primary-button workshop-submit" id="searchWorkshop"><i data-lucide="search"></i>搜索</button></div>
@@ -105,7 +104,7 @@
           <div class="workshop-results-heading"><div><h2>搜索结果</h2><span id="workshopResultMeta">尚未搜索</span></div><div class="workshop-pagination"><button class="icon-button small" id="workshopPrev" title="上一页" disabled><i data-lucide="chevron-left"></i></button><span id="workshopPage">第 1 页</span><button class="icon-button small" id="workshopNext" title="下一页" disabled><i data-lucide="chevron-right"></i></button></div></div>
           <div class="workshop-results" id="workshopResults"><div class="workshop-empty"><i data-lucide="search"></i><p>输入关键词后点击“搜索”。</p></div></div><div class="workshop-section-title"><h2>常用搜索</h2></div><div class="workshop-grid" id="workshopGrid"></div>
         </section>
-        <section id="pluginStoreSection" class="hidden">
+        <section id="pluginStoreSection" class="hidden" role="tabpanel" aria-labelledby="contentPluginsTab">
           <div class="plugin-store-status" id="pluginStoreStatus" role="status" aria-live="polite"><span>正在读取插件商店目录…</span><button class="icon-button" id="refreshPluginStore" title="立即同步插件商店" aria-label="立即同步插件商店"><i data-lucide="refresh-cw"></i></button></div>
           <div class="toolbar plugin-store-toolbar"><label class="search-box"><i data-lucide="search"></i><input id="pluginStoreSearch" placeholder="搜索插件名、功能或文件名…" aria-label="搜索插件商店" maxlength="120"></label><button class="primary-button" id="searchPluginStore"><i data-lucide="search"></i>搜索插件</button></div>
           <div class="filter-tabs plugin-store-filters" id="pluginStoreFilters" aria-label="插件分类"><button class="active" data-plugin-category="all">全部</button><button data-plugin-category="required">必选组件</button><button data-plugin-category="optional">自选插件</button><button data-plugin-category="optional-fix">可选修复</button><button data-plugin-category="platform">平台组件</button><button data-plugin-category="other">其他插件</button></div>
@@ -113,15 +112,15 @@
           <div class="plugin-store-grid" id="pluginStoreResults"><div class="workshop-empty"><i data-lucide="loader-circle"></i><p>正在同步插件目录</p></div></div>
           <p class="plugin-store-help">插件包由第三方仓库维护。这里仅缓存并安装仓库提供的已编译 .smx 文件，导入后默认停用；配置、原生扩展和依赖不会自动安装。启用前请查看仓库说明并确认兼容性。</p>
         </section>
-        <section class="download-section" aria-labelledby="downloadHeading"><div class="download-heading"><h2 id="downloadHeading">下载任务 <span id="downloadCount">0 个进行中</span></h2><button class="icon-button" id="refreshDownloads" title="刷新下载任务" aria-label="刷新下载任务"><i data-lucide="refresh-cw"></i></button></div><p id="downloadConnection" role="status"></p><div id="downloadList" class="download-list"><div class="download-empty">暂无下载任务</div></div></section>
-      </section>
-
-      <section class="content hidden" data-admin-only id="proxyView">
-        <div class="page-heading compact"><div><p class="eyebrow">下载连接 · CONNECTION</p><h1>代理管理</h1><p>Steam 创意工坊与 GameMaps 共用当前节点，不影响游戏服务器和其他控制操作。</p></div><div class="proxy-toolbar"><button class="secondary-button hidden" id="openProxyDashboard"><i data-lucide="network"></i>高级面板</button><button class="secondary-button" id="exportNodes"><i data-lucide="download"></i>导出节点</button></div></div>
+        <section class="hidden" data-admin-only id="proxyView" role="tabpanel" aria-labelledby="contentProxyTab">
+        <div class="page-heading compact"><div><h2>代理管理</h2><p>Steam 创意工坊与 GameMaps 共用当前节点，不影响游戏服务器和其他控制操作。</p></div><div class="proxy-toolbar"><button class="secondary-button hidden" id="openProxyDashboard"><i data-lucide="network"></i>高级面板</button><button class="secondary-button" id="exportNodes"><i data-lucide="download"></i>导出节点</button></div></div>
         <div class="proxy-status" id="proxyStatus">正在读取节点…</div>
         <div class="proxy-layout"><section class="proxy-editor"><h2>导入订阅或节点</h2><p id="proxyImportHelp">支持 HTTPS 订阅、Clash YAML 和节点链接。订阅地址仅保存于服务器。</p><label class="proxy-input-label" for="proxyLinks">订阅地址或节点配置</label><textarea id="proxyLinks" rows="6" placeholder="粘贴 HTTPS 订阅地址、Clash YAML 或节点链接" spellcheck="false" autocomplete="off"></textarea><div class="proxy-actions"><label class="secondary-button file-picker"><i data-lucide="file-up"></i>选择文件<input type="file" id="proxyFile" accept=".txt,.yaml,.yml,text/plain" hidden></label><button class="primary-button" id="importNodes"><i data-lucide="plus"></i>导入</button></div><div class="proxy-subscriptions hidden" id="proxySubscriptions"><h2>订阅管理</h2><div id="subscriptionList"></div><button class="secondary-button" id="updateProxySubscriptions"><i data-lucide="refresh-cw"></i>更新订阅</button><p>删除的订阅节点会保持隐藏；重新导入该订阅可恢复。更新订阅不自动更换当前可用节点。</p></div><div class="proxy-dashboard-help hidden" id="proxyDashboardHelp"><h2>MetaCubeXD</h2><p>高级面板可查看连接和流量。在连接设置中填写下面的地址，密钥留空，沿用本网站登录。</p><input id="proxyControllerAddress" type="text" readonly aria-label="高级面板连接地址"><button class="secondary-button" id="copyProxyController">复制连接地址</button></div></section>
         <section class="proxy-list-section"><div class="proxy-list-heading"><h2>节点列表</h2><span id="proxyCount">0 个节点</span></div><label class="proxy-input-label" for="proxyNodeSearch">查找节点</label><input id="proxyNodeSearch" class="proxy-search" type="search" placeholder="搜索名称、地区或协议"><div id="proxyList" class="proxy-list"></div></section></div>
       </section>
+        <section id="contentDownloadTasks" class="download-section" aria-labelledby="downloadHeading"><div class="download-heading"><h2 id="downloadHeading">下载任务 <span id="downloadCount">0 个进行中</span></h2><button class="icon-button" id="refreshDownloads" title="刷新下载任务" aria-label="刷新下载任务"><i data-lucide="refresh-cw"></i></button></div><p id="downloadConnection" role="status"></p><div id="downloadList" class="download-list"><div class="download-empty">暂无下载任务</div></div></section>
+      </section>
+
       <section class="content hidden" data-admin-only id="playersView">
         <div class="page-heading compact"><div><p class="eyebrow">玩家身份 · PLAYER DIRECTORY</p><h1>玩家管理</h1><p>实时查看玩家，记录 Steam 身份，管理游戏内 SourceMod 权限、踢出、限时拉黑与白名单准入。</p></div><div class="library-actions"><button class="secondary-button" id="refreshPlayers"><i data-lucide="refresh-cw"></i>刷新玩家</button><button class="primary-button" id="addPlayerAdmin" disabled><i data-lucide="user-plus"></i>按 SteamID 授权</button></div></div>
          <div class="player-status" id="playerStatus" role="status">正在连接玩家采集插件…</div>
