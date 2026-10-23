@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "projectId": "l4d2-control-bf312edc896c79baad5c",
-  "fingerprint": "d54168c4337b4a3bbdd067c4c5b377b326fa0da9536d89220109cbbafaa08e4d",
+  "fingerprint": "cd913faad5b91b261ba985fdcba0bd8a9e1621210d2dc0dedf0e2059aaaca0bc",
   "files": [
     {
       "path": "Build project fingerprint.js",
@@ -73,7 +73,7 @@
     },
     {
       "path": "package.json",
-      "sha256": "cdbc02d4cd87ef09d5537e86ca2d16b9d33a23c72bb5229116daf928649d8b52"
+      "sha256": "04d9a4007d9f0d4dc018ddcbbf3478546b86fc0961f2022340723c5396e837a7"
     },
     {
       "path": "panel accounts.js",
