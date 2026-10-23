@@ -14,7 +14,7 @@ function fixture(t, options = {}) {
   const history = path.join(base,'data','l4d2 control','history.txt');fs.writeFileSync(history,kv({PanelPlayerHistory:{[id.steam2]:{name:'中文玩家 "名字"',firstSeen:100,lastSeen:200}}}));
   let liveFlags = options.flags || '', reloads = 0;
   const snapshotFile = path.join(base,'data','l4d2 control','players.txt');
-  function snapshot(age = 0) { fs.writeFileSync(snapshotFile,kv({PanelPlayers:{version:1,updated:Math.floor(Date.now()/1000)-age,bots:3,players:options.offline?{}:{'42':{...id,name:'中文玩家 "名字"',userid:42,team:2,ping:45,connected:120,flags:liveFlags,immunity:liveFlags?10:0}}}})); }
+  function snapshot(age = 0) { fs.writeFileSync(snapshotFile,kv({PanelPlayers:{version:1,moderationVersion:1,whitelistVersion:options.oldBridge?0:1,updated:Math.floor(Date.now()/1000)-age,bots:3,players:options.offline?{}:{'42':{...id,name:'中文玩家 "名字"',userid:42,team:2,ping:45,connected:120,flags:liveFlags,immunity:liveFlags?10:0}}}})); }
   snapshot();
   const manager = createPlayerManager({serverRoot:root,stateDir:path.join(root,'private state'),refreshSnapshot:options.refresh?()=>options.refresh(snapshot):undefined,reloadAdmins:async()=>{reloads++;if(options.failReload && reloads===1)throw new Error('mock reload failed');const text=fs.readFileSync(simple,'utf8');liveFlags=options.mismatch?'':simpleEntries(splitManaged(text).managed,true).get(id.steam64)?.flags||'';snapshot();}});
   t.after(()=>fs.rmSync(root,{recursive:true,force:true}));
@@ -31,10 +31,11 @@ test('KeyValues keeps SteamID64 strings, escaped names and prototype keys inert'
  assert.equal(parseKeyValues('/* SourceMod default */ Admins { "fixture" { auth steam identity "STEAM_1:1:1" } }').Admins.fixture.auth,'steam');
 });
 test('live listing joins durable records, bots and external administrators',async t=>{
- const f=fixture(t),out=await f.manager.list();assert.equal(out.available,true);assert.equal(out.onlineCount,1);assert.equal(out.bots,3);
+ const f=fixture(t),out=await f.manager.list();assert.equal(out.available,true);assert.equal(out.moderationAvailable,true);assert.equal(out.whitelistAvailable,true);assert.equal(out.onlineCount,1);assert.equal(out.bots,3);
  const p=out.players.find(p=>p.steam64===id.steam64);assert.equal(p.name,'中文玩家 "名字"');assert.equal(p.firstSeen,100000);assert.equal(p.readOnly,false);
  assert.equal(out.players.find(p=>p.steam2==='STEAM_1:0:99').readOnly,true);assert.equal(JSON.stringify(out).includes('127.0.0.1'),false);
 });
+test('older player bridge versions do not advertise whitelist enforcement',async t=>{const f=fixture(t,{oldBridge:true});const out=await f.manager.snapshot();assert.equal(out.available,true);assert.equal(out.whitelistAvailable,false);});
 test('grant, persist, reload and revoke owned permissions without altering external bytes',async t=>{
  const f=fixture(t),original=fs.readFileSync(f.simple,'utf8');
  const grant=await f.manager.update({steamId:id.steam64,flags:'bfn',immunity:10});assert.equal(grant.runtimeConfirmed,true);assert.equal(f.reloads,1);

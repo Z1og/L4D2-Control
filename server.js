@@ -15,6 +15,7 @@ const { createSource: createSteamSource, parseSearch: parseSteamSearch, buildSea
 const { createManager } = require('./download manager');
 const { createPluginStore } = require('./plugin store');
 const { createLibrary } = require('./library manager');
+const { createPlatforms } = require('./platform manager');
 const { PROJECT_URL, parseConfig: parseOpenListConfig, createManager: createOpenListManager } = require('./openlist manager');
 
 const { createCloudMaps } = require('./cloud maps');
@@ -22,6 +23,7 @@ const { createCloudDownloads } = require('./cloud downloads');
 const { createPlayerManager, steamIdentity } = require('./player manager');
 const { createPlayerNotes } = require('./player notes');
 const { createModeration, BAN_DAYS } = require('./player moderation');
+const { createWhitelist } = require('./player whitelist');
 const { createRestartController, inspectGame } = require('./server controls');
 const { createGameplayController } = require('./gameplay controls');
 const { createAccess, sameOrigin, PUBLIC_FILES } = require('./access control');
@@ -89,6 +91,12 @@ const moderation = createModeration({ serverRoot, playerManager, registeredPlaye
     throw new Error('已发送踢出请求，但未确认玩家断开，请刷新检查');
   }
 });
+const whitelist = createWhitelist({ serverRoot, playerManager,
+  syncWhitelist: async revision => {
+    const output = await captureDiagnosticConsole([`l4d2_control_whitelist ${revision}`]);
+    if (!output.includes('L4D2CONTROL_WHITELIST ' + revision)) throw new Error('游戏插件未确认白名单同步');
+  }
+});
 const restartController = createRestartController({ inspect: () => inspectGame(serverRoot), ready: async () => { try { await refreshPlayerSnapshot(); return (await playerManager.snapshot()).available; } catch { return false; } } });
 const sshConfig = {
   host: process.env.L4D2_SSH_HOST || '',
@@ -107,6 +115,7 @@ const library = createLibrary({ serverRoot, addonDir: workshopAddonDir, pluginPa
   unloadPlugin: id => runCommand(screenCommand(`sm plugins unload ${id}`)) });
 const downloads = createManager({ addonDir: workshopAddonDir, steamcmdPath, workshopProxy, localMode, gameMapsSource: gameMaps, steamSource,
   pluginStoreSource: pluginStore, pluginInstaller: (name, stream) => library.importFile('plugins', name, stream) });
+const platforms = createPlatforms({ serverRoot, pluginPath, capture: captureDiagnosticConsole, exclusive: action => library.exclusive(action), stateDir: process.env.PLATFORM_STATE_DIR || path.join(os.homedir(), '.local', 'state', 'dead-air-panel', 'platforms') });
 
 function shellQuote(value) {
   return `'${String(value).replace(/'/g, `'\\''`)}'`;
@@ -432,11 +441,13 @@ async function handleApi(req, res, body) {
         data.total = data.players.length; data.accessEvents = await accounts.events();
         let bans = [], moderationError = '';
         try { bans = await moderation.list(); } catch { moderationError = '黑名单读取失败，玩家处置已禁用，请检查服务器文件'; }
+        let whitelistState = { enabled: false, revision: '', players: [] }, whitelistError = '';
+        try { whitelistState = await whitelist.list(); } catch { whitelistError = '白名单文件读取失败，白名单管理已禁用，请检查服务器文件'; }
         let notes = {}, notesError = '';
         try { notes = await playerNotes.list(); } catch (error) { notesError = error.message; }
         const withNote = player => ({ ...player, note: notes[player.steam64]?.note || '', noteUpdatedAt: notes[player.steam64]?.updatedAt || null });
         data.players = data.players.map(withNote); bans = bans.map(withNote);
-        res.end(JSON.stringify({ ...data, notesError, bans, banDays: BAN_DAYS, moderationAvailable: data.moderationAvailable && !moderationError, moderationError })); return;
+        res.end(JSON.stringify({ ...data, notesError, bans, banDays: BAN_DAYS, moderationAvailable: data.moderationAvailable && !moderationError, moderationError, whitelist: whitelistState, whitelistError, whitelistAvailable: data.whitelistAvailable && !whitelistError })); return;
       }
       if (req.method === 'POST' && pathname === '/api/players/notes') {
         const payload = body ? JSON.parse(body) : {};
@@ -447,11 +458,22 @@ async function handleApi(req, res, body) {
         res.end(JSON.stringify(await playerNotes.update(identity.steam64, payload.note, req.access?.name || panelUser))); return;
       }
       if (req.method === 'POST' && pathname === '/api/players/moderation') { res.end(JSON.stringify(await moderation.act(body ? JSON.parse(body) : {}, panelUser))); return; }
+      if (req.method === 'POST' && pathname === '/api/players/whitelist') { res.end(JSON.stringify(await whitelist.act(body ? JSON.parse(body) : {}, req.access?.name || panelUser))); return; }
       if (req.method === 'POST' && pathname === '/api/players/permissions') {
         const payload = body ? JSON.parse(body) : {};
         res.end(JSON.stringify(await playerManager.update(payload, panelUser))); return;
       }
       res.statusCode = 404; res.end(JSON.stringify({ error: 'not found' })); return;
+    }
+    if (pathname === '/api/platforms' || pathname === '/api/platforms/check' || pathname === '/api/platforms/action') {
+      if (!localMode) throw Object.assign(new Error('平台管理需要在游戏服务器本机运行面板'), { status: 400 });
+      if (req.method === 'GET' && pathname === '/api/platforms') { res.end(JSON.stringify(await platforms.snapshot())); return; }
+      if (req.method === 'POST' && pathname === '/api/platforms/check') { res.end(JSON.stringify(await platforms.checkUpdates())); return; }
+      if (req.method === 'POST' && pathname === '/api/platforms/action') {
+        const payload = body ? JSON.parse(body) : {}; req.auditTarget = String(payload.id || '').slice(0, 50);
+        res.end(JSON.stringify(await platforms.act(payload))); return;
+      }
+      res.statusCode = 405; res.end(JSON.stringify({ error: 'method not allowed' })); return;
     }
     if (req.method === 'GET' && pathname === '/api/diagnostics') {
       if (!localMode) throw Object.assign(new Error('服务器自检需要在游戏服务器本机运行面板'), { status: 400 });
@@ -464,7 +486,7 @@ async function handleApi(req, res, body) {
     if (req.method === 'GET' && pathname === '/api/plugins') {
       if (!localMode) throw new Error('plugin inventory requires local mode');
       const plugins = pluginInventory(pluginPath);
-      res.end(JSON.stringify({ plugins: req.access.role === 'guest' ? plugins.map(({ id, name, category, type, enabled }) => ({ id, name, category, type, enabled })) : plugins })); return;
+      res.end(JSON.stringify({ plugins: req.access.role === 'guest' ? plugins.map(({ id, name, category, type, enabled }) => ({ id, name, category, type, enabled })) : plugins, ...(req.access.role === 'guest' ? {} : { dependencies: platforms.dependencies(plugins) }) })); return;
     }
     if (pathname === '/api/maps/export' || pathname === '/api/plugins/export') {
       if (!['GET', 'HEAD'].includes(req.method)) { res.statusCode = 405; res.end(JSON.stringify({ error: 'method not allowed' })); return; }

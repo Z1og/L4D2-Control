@@ -4,8 +4,8 @@
 
 public Plugin myinfo = {
     name = "L4D2 Control Players", author = "L4D2-Control",
-    description = "Private server-local player identity, permission and connection address snapshot",
-    version = "1.3.0", url = ""
+    description = "Private player identity, permissions, moderation and admission whitelist",
+    version = "1.4.0", url = ""
 };
 KeyValues gHistory;
 char gSnapshotPath[PLATFORM_MAX_PATH];
@@ -14,6 +14,10 @@ bool gHistoryDirty;
 int gLastSave;
 KeyValues gBans;
 char gBansPath[PLATFORM_MAX_PATH];
+KeyValues gWhitelist;
+char gWhitelistPath[PLATFORM_MAX_PATH];
+bool gWhitelistEnabled;
+bool gAdminCheckComplete[MAXPLAYERS + 1];
 
 public void OnPluginStart() {
     char privateDir[PLATFORM_MAX_PATH];
@@ -24,21 +28,25 @@ public void OnPluginStart() {
     BuildPath(Path_SM, gSnapshotPath, sizeof(gSnapshotPath), "data/l4d2 control/players.txt");
     BuildPath(Path_SM, gHistoryPath, sizeof(gHistoryPath), "data/l4d2 control/history.txt");
     BuildPath(Path_SM, gBansPath, sizeof(gBansPath), "data/l4d2 control/bans.txt");
+    BuildPath(Path_SM, gWhitelistPath, sizeof(gWhitelistPath), "data/l4d2 control/whitelist.txt");
     if (!LoadBans()) SetFailState("Cannot read panel bans; preserving original file");
+    if (!LoadWhitelist()) SetFailState("Cannot read panel whitelist; preserving original file");
     gHistory = new KeyValues("PanelPlayerHistory");
     gHistory.SetEscapeSequences(true);
     if (FileExists(gHistoryPath) && !gHistory.ImportFromFile(gHistoryPath)) SetFailState("Player history cannot be read; preserving the original file");
     RegServerCmd("l4d2_control_players", CommandSnapshot);
     RegServerCmd("l4d2_control_bans", CommandBans);
+    RegServerCmd("l4d2_control_whitelist", CommandWhitelist);
     RegServerCmd("l4d2_control_kick", CommandKick);
     CreateTimer(5.0, TimerSnapshot, _, TIMER_REPEAT);
-    for (int client = 1; client <= MaxClients; client++) if (IsClientInGame(client) && !IsFakeClient(client)) Remember(client);
+    CreateTimer(1.0, TimerEnforceWhitelist, _, TIMER_REPEAT);
+    for (int client = 1; client <= MaxClients; client++) if (IsClientInGame(client) && !IsFakeClient(client)) { gAdminCheckComplete[client] = true; Remember(client); }
     EnforceBans(); WriteSnapshot(); SaveHistory();
 }
-public void OnClientPostAdminCheck(int client) { Remember(client); EnforceBan(client); WriteSnapshot(); SaveHistory(); }
+public void OnClientPostAdminCheck(int client) { gAdminCheckComplete[client] = true; Remember(client); EnforceBan(client); EnforceWhitelist(client); WriteSnapshot(); SaveHistory(); }
 public void OnClientDisconnect(int client) { Remember(client); SaveHistory(); }
-public void OnClientDisconnect_Post(int client) { WriteSnapshot(); }
-public void OnPluginEnd() { SaveHistory(); if (FileExists(gSnapshotPath)) DeleteFile(gSnapshotPath); }
+public void OnClientDisconnect_Post(int client) { gAdminCheckComplete[client] = false; WriteSnapshot(); }
+public void OnPluginEnd() { SaveHistory(); if (FileExists(gSnapshotPath)) DeleteFile(gSnapshotPath); delete gWhitelist; }
 public void OnMapEnd() { SaveHistory(); }
 
 void Remember(int client) {
@@ -71,6 +79,7 @@ bool WriteSnapshot() {
     snapshot.SetEscapeSequences(true);
     snapshot.SetNum("version", 1); snapshot.SetNum("updated", GetTime());
     snapshot.SetNum("moderationVersion", 1);
+    snapshot.SetNum("whitelistVersion", 1);
     int bots;
     for (int client = 1; client <= MaxClients; client++) if (IsClientInGame(client) && IsFakeClient(client)) bots++;
     snapshot.SetNum("bots", bots); snapshot.JumpToKey("players", true);
@@ -94,7 +103,7 @@ bool WriteSnapshot() {
     delete snapshot;
     return written;
 }
-public Action TimerSnapshot(Handle timer) { WriteSnapshot(); if (GetTime() - gLastSave >= 60) SaveHistory(); return Plugin_Continue; }
+public Action TimerSnapshot(Handle timer) { EnforceWhitelists(); WriteSnapshot(); if (GetTime() - gLastSave >= 60) SaveHistory(); return Plugin_Continue; }
 public Action CommandSnapshot(int args) {
     char nonce[40]; GetCmdArg(1, nonce, sizeof(nonce));
     bool written = WriteSnapshot(); SaveHistory();
@@ -136,6 +145,47 @@ public Action CommandBans(int args) {
     if (!StrEqual(expected, revision)) { PrintToServer("L4D2CONTROL_BANS_ERROR %s", expected); return Plugin_Handled; }
     EnforceBans();
     PrintToServer("L4D2CONTROL_BANS %s", revision);
+    return Plugin_Handled;
+}
+bool LoadWhitelist() {
+    KeyValues next = new KeyValues("PanelWhitelist");
+    next.SetEscapeSequences(true);
+    if (!FileExists(gWhitelistPath)) {
+        next.SetNum("version", 1); next.SetNum("enabled", 0); next.SetString("revision", "000000000000000000000000");
+    } else if (!next.ImportFromFile(gWhitelistPath) || next.GetNum("version") != 1 || next.GetNum("enabled", -1) < 0 || next.GetNum("enabled", -1) > 1) {
+        delete next; return false;
+    }
+    gWhitelistEnabled = next.GetNum("enabled") == 1;
+    delete gWhitelist; gWhitelist = next;
+    return true;
+}
+bool Whitelisted(int client) {
+    if (!gWhitelistEnabled || !gWhitelist || !gAdminCheckComplete[client] || !IsClientConnected(client) || IsFakeClient(client) || !IsClientAuthorized(client)) return false;
+    // Any SourceMod administrator is implicitly allowed. The panel also materializes
+    // known administrators into the durable list when whitelist mode is enabled.
+    if (GetUserAdmin(client) != INVALID_ADMIN_ID) return true;
+    char steam2[32];
+    if (!GetClientAuthId(client, AuthId_Steam2, steam2, sizeof(steam2), true)) return false;
+    if (steam2[6] == '0') steam2[6] = '1';
+    gWhitelist.Rewind();
+    bool found = gWhitelist.JumpToKey("players") && gWhitelist.JumpToKey(steam2);
+    gWhitelist.Rewind();
+    return found;
+}
+void EnforceWhitelist(int client) {
+    if (gWhitelistEnabled && gAdminCheckComplete[client] && !Whitelisted(client) && IsClientConnected(client) && !IsFakeClient(client) && IsClientAuthorized(client) && !IsClientInKickQueue(client)) {
+        KickClient(client, "This server requires an approved player whitelist entry.");
+    }
+}
+void EnforceWhitelists() { for (int client = 1; client <= MaxClients; client++) EnforceWhitelist(client); }
+public Action TimerEnforceWhitelist(Handle timer) { EnforceWhitelists(); return Plugin_Continue; }
+public Action CommandWhitelist(int args) {
+    char expected[40], revision[40]; GetCmdArg(1, expected, sizeof(expected));
+    if (!LoadWhitelist()) { PrintToServer("L4D2CONTROL_WHITELIST_ERROR %s", expected); return Plugin_Handled; }
+    gWhitelist.Rewind(); gWhitelist.GetString("revision", revision, sizeof(revision));
+    if (!StrEqual(expected, revision)) { PrintToServer("L4D2CONTROL_WHITELIST_ERROR %s", expected); return Plugin_Handled; }
+    EnforceWhitelists();
+    PrintToServer("L4D2CONTROL_WHITELIST %s", revision);
     return Plugin_Handled;
 }
 public Action CommandKick(int args) {

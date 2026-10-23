@@ -28,8 +28,8 @@ test('HTTP authentication, privacy projection, forbidden operations, ban invalid
  await assertPosterPreviewsOnly('guest');
  const guestPage=await(await req('/')).text();assert.match(guestPage,/data-panel-role="guest"/);assert.match(guestPage,/id="aboutView"/);assert.match(guestPage,/class="project-identity"/);assert.match(guestPage,/1002677414/);assert.doesNotMatch(guestPage,/__L4D2_ABOUT_/);
  data=await(await req('/api/config')).json();assert.deepEqual(Object.keys(data).sort(),['gameAddress','openList']);assert.deepEqual(Object.keys(data.openList),['enabled']);
- for(const url of ['/api/players','/api/gameplay','/api/diagnostics','/api/proxy/nodes','/api/maps/export?package=a.vpk','/api/openlist/maps','/server.js'])assert.equal((await req(url)).status,403,url);
- for(const url of ['/api/map','/api/gameplay','/api/server/restart','/api/maps/import','/api/plugins/import','/api/players/moderation','/api/players/notes'])assert.equal((await req(url,{confirmed:true})).status,403,url);
+ for(const url of ['/api/platforms','/api/players','/api/gameplay','/api/diagnostics','/api/proxy/nodes','/api/maps/export?package=a.vpk','/api/openlist/maps','/api/players/whitelist','/server.js'])assert.equal((await req(url)).status,403,url);
+ for(const url of ['/api/platforms/check','/api/platforms/action','/api/map','/api/gameplay','/api/server/restart','/api/maps/import','/api/plugins/import','/api/players/moderation','/api/players/notes'])assert.equal((await req(url,{confirmed:true})).status,403,url);
  assert.equal((await req('/api/plugins')).status,200);assert.equal((await req('/panel%20state.js')).status,200);
  assert.equal((await req('/account%20password.js')).status,200);
  const passwordPayload={currentPassword:'ordinary-password',newPassword:'ordinary-updated-password',confirmPassword:'ordinary-updated-password'};
@@ -48,6 +48,11 @@ test('HTTP authentication, privacy projection, forbidden operations, ban invalid
  await assertPosterPreviewsOnly('admin');
  assert.match(await(await req('/')).text(),/data-panel-role="admin"/);assert.equal((await req('/gameplay.js')).status,200);
  assert.equal((await req('/api/gameplay',{confirmed:false})).status,400);
+ assert.equal((await req('/api/platforms/action',{id:'metamod',action:'install',confirmed:false})).status,400);
+ assert.equal((await req('/api/platforms/action',{id:'metamod',action:'install',confirmed:true},{'x-csrf-token':''})).status,403);
+ assert.equal((await req('/api/platforms/action',{id:'metamod',action:'install',confirmed:true},{origin:'https://elsewhere.example'})).status,403);
+ r=await req('/api/players');assert.equal(r.status,200);data=await r.json();assert.equal(data.whitelistAvailable,false);assert.equal(data.whitelist.enabled,false);assert.deepEqual(data.whitelist.players,[]);
+ r=await req('/api/players/whitelist',{action:'set-enabled',enabled:true,confirmed:true});assert.equal(r.status,503);assert.equal(fs.existsSync(path.join(sm,'data/l4d2 control/whitelist.txt')),false);
  r=await req('/api/players/notes',{steamId:identity.steam64,note:'熟悉的队友 <b>原样文本</b>'});assert.equal(r.status,200);assert.equal((await r.json()).note,'熟悉的队友 <b>原样文本</b>');
  r=await req('/api/players');assert.equal(r.status,200);data=await r.json();assert.equal(data.players.find(p=>p.steam64===identity.steam64).note,'熟悉的队友 <b>原样文本</b>');assert.equal(data.bans[0].note,'熟悉的队友 <b>原样文本</b>');
  assert.equal((await req('/api/players/notes',{steamId:identity.steam64,note:'x'.repeat(501)})).status,400);

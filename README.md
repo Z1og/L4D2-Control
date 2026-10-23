@@ -64,13 +64,27 @@
 
 你的支持能让更多服主发现这个项目，也欢迎提交问题与改进建议。
 
+
+
+## 平台组件管理
+
+「插件、平台管理」共享一个侧边栏入口，顶部切换“插件管理 / 平台管理”。平台页检查 MetaMod:Source、SourceMod、L4DToolZ 和 Stripper:Source 的磁盘安装及游戏内运行状态，并从官方渠道检查 Linux x86 稳定版。安装、更新及回退需要二次确认；更新保留现有插件和配置，不会自动重启游戏。上一版文件保存在面板私有状态目录 `~/.local/state/dead-air-panel/platforms/`，每个组件仅保留一次可回退版本。
+
+MetaMod 是 SourceMod、L4DToolZ 与 Stripper 的前置加载器；SourceMod 运行 SMX 并负责管理员/扩展接口；L4DToolZ 扩展多人上限；Stripper 通过地图规则调整实体。更新后二进制通常要重启游戏才载入，不应在比赛中随意替换，Stripper 规则也可能改变地图流程。自动组件安装仅支持 Linux x86 的 L4D2 服务端。
+
+Left4DHooks 仍由“插件管理”导入、启停、删除和导出；平台页只显示其磁盘状态与 SourceMod 依赖关系，不创建第二套插件管理入口。
+
 ## 重启、踢出与限时拉黑
 
 - 总览的“重启服务器”位于“快速切图”左侧，二次确认后才执行，并显示重启进度。支持面板与游戏同机同账号、Linux 上由 `srcds_run` 自动重启托管的唯一游戏进程；不支持 `-norestart` 或未识别的托管方式时会拒绝操作。
 - 当前在线玩家可单独或勾选批量踢出。确认框提供“仅踢出服务器”“踢出和拉黑”“取消”；选择踢出并拉黑后再选择时长并确认。
 - 玩家记录可按 SteamID 拉黑，时长为 **1、3、7、30、180、3650 天**。已拉黑页面支持修改时长和取消拉黑，也支持批量操作；每批最多 100 位。修改时长从本次确认重新计时。
 - 黑名单由 SourceMod 插件在玩家加入时校验，到期自动失效，重启后继续生效；不依赖浏览器保持打开。面板只管理自己的黑名单，不会撤销其他插件的封禁。
-- 升级后需要重新编译并重载 **L4D2 Control Players 1.1.0**，仅刷新网页不能升级游戏插件。黑名单和处置审计位于私有目录 `left4dead2/addons/sourcemod/data/l4d2 control/` 中的 `bans.txt`、`moderation audit.jsonl`，不应上传到公共仓库。
+- 升级后需要重新编译并重载 **L4D2 Control Players 1.4.0+**，仅刷新网页不能升级游戏插件。黑名单、白名单和处置审计位于私有目录 `left4dead2/addons/sourcemod/data/l4d2 control/`，不应上传到公共仓库。
+
+## 玩家管理白名单
+
+玩家管理支持使用 SteamID2 / SteamID3 / SteamID64、数字资料链接或自定义 `/id/` 资料链接添加白名单；自定义短链解析要求服务器可访问 Steam Community。白名单名单可在准入限制关闭时预先维护；开启后，SourceMod 插件会拒绝名单外真人进入，SourceMod 管理员自动放行并登记。关闭模式会保留记录。需要编译并热重载 SourceMod 玩家插件 **1.4.0+**。
 
 ## Restart, kick and timed bans
 
@@ -78,7 +92,11 @@
 - Kick current players individually or with batch selection. The confirmation offers kick only, kick and ban, or cancel; kick and ban opens a duration selector before submission.
 - Ban recorded Steam identities for **1, 3, 7, 30, 180 or 3650 days**. The banned-player tab supports changing durations and unbanning, including batches of up to 100 identities. Changing a duration restarts its countdown from confirmation time.
 - The SourceMod bridge enforces bans when players join. Bans expire automatically and survive server restarts without an open browser. Only panel-owned bans are changed; other plugins' bans are preserved.
-- Recompile and reload **L4D2 Control Players 1.1.0** after upgrading. A page refresh does not update the game plugin. Private `bans.txt` and `moderation audit.jsonl` files live in `left4dead2/addons/sourcemod/data/l4d2 control/`; never publish these records.
+- Recompile and reload **L4D2 Control Players 1.4.0+** after upgrading. A page refresh does not update the game plugin. Private bans, whitelist and audit files live in `left4dead2/addons/sourcemod/data/l4d2 control/`; never publish these records.
+
+## Player management whitelist
+
+Add players by SteamID2/3/64, numeric Steam profile URL, or custom `/id/` profile URL (the panel host must reach Steam Community to resolve custom URLs). Entries can be maintained while admission restrictions are off. When enabled, the SourceMod bridge rejects non-bot players not on the list after admin checks complete; SourceMod administrators are automatically allowed and recorded. Disabling the mode preserves records. Compile and hot-reload the SourceMod bridge **1.4.0+**.
 
 ## 授权登录与普通登录
 
@@ -86,7 +104,7 @@
 - **普通登录**使用数字 Steam 资料链接（`steamcommunity.com/profiles/<SteamID64>`）或 SteamID64，以及独立的面板密码。首次使用点击“设置面板密码”；不接入 Steam OpenID/OAuth，不收集 Steam 密码。自定义 `/id/` 短链接暂不支持。
 - 资料链接为用户自行申报，**不验证 Steam 账号归属**，也不会因此授予游戏管理员权限。
 - 普通账号只可查看总览、地图、插件状态，获取已备份地图的直连下载信息；代理、玩法控制、玩家记录、安装、上传、删除、服务器中转导出和系统接口由后端拒绝访问。
-- “在线玩家 → 面板账号”显示注册用户与登录记录。本面板有效 SteamID 黑名单同时阻止登录，已有会话在下次请求时失效。
+- “玩家管理 → 面板账号”显示注册用户与登录记录。本面板有效 SteamID 黑名单同时阻止登录，已有会话在下次请求时失效。
 - 账号密码以随机盐 scrypt 哈希保存在私有目录。面板登录/操作 IP、日志与最近游戏连接 IP 保留 **30 天**，仅授权账号可见。省份由本地离线 IP 库估计，可能不准确，不把用户 IP 发送给定位服务。SteamID、账号与封禁记录持续保留；日志期限不等于账号期限。
 - 会话使用 HttpOnly Cookie，变更操作校验 CSRF。面板重启后需重新登录。应用公网访问应使用 HTTPS。
 
@@ -117,7 +135,7 @@ Changes require confirmation and read-back; mismatches restore previous values. 
 
 ## 浏览状态与玩家备注
 
-- 同一浏览器标签页内刷新时，保留当前页面、插件分类、搜索词、地图展开状态、玩家页签，以及各页面和侧栏的滚动位置。内容下载恢复上次结果，不自动重新请求第三方搜索。
+- 同一浏览器标签页内刷新时，保留当前页面、插件分类、搜索词、地图展开状态、玩家页签，以及各页面和侧栏的滚动位置。
 - 直连下载通过检查并提交浏览器后，弹窗自动关闭；检查失败时继续保留错误说明。
 - 授权管理员可为玩家添加、编辑、搜索和清除备注。备注按 SteamID 保存，改名或离线仍保留，普通账号不可查看或修改。
 - 登录页精简为登录和权限说明；既有私有登录与操作记录处理方式见部署教程。
@@ -125,7 +143,7 @@ Changes require confirmation and read-back; mismatches restore previous values. 
 ## 普通账号密码管理
 
 - 普通用户登录后，可点击面板顶部的“修改密码”，输入当前密码并两次确认新密码。
-- 授权管理员可在“在线玩家 → 面板账号”找到玩家，点击“清除面板密码”并勾选确认。清除后本人需使用同一 SteamID 重新注册；昵称、玩家记录、备注、游戏权限和拉黑状态继续保留。
+- 授权管理员可在“玩家管理 → 面板账号”找到玩家，点击“清除面板密码”并勾选确认。清除后本人需使用同一 SteamID 重新注册；昵称、玩家记录、备注、游戏权限和拉黑状态继续保留。
 - 修改或清除成功后，该 SteamID 的全部现有面板登录失效；其他账号保持登录。新密码为 8–128 个字符，仅保存加盐哈希，不写入操作日志。
 - 忘记密码需联系服主清除密码后重新注册。登录页的“首次使用？设置面板密码”使用醒目按钮进入注册。
 

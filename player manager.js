@@ -127,7 +127,7 @@ function createPlayerManager({ serverRoot, stateDir = path.join(os.homedir(), '.
       const root = fieldsOf(fieldsOf(parseKeyValues(await safeRead(snapshotFile))).panelplayers);
       if (!root || Number(root.version) !== 1) throw new Error('Unsupported bridge');
       const checkedAt = Number(root.updated) * 1000;
-      if (!Number.isFinite(checkedAt) || now() - checkedAt > 20000 || checkedAt - now() > 10000) return { available: false, reason: '玩家采集已超过 20 秒未更新，不能将旧记录当作在线玩家', players: [], bots: 0, checkedAt };
+      if (!Number.isFinite(checkedAt) || now() - checkedAt > 20000 || checkedAt - now() > 10000) return { available: false, moderationAvailable: false, whitelistAvailable: false, reason: '玩家采集已超过 20 秒未更新，不能将旧记录当作在线玩家', players: [], bots: 0, checkedAt };
       const players = [];
       for (const entry of Object.values(root.players || {})) {
         const row = fieldsOf(entry);
@@ -135,8 +135,8 @@ function createPlayerManager({ serverRoot, stateDir = path.join(os.homedir(), '.
         if (identity.steam64 !== String(row.steam64)) throw new Error('Steam identity mismatch');
         players.push({ ...identity, gameIp:normalizeIP(row.ip), gameIpAt:checkedAt, name: String(row.name || '').slice(0, 128), userId: Number(row.userid), team: Number(row.team), ping: Math.max(0, Number(row.ping) || 0), connectedSeconds: Math.max(0, Number(row.connected) || 0), runtimeFlags: flagsOf(String(row.flags || '')), runtimeImmunity: Math.max(0, Number(row.immunity) || 0), online: true });
       }
-      return { available: true, moderationAvailable: Number(root.moderationversion) === 1, players, bots: Number(root.bots) || 0, checkedAt, reason: '' };
-    } catch { return { available: false, reason: '未取得玩家采集数据，请检查 L4D2 Control Players 插件是否运行', players: [], bots: 0, checkedAt: null }; }
+      return { available: true, moderationAvailable: Number(root.moderationversion) === 1, whitelistAvailable: Number(root.whitelistversion) === 1, players, bots: Number(root.bots) || 0, checkedAt, reason: '' };
+    } catch { return { available: false, moderationAvailable: false, whitelistAvailable: false, reason: '未取得玩家采集数据，请检查 L4D2 Control Players 插件是否运行', players: [], bots: 0, checkedAt: null }; }
   }
   async function freshSnapshot() {
     let live = await snapshot();

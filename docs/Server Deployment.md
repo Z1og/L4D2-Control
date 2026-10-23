@@ -475,9 +475,23 @@ If the compiler is not executable, copy it to a private temporary directory and 
 
 The bridge writes snapshots every five seconds and persists identity history on join/leave and periodically. Its private data directory is mode 0700; `players.txt` and `history.txt` are mode 0600. Panel state defaults to `~/.local/state/dead-air-panel/players/` (override with `PLAYER_STATE_DIR`) and contains the latest pre-edit config and permission audit. The panel needs read/write access to `configs/admins_simple.ini`. Do not publicly serve or commit these directories. The bridge is protected from disabling/deletion in the panel; use the server console for maintenance.
 
-安装后检查“在线玩家”显示实时更新时间；无真人时显示 0，不用机器人伪造玩家。为离线玩家授权时可直接输入 SteamID。修改权限需要 `basecommands`（提供 `sm_reloadadmins`）与 `admin-flatfile` 正常运行。`bfn` 不保证能调用所有第三方插件；根据插件文档设置最小必要权限，避免默认授予 `z`。出现重载/实际权限不匹配时自动恢复原文件。历史或采集不可读时请查看 SourceMod 错误日志及目录权限。
 
-Verify a fresh timestamp in Online Players; zero humans remains zero. An offline player can be configured by SteamID. Permission changes require working `basecommands` (`sm_reloadadmins`) and `admin-flatfile`. `bfn` does not unlock every third-party plugin; choose the least required flags rather than defaulting to `z`. Reload/effective-permission failures restore the previous file. For unreadable history or missing snapshots, inspect SourceMod logs and private-directory permissions.
+
+## 平台组件管理
+
+「插件、平台管理」共享一个侧边栏入口，顶部切换“插件管理 / 平台管理”。平台页检查 MetaMod:Source、SourceMod、L4DToolZ 和 Stripper:Source 的磁盘安装及游戏内运行状态，并从官方渠道检查 Linux x86 稳定版。安装、更新及回退需要二次确认；更新保留现有插件和配置，不会自动重启游戏。上一版文件保存在面板私有状态目录 `~/.local/state/dead-air-panel/platforms/`，每个组件仅保留一次可回退版本。
+
+MetaMod 是 SourceMod、L4DToolZ 与 Stripper 的前置加载器；SourceMod 运行 SMX 并负责管理员/扩展接口；L4DToolZ 扩展多人上限；Stripper 通过地图规则调整实体。更新后二进制通常要重启游戏才载入，不应在比赛中随意替换，Stripper 规则也可能改变地图流程。自动组件安装仅支持 Linux x86 的 L4D2 服务端。
+
+Left4DHooks 仍由“插件管理”导入、启停、删除和导出；平台页只显示其磁盘状态与 SourceMod 依赖关系，不创建第二套插件管理入口。
+
+安装后检查“玩家管理”显示实时更新时间；无真人时显示 0，不用机器人伪造玩家。为离线玩家授权时可直接输入 SteamID。修改权限需要 `basecommands`（提供 `sm_reloadadmins`）与 `admin-flatfile` 正常运行。`bfn` 不保证能调用所有第三方插件；根据插件文档设置最小必要权限，避免默认授予 `z`。出现重载/实际权限不匹配时自动恢复原文件。历史或采集不可读时请查看 SourceMod 错误日志及目录权限。
+
+白名单开关和成员管理位于“玩家管理”页。支持 SteamID2/3/64、数字 Steam 资料链接及自定义 `/id/` 短链接；解析自定义短链接要求面板服务器可访问 `steamcommunity.com`。名单可以在关闭准入限制时录入或移除，适合先记录好友再开服；开启后，SourceMod 桥接插件在玩家管理员检查完成时校验名单，只允许名单成员加入，真人管理员自动放行。关闭模式只停用检查，不删除名单。状态保存在私有 `data/l4d2 control/whitelist.txt`，操作需要正在运行的 **L4D2 Control Players 1.4.0+**；每次开关或编辑后由游戏控制台回执确认，未确认会恢复原始文件。名单格式损坏时面板拒绝覆盖。
+
+Verify a fresh timestamp in Player Management; zero humans remains zero. An offline player can be configured by SteamID. Permission changes require working `basecommands` (`sm_reloadadmins`) and `admin-flatfile`. `bfn` does not unlock every third-party plugin; choose the least required flags rather than defaulting to `z`. Reload/effective-permission failures restore the previous file. For unreadable history or missing snapshots, inspect SourceMod logs and private-directory permissions.
+
+The admission whitelist is managed on the Player Management page. It accepts SteamID2/3/64, numeric Steam profile URLs, and custom `/id/` URLs (resolving custom links requires outbound access from the panel host to `steamcommunity.com`). Entries can be maintained while admission restrictions are off. When enabled, the bridge checks identities after SourceMod admin checks and rejects non-bot players not in the list; SourceMod administrators are automatically allowed. Disabling the mode preserves entries. State is stored in private `data/l4d2 control/whitelist.txt`. This requires the running **L4D2 Control Players 1.4.0+** bridge; each update is confirmed by a console acknowledgement and failed sync restores the previous file.
 
 ### 地图一键下载 / Map downloads
 无需新增端口或安装 aria2 服务端。“服务器下载导出”从游戏服务器中转 VPK，速度受服务器出站带宽影响；“直连下载导出（推荐）”需要已确认的云端备份和有效的百度直链。浏览器直连点击时刷新签名，curl/aria2 命令复制时刷新签名；OpenList 账号令牌不会发送到下载端。 / No additional port or server-side aria2 is required. Server download export streams the VPK through the game server and uses its egress bandwidth. Direct download export requires a verified cloud backup and a valid Baidu raw link. Browser links refresh at click time; curl/aria2 links refresh before copying. OpenList credentials are never forwarded to download clients.
@@ -494,7 +508,7 @@ Verify a fresh timestamp in Online Players; zero humans remains zero. An offline
 - 当前在线玩家可单独或勾选批量踢出。确认框提供“仅踢出服务器”“踢出和拉黑”“取消”；选择踢出并拉黑后再选择时长并确认。
 - 玩家记录可按 SteamID 拉黑，时长为 **1、3、7、30、180、3650 天**。已拉黑页面支持修改时长和取消拉黑，也支持批量操作；每批最多 100 位。修改时长从本次确认重新计时。
 - 黑名单由 SourceMod 插件在玩家加入时校验，到期自动失效，重启后继续生效；不依赖浏览器保持打开。面板只管理自己的黑名单，不会撤销其他插件的封禁。
-- 升级后需要重新编译并重载 **L4D2 Control Players 1.1.0**，仅刷新网页不能升级游戏插件。黑名单和处置审计位于私有目录 `left4dead2/addons/sourcemod/data/l4d2 control/` 中的 `bans.txt`、`moderation audit.jsonl`，不应上传到公共仓库。
+- 升级后需要重新编译并重载 **L4D2 Control Players 1.4.0+**，仅刷新网页不能升级游戏插件。黑名单和处置审计位于私有目录 `left4dead2/addons/sourcemod/data/l4d2 control/` 中的 `bans.txt`、`moderation audit.jsonl`，不应上传到公共仓库。
 
 ## Restart, kick and timed bans
 
@@ -502,7 +516,7 @@ Verify a fresh timestamp in Online Players; zero humans remains zero. An offline
 - Kick current players individually or with batch selection. The confirmation offers kick only, kick and ban, or cancel; kick and ban opens a duration selector before submission.
 - Ban recorded Steam identities for **1, 3, 7, 30, 180 or 3650 days**. The banned-player tab supports changing durations and unbanning, including batches of up to 100 identities. Changing a duration restarts its countdown from confirmation time.
 - The SourceMod bridge enforces bans when players join. Bans expire automatically and survive server restarts without an open browser. Only panel-owned bans are changed; other plugins' bans are preserved.
-- Recompile and reload **L4D2 Control Players 1.1.0** after upgrading. A page refresh does not update the game plugin. Private `bans.txt` and `moderation audit.jsonl` files live in `left4dead2/addons/sourcemod/data/l4d2 control/`; never publish these records.
+- Recompile and reload **L4D2 Control Players 1.4.0+** after upgrading. A page refresh does not update the game plugin. Private `bans.txt` and `moderation audit.jsonl` files live in `left4dead2/addons/sourcemod/data/l4d2 control/`; never publish these records.
 
 ## 授权登录与普通登录
 
@@ -510,7 +524,7 @@ Verify a fresh timestamp in Online Players; zero humans remains zero. An offline
 - **普通登录**使用数字 Steam 资料链接（`steamcommunity.com/profiles/<SteamID64>`）或 SteamID64，以及独立的面板密码。首次使用点击“设置面板密码”；不接入 Steam OpenID/OAuth，不收集 Steam 密码。自定义 `/id/` 短链接暂不支持。
 - 资料链接为用户自行申报，**不验证 Steam 账号归属**，也不会因此授予游戏管理员权限。
 - 普通账号只可查看总览、地图、插件状态，获取已备份地图的直连下载信息；代理、玩法控制、玩家记录、安装、上传、删除、服务器中转导出和系统接口由后端拒绝访问。
-- “在线玩家 → 面板账号”显示注册用户与登录记录。本面板有效 SteamID 黑名单同时阻止登录，已有会话在下次请求时失效。
+- “玩家管理 → 面板账号”显示注册用户与登录记录。本面板有效 SteamID 黑名单同时阻止登录，已有会话在下次请求时失效。
 - 账号密码以随机盐 scrypt 哈希保存在私有目录。面板登录/操作 IP、日志与最近游戏连接 IP 保留 **30 天**，仅授权账号可见。省份由本地离线 IP 库估计，可能不准确，不把用户 IP 发送给定位服务。SteamID、账号与封禁记录持续保留；日志期限不等于账号期限。
 - 会话使用 HttpOnly Cookie，变更操作校验 CSRF。面板重启后需重新登录。应用公网访问应使用 HTTPS。
 
@@ -571,7 +585,7 @@ Browsing state uses per-tab `sessionStorage`, separated by ordinary/authorized r
 ## 普通账号密码管理
 
 - 普通用户登录后，可点击面板顶部的“修改密码”，输入当前密码并两次确认新密码。
-- 授权管理员可在“在线玩家 → 面板账号”找到玩家，点击“清除面板密码”并勾选确认。清除后本人需使用同一 SteamID 重新注册；昵称、玩家记录、备注、游戏权限和拉黑状态继续保留。
+- 授权管理员可在“玩家管理 → 面板账号”找到玩家，点击“清除面板密码”并勾选确认。清除后本人需使用同一 SteamID 重新注册；昵称、玩家记录、备注、游戏权限和拉黑状态继续保留。
 - 修改或清除成功后，该 SteamID 的全部现有面板登录失效；其他账号保持登录。新密码为 8–128 个字符，仅保存加盐哈希，不写入操作日志。
 - 忘记密码需联系服主清除密码后重新注册。登录页的“首次使用？设置面板密码”使用醒目按钮进入注册。
 

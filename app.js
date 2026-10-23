@@ -61,7 +61,7 @@ function renderCurrentMap(id = currentMap) {
   $('#currentMapEnglish').textContent = id || 'UNKNOWN';
   $('#currentMapSubtitle').textContent = selected ? `${selected.campaign.name} · ${selected.campaign.english}` : '服务器当前章节';
 }
-const panelViews = { overview: '总览', gameplay: '游戏模式', maps: '地图管理', plugins: '插件管理', diagnostics: '服务检查', workshop: '内容下载', proxy: '代理管理', players: '在线玩家', settings: '服务器设置', about: '关于' };
+const panelViews = { overview: '总览', gameplay: '游戏模式', maps: '地图管理', plugins: '插件、平台管理', diagnostics: '服务检查', workshop: '内容下载', proxy: '代理管理', players: '玩家管理', settings: '服务器设置', about: '关于' };
 function savedPanelView() {
   const hash = location.hash.slice(1) === 'logs' ? 'settings' : location.hash.slice(1);
   if (hash) return Object.hasOwn(panelViews, hash) ? hash : 'overview';
@@ -77,6 +77,7 @@ function navigate(view) {
   $$('.content').forEach(element => element.classList.toggle('hidden', element.id !== `${view}View`));
   $$('.nav-item').forEach(button => button.classList.toggle('active', button.dataset.view === view));
   $('#pageTitle').textContent = panelViews[view];
+  if (view === 'plugins') window.selectPluginPage?.(window.panelState?.get('pluginPage', 'plugins') || 'plugins');
   if (view === 'gameplay') loadGameplay();
   if (view === 'proxy') loadProxy();
   if (view === 'players') loadPlayers();
@@ -225,7 +226,7 @@ function renderPlugins() {
   icons();
 }
 async function loadPlugins() {
-  try { const data = await api('/api/plugins'); plugins = data.plugins; pluginInventoryLoaded = true; $('#navPluginCount').textContent = plugins.length; $('#overviewPluginCount').textContent = plugins.length; $('#pluginTotal').textContent = plugins.length; $('#pluginEnabled').textContent = plugins.filter(item => item.enabled).length; renderPlugins(); if (pluginStoreLoaded) renderPluginStoreResults(); }
+  try { const data = await api('/api/plugins'); plugins = data.plugins; window.pluginDependencies = data.dependencies || null; window.refreshPlatformDependencies?.(); pluginInventoryLoaded = true; $('#navPluginCount').textContent = plugins.length; $('#overviewPluginCount').textContent = plugins.length; $('#pluginTotal').textContent = plugins.length; $('#pluginEnabled').textContent = plugins.filter(item => item.enabled).length; renderPlugins(); if (pluginStoreLoaded) renderPluginStoreResults(); }
   catch (error) { $('#pluginGrid').innerHTML = `<div class="empty-state"><p>读取插件失败：${escapeHtml(error.message)}</p></div>`; }
 }
 function renderProxy() {
@@ -268,7 +269,7 @@ function renderWorkshopResults() {
     const job = [...downloadJobs].sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt)).find(job => job.source === contentSource && job.itemId === item.id);
     const installed = job?.status === 'completed', pending = job && !['completed', 'failed', 'cancelled'].includes(job.status);
     return `<article class="workshop-result">${item.image ? `<img src="${escapeHtml(item.image)}" alt="" loading="lazy" referrerpolicy="no-referrer">` : '<div class="result-placeholder"><i data-lucide="image"></i></div>'}<div class="workshop-result-body"><h3>${escapeHtml(item.title)}</h3><span>${contentSource === 'gamemaps' ? 'GameMaps' : 'Workshop'} ID · ${escapeHtml(item.id)}</span><div><button class="primary-button workshop-install ${installed ? 'is-installed' : ''}" data-install-workshop="${escapeHtml(item.id)}" ${installed || pending ? 'disabled' : ''}><i data-lucide="${installed ? 'check' : pending ? 'loader-circle' : 'download'}"></i>${installed ? '本次已安装' : pending ? job.phase : '安装到服务器'}</button><button class="text-button" data-copy-id="${escapeHtml(item.id)}"><i data-lucide="copy"></i>复制 ID</button></div></div></article>`;
-  }).join('') || `<div class="workshop-empty"><p>${workshopSearched ? '没有匹配项目，请更换关键词' : '输入关键词后点击“搜索”，切换来源不会自动搜索。'}</p></div>`; icons();
+  }).join('') || `<div class="workshop-empty"><p>${workshopSearched ? '没有匹配项目，请更换关键词' : '输入关键词后点击“搜索”。'}</p></div>`; icons();
 }
 function renderPluginStoreResults() {
   $('#pluginStorePage').textContent = `第 ${pluginStorePage} 页`;

@@ -156,9 +156,9 @@ Use a dedicated GENERAL account based at `/l4d2-maps`, with write-content and sh
 
 For co-located OpenList, optional `OPENLIST_CONNECT_ADDRESS=127.0.0.1` uses loopback uploads while validating the original HTTPS identity. The cloud-save stage means OpenList has received the file; completion is only recorded after the cloud provider finishes. For slow Baidu uploads, consider one upload thread, 4 MiB slices, and a 600-second per-slice timeout in the driver; the panel does not automatically change these provider settings.
 
-## Players and in-game administrators
+## Player management, in-game administrators and admission whitelist
 
-Online Players shows real human/bot counts, team, latency, connected duration, and exact SteamID2/3/64 values, with search, copy-ID, history and administrator tabs. Server Diagnostics is in the System sidebar section.
+Player Management shows real human/bot counts, team, latency, connected duration, and exact SteamID2/3/64 values, with search, copy-ID, history and administrator tabs. Server Diagnostics is in the System sidebar section.
 
 Install the SourceMod player-management bridge from `sourcemod/L4D2 Control Players.sp` as described in the deployment guide. History starts when the bridge is enabled, is not retrospective; recent connection IPs are retained for 30 days and visible only to authorized users. Snapshots older than 20 seconds show unknown status and disable permission editing.
 
@@ -167,6 +167,8 @@ Grant, adjust or revoke panel-owned SourceMod permissions by SteamID. Presets: p
 Only the `L4D2 CONTROL MANAGED ADMINS` block in `admins_simple.ini` is managed. Existing external configuration and runtime permissions from other sources are read-only. Saving reloads the admin cache and checks effective permissions for online players; failure restores the prior file. Offline grants are reported as saved/reloaded, not runtime-verified. No real player is granted access automatically.
 
 Only the latest pre-edit admin configuration is retained, not a whole-server backup. Never commit player history, audit records or administrator configuration.
+
+The Game Admission Whitelist accepts SteamID2/3/64, numeric profile URLs, and custom `/id/` profile URLs. Resolving a custom URL requires the panel host to reach Steam Community. Entries can be maintained while admission restrictions are off. When enabled, the SourceMod bridge rejects non-bot players who are not listed after admin checks complete. SourceMod administrators are automatically allowed. Disabling the mode preserves all entries. The list is stored in the private `left4dead2/addons/sourcemod/data/l4d2 control/whitelist.txt` file and must not be committed. Compile and hot-reload **L4D2 Control Players 1.4.0+**; updating the website alone does not update the in-game plugin.
 
 ### Map download and export
 
@@ -186,7 +188,7 @@ Your star helps more Left 4 Dead 2 server owners discover this project.
 - Kick current players individually or with batch selection. The confirmation offers kick only, kick and ban, or cancel; kick and ban opens a duration selector before submission.
 - Ban recorded Steam identities for **1, 3, 7, 30, 180 or 3650 days**. The banned-player tab supports changing durations and unbanning, including batches of up to 100 identities. Changing a duration restarts its countdown from confirmation time.
 - The SourceMod bridge enforces bans when players join. Bans expire automatically and survive server restarts without an open browser. Only panel-owned bans are changed; other plugins' bans are preserved.
-- Recompile and reload **L4D2 Control Players 1.1.0** after upgrading. A page refresh does not update the game plugin. Private `bans.txt` and `moderation audit.jsonl` files live in `left4dead2/addons/sourcemod/data/l4d2 control/`; never publish these records.
+- Recompile and reload **L4D2 Control Players 1.4.0+** after upgrading. A page refresh does not update the game plugin. Private `bans.txt` and `moderation audit.jsonl` files live in `left4dead2/addons/sourcemod/data/l4d2 control/`; never publish these records.
 
 ## Authorized and ordinary sign-in
 
@@ -214,7 +216,7 @@ Changes require confirmation and read-back; mismatches restore previous values. 
 ## Ordinary account passwords
 
 - Signed-in ordinary users can choose “Change password” in the panel header, supply their current password, and confirm the new one twice.
-- Authorized administrators can open Online Players → Panel Accounts and choose “Clear panel password” and explicitly confirm. The player must register again using the same SteamID; account history, name, notes, game permissions and bans remain intact.
+- Authorized administrators can open Player Management → Panel Accounts and choose “Clear panel password” and explicitly confirm. The player must register again using the same SteamID; account history, name, notes, game permissions and bans remain intact.
 - Password changes and clears invalidate all existing panel sessions for that SteamID while preserving other accounts. Passwords are 8–128 characters, stored only as salted hashes, and never included in audit events.
 - Forgotten passwords require a server-owner clear followed by re-registration. A prominent first-time registration button is available on the login page.
 

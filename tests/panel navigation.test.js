@@ -32,7 +32,7 @@ test('hash navigation, storage fallback and invalid or blocked storage are safe'
   for (const hash of ['#unknown', '#__proto__', '#constructor', '#%invalid']) {
     const bad = fixture(hash, 'maps'); bad.events.DOMContentLoaded(); assert.equal(bad.location.hash, '#overview');
   }
-  const blocked = fixture('#players', null, true); blocked.events.DOMContentLoaded(); assert.equal(blocked.title.textContent, '在线玩家');
+  const blocked = fixture('#players', null, true); blocked.events.DOMContentLoaded(); assert.equal(blocked.title.textContent, '玩家管理');
   const empty = fixture('', null, true); empty.events.DOMContentLoaded(); assert.equal(empty.title.textContent, '总览');
 });
 
@@ -104,6 +104,7 @@ test('source tabs reset to idle without searching and preserve the typed query',
     assert.equal(f.element('#workshopSearch').value, 'city map');
     assert.equal(f.element('#workshopResultMeta').textContent, '尚未搜索');
     assert.match(f.element('#workshopResults').innerHTML, /点击“搜索”/);
+    assert.doesNotMatch(f.element('#workshopResults').innerHTML, /切换来源不会自动搜索/);
     assert.equal(f.element('#workshopNext').disabled, true);
     assert.equal(f.element('#workshopPrev').disabled, true);
     assert.equal(f.buttons.find(button => button.dataset.source === source)['aria-selected'], 'true');
@@ -187,4 +188,15 @@ test('legacy activity URLs and storage migrate to settings without losing the ne
  for(const f of [fixture('#logs'),fixture('', 'logs')]){f.events.DOMContentLoaded();assert.equal(f.location.hash,'#settings');assert.equal(f.saved(),'settings');}
  const about=fixture('#about');about.context.isGuest=true;about.events.DOMContentLoaded();assert.equal(about.location.hash,'#about');
  const denied=fixture('#settings');denied.context.isGuest=true;denied.events.DOMContentLoaded();assert.equal(denied.location.hash,'#overview');
+});
+
+test('the player section is named Player Management and exposes the persistent whitelist controls', () => {
+  const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+  assert.match(html, /data-admin-only data-view="players"><i data-lucide="users"><\/i>玩家管理/);
+  assert.match(html, /id="playersView"[\s\S]*?<h1>玩家管理<\/h1>/);
+  assert.match(html, /<span>玩家管理<\/span><i data-lucide="users"><\/i>[\s\S]*?id="overviewPlayerCount"/);
+  assert.match(html, /id="playerWhitelistEnabled"/);
+  assert.match(html, /id="playerWhitelistIdentity"[^>]+placeholder="SteamID64 \/ SteamID2 \/ steamcommunity\.com\/id\/…"/);
+  assert.match(html, /名单可在关闭准入限制时维护/);
+  assert.doesNotMatch(html, /切换来源不会自动搜索/);
 });
