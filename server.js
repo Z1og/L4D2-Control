@@ -657,7 +657,7 @@ function serveFile(req, res) {
     stream.pipe(res); return;
   }
   const relative = requestPath === '/' ? 'index.html' : requestPath === '/login' ? 'login.html' : requestPath.replace(/^\/+/, '');
-  if (!['index.html', 'app.js', 'account password.js', 'panel state.js', 'players.js', 'gameplay.js', 'styles.css', 'login.html', 'login.js', 'login.css', 'project community.js', 'project community.css'].includes(relative)) { res.statusCode = 404; res.end('Not found'); return; }
+  if (!['index.html', 'app.js', 'account password.js', 'panel state.js', 'players.js', 'platforms.js', 'gameplay.js', 'styles.css', 'login.html', 'login.js', 'login.css', 'project community.js', 'project community.css'].includes(relative)) { res.statusCode = 404; res.end('Not found'); return; }
   const filePath = path.resolve(root, relative);
   const relativeToRoot = path.relative(root, filePath);
   if (relativeToRoot.startsWith('..') || path.isAbsolute(relativeToRoot) || !fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) { res.statusCode = 404; res.end('Not found'); return; }

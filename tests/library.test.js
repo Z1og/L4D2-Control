@@ -152,9 +152,10 @@ test('deleting active task waits for abort cleanup, queued task never starts', {
   assert.deepEqual(fs.readdirSync(f.addonDir),['sourcemod']);
 });
 test('HTTP uploads enforce login and origin, show maps, and import/delete disabled plugins', async t => {
+  let child;
+  t.after(async()=>{if(!child || child.exitCode!==null || child.signalCode!==null)return;const exit=new Promise(resolve=>child.once('exit',resolve));child.kill();await exit;});
   const f=fixture(t), {spawn}=require('node:child_process');
-  const child=spawn(process.execPath,[path.join(__dirname,'..','server.js')],{env:{...process.env,PORT:'0',BIND_HOST:'127.0.0.1',L4D2_EXEC_MODE:'local',L4D2_SERVER_ROOT:f.root,L4D2_PLUGIN_PATH:f.pluginPath,WORKSHOP_ADDON_DIR:f.addonDir,DOWNLOAD_STATE_DIR:path.join(f.root,'downloads'),LIBRARY_STATE_DIR:path.join(f.root,'state'),PLUGIN_STORE_SYNC_ENABLED:'false',PLUGIN_STORE_CACHE_DIR:path.join(f.root,'plugin store'),PANEL_ACCOUNT_STATE_DIR:path.join(f.root,'accounts'),PLAYER_STATE_DIR:path.join(f.root,'players'),CLOUD_MAPS_STATE_DIR:path.join(f.root,'cloud'),PANEL_PASSWORD:'fixture',PANEL_USER:'admin',PANEL_AUTH_TOKEN:'',L4D2_GAME_HOST:'game.example',L4D2_GAME_PORT:'27016',OPENLIST_URL:'https://files.example/openlist',OPENLIST_SHARE_TOKEN:'fixture-secret-token',OPENLIST_MAPS_PATH:'/l4d2-maps',PANEL_TLS_KEY:path.join(f.root,'absent-key'),PANEL_TLS_CERT:path.join(f.root,'absent-cert')},stdio:['ignore','pipe','pipe']});
-  t.after(async()=>{const exit=new Promise(resolve=>child.once('exit',resolve));child.kill();await exit;});
+  child=spawn(process.execPath,[path.join(__dirname,'..','server.js')],{env:{...process.env,PORT:'0',BIND_HOST:'127.0.0.1',L4D2_EXEC_MODE:'local',L4D2_SERVER_ROOT:f.root,L4D2_PLUGIN_PATH:f.pluginPath,WORKSHOP_ADDON_DIR:f.addonDir,DOWNLOAD_STATE_DIR:path.join(f.root,'downloads'),LIBRARY_STATE_DIR:path.join(f.root,'state'),PLUGIN_STORE_SYNC_ENABLED:'false',PLUGIN_STORE_CACHE_DIR:path.join(f.root,'plugin store'),PANEL_ACCOUNT_STATE_DIR:path.join(f.root,'accounts'),PLAYER_STATE_DIR:path.join(f.root,'players'),CLOUD_MAPS_STATE_DIR:path.join(f.root,'cloud'),PANEL_PASSWORD:'fixture',PANEL_USER:'admin',PANEL_AUTH_TOKEN:'',L4D2_GAME_HOST:'game.example',L4D2_GAME_PORT:'27016',OPENLIST_URL:'https://files.example/openlist',OPENLIST_SHARE_TOKEN:'fixture-secret-token',OPENLIST_MAPS_PATH:'/l4d2-maps',PANEL_TLS_KEY:path.join(f.root,'absent-key'),PANEL_TLS_CERT:path.join(f.root,'absent-cert')},stdio:['ignore','pipe','pipe']});
   const port=await new Promise((resolve,reject)=>{
     let output='',stderr='';
     const timer=setTimeout(()=>reject(new Error('server startup timeout: '+stderr)),15000);
@@ -164,6 +165,9 @@ test('HTTP uploads enforce login and origin, show maps, and import/delete disabl
     child.once('exit',code=>{clearTimeout(timer);reject(new Error(`server exited ${code}: ${stderr}`));});
   });
   const base=`http://127.0.0.1:${port}`,authorization='Basic '+Buffer.from('admin:fixture').toString('base64');
+  const platformScript=await fetch(base+'/platforms.js',{headers:{authorization}});
+  assert.equal(platformScript.status,200);assert.match(platformScript.headers.get('content-type'),/javascript/);
+  assert.match(await platformScript.text(),/selectPluginPage/);
   assert.equal((await fetch(base+'/api/config')).status,401);
   assert.equal((await fetch(base+'/api/openlist/download?name=map.vpk')).status,401);
   assert.equal((await fetch(base+'/api/openlist/download-info',{method:'POST',body:'{}'})).status,401);

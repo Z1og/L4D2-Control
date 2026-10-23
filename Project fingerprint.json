@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "projectId": "l4d2-control-bf312edc896c79baad5c",
-  "fingerprint": "cd913faad5b91b261ba985fdcba0bd8a9e1621210d2dc0dedf0e2059aaaca0bc",
+  "fingerprint": "0fcb91d426591f512132ad7395a83fc70682968c71c53ec6a5f1cdf77e4674ba",
   "files": [
     {
       "path": "Build project fingerprint.js",
@@ -117,7 +117,7 @@
     },
     {
       "path": "server.js",
-      "sha256": "f1e2161cc1b623d65332543b665011ae4b0ea1585e496a485fe1473b07d97c5e"
+      "sha256": "d7bde0b8d4bcd2194888493d937e2557fdafd82b80d541beab32297bfe21558f"
     },
     {
       "path": "sourcemod/L4D2 Control Players.sp",
