@@ -5,12 +5,13 @@ const os = require('node:os');
 const crypto = require('node:crypto');
 const { gunzipSync } = require('node:zlib');
 const { pluginInventory } = require('./inventory');
+const { officialCatalog } = require('./platform versions');
 
 const COMPONENTS = [
   { id: 'metamod', name: 'MetaMod:Source', description: '底层插件加载器，SourceMod、L4DToolZ 和 Stripper 的前置组件。', caution: '更新后需重启游戏进程；请使用匹配 Source 1 / L4D2 的版本。', requires: [], probes: ['addons/metamod/bin/server.so', 'addons/metamod/bin/server_i486.so'], home: 'https://www.metamodsource.net/' },
   { id: 'sourcemod', name: 'SourceMod', description: '运行 SMX 插件，提供管理员权限、菜单与扩展接口。', caution: '保留已有配置和 SMX；插件、扩展与 gamedata 可能有版本兼容要求。', requires: ['metamod'], probes: ['addons/sourcemod/bin/sourcemod.2.l4d2.so'], home: 'https://www.sourcemod.net/' },
   { id: 'l4dtoolz', name: 'L4DToolZ', description: '解除游戏人数限制，扩展多人房间的底层能力。', caution: '人数、Bot 与大厅规则仍需在“游戏模式”中配置；避免同时安装多个同类人数扩展。', requires: ['metamod'], probes: ['addons/l4dtoolz/l4dtoolz_mm.so', 'addons/l4dtoolz/l4dtoolz_mm_i486.so'], home: 'https://github.com/accelerator74/l4dtoolz' },
-  { id: 'stripper', name: 'Stripper:Source', description: '按配置增加、删除或调整地图实体，常用于地图修复。', caution: '实体规则可能改变地图流程；保留现有 maps 和 global_filters 配置。此处使用适配 MetaMod 1.12 的构建。', requires: ['metamod'], probes: ['addons/stripper/bin/stripper_mm_i486.so'], home: 'https://github.com/alliedmodders/stripper-source' }
+  { id: 'stripper', name: 'Stripper:Source', description: '按配置增加、删除或调整地图实体，常用于地图修复。', caution: '实体规则可能改变地图流程；保留现有 maps 和 global_filters 配置，并核对所选构建要求的 MetaMod 版本。', requires: ['metamod'], probes: ['addons/stripper/bin/stripper_mm_i486.so'], home: 'https://github.com/alliedmodders/stripper-source' }
 ];
 const fail = (message, status = 400) => Object.assign(new Error(message), { status });
 const hash = data => crypto.createHash('sha256').update(data).digest('hex');
@@ -55,6 +56,32 @@ function preserveFile(id, name) {
   return name.endsWith('.vdf') || name.endsWith('.ini') || id === 'stripper' && name.endsWith('.cfg') || /^(addons\/sourcemod\/(configs|plugins)\/|cfg\/sourcemod\/)/.test(name);
 }
 function elf32(data) { return data.length > 20 && data.subarray(0, 4).equals(Buffer.from([127, 69, 76, 70])) && data[4] === 1 && data[5] === 1 && data.readUInt16LE(18) === 3; }
+async function unpackPackage(data, file = '') {
+  if (!file.endsWith('.zip')) return unpackArchive(data);
+  const yauzl = require('yauzl');
+  return new Promise((resolve, reject) => yauzl.fromBuffer(data, { lazyEntries: true, validateEntrySizes: true }, (error, zip) => {
+    if (error) return reject(error);
+    const files = new Map(); let count = 0, total = 0, settled = false;
+    const stop = error => { if (settled) return; settled = true; zip.close(); reject(error); };
+    zip.on('error', stop);
+    zip.on('entry', entry => {
+      try {
+        const name = archivePath(entry.fileName), type = (entry.externalFileAttributes >>> 16) & 0o170000;
+        if (++count > 12000 || (total += entry.uncompressedSize) > 256 * 1024 * 1024 || entry.uncompressedSize > LIMIT || entry.generalPurposeBitFlag & 1 || ![0, 0o100000, 0o040000].includes(type)) throw fail('ZIP 包包含链接、加密或过大条目');
+        if (entry.fileName.endsWith('/')) { zip.readEntry(); return; }
+        if (files.has(name)) throw fail('压缩包存在重复文件');
+        zip.openReadStream(entry, (error, stream) => {
+          if (error) return stop(error);
+          const chunks = []; let size = 0;
+          stream.on('error', stop); stream.on('data', chunk => { size += chunk.length; if (size > entry.uncompressedSize || size > LIMIT) { stream.destroy(); stop(fail('ZIP 条目大小无效')); } else chunks.push(chunk); });
+          stream.on('end', () => { if (settled) return; if (size !== entry.uncompressedSize) return stop(fail('ZIP 条目不完整')); files.set(name, Buffer.concat(chunks)); zip.readEntry(); });
+        });
+      } catch (error) { stop(error); }
+    });
+    zip.on('end', () => { if (settled) return; settled = true; files.size ? resolve(files) : reject(fail('压缩包为空')); });
+    zip.readEntry();
+  }));
+}
 
 function parseRuntime(output) {
   const text = String(output).replace(/\x1b\[[0-9;]*m/g, '');
@@ -96,7 +123,7 @@ async function officialRelease(id, fetchImpl = fetch) {
   return { version: release.tag_name.replace(/^v/, ''), url: asset.browser_download_url, file: asset.name, sha256: /^sha256:[a-f0-9]{64}$/.test(asset.digest || '') ? asset.digest.slice(7) : null };
 }
 
-function createPlatforms({ serverRoot, pluginPath = path.join(serverRoot, 'left4dead2/addons/sourcemod/plugins'), capture, exclusive = action => action(), fetchImpl = fetch, releaseResolver = id => officialRelease(id, fetchImpl), system = process.platform, stateDir = path.join(os.homedir(), '.local/state/dead-air-panel/platforms'), fault = () => {} }) {
+function createPlatforms({ serverRoot, pluginPath = path.join(serverRoot, 'left4dead2/addons/sourcemod/plugins'), capture, exclusive = action => action(), fetchImpl = fetch, releaseResolver, catalogResolver = releaseResolver ? async id => { const release = await releaseResolver(id); return { latest: release, versions: [release], warnings: [] }; } : id => officialCatalog(id, fetchImpl), system = process.platform, stateDir = path.join(os.homedir(), '.local/state/dead-air-panel/platforms'), fault = () => {} }) {
   const game = path.resolve(serverRoot, 'left4dead2');
   let busy = false, pendingStatus, last = null, releases = new Map();
   async function safeFile(base, relative, create = false) {
@@ -156,7 +183,8 @@ function createPlatforms({ serverRoot, pluginPath = path.join(serverRoot, 'left4
         for (const [name, digest] of Object.entries(saved.receipt?.probes || {})) { try { if (hash(await fs.readFile(await safeFile(game, name))) !== digest) verified = false; } catch { verified = false; } }
         const normalizeVersion = value => String(value || '').replace(/-git|-dev\+/g, '.').replace(/^v/, '');
         const restartRequired = !!saved.receipt?.restartRequired && !(verified && runtime[component.id].status === 'running' && normalizeVersion(runtime[component.id].version) === normalizeVersion(saved.receipt.version));
-        components.push({ ...component, probes: undefined, installed: present, diskVersion: present && verified ? saved.receipt.version : null, runtime: runtime[component.id], latest: releases.get(component.id)?.release || null, canRollback: !!saved.rollback, restartRequired, checkedAt: new Date().toISOString() });
+        const catalog = releases.get(component.id)?.catalog;
+        components.push({ ...component, probes: undefined, installed: present, diskVersion: present && verified ? saved.receipt.version : null, diskReleaseId: verified ? saved.receipt?.releaseId : null, runtime: runtime[component.id], latest: catalog?.latest || null, versions: catalog?.versions || [], catalogWarnings: catalog?.warnings || [], catalogCheckedAt: catalog?.checkedAt || null, canRollback: !!saved.rollback, restartRequired, checkedAt: new Date().toISOString() });
       }
       return last = { components, dependencies: dependencies(pluginInventory(pluginPath)), runtimeError, busy: false, supported: system === 'linux', checkedAt: new Date().toISOString() };
     })().finally(() => { pendingStatus = null; });
@@ -165,7 +193,7 @@ function createPlatforms({ serverRoot, pluginPath = path.join(serverRoot, 'left4
   async function checkUpdates() {
     if (busy) throw fail('平台操作正在执行', 409);
     const errors = {};
-    await Promise.all(COMPONENTS.map(async component => { try { const release = await releaseResolver(component.id); releases.set(component.id, { release, at: Date.now() }); } catch (error) { releases.delete(component.id); errors[component.id] = error.message; } }));
+    await Promise.all(COMPONENTS.map(async component => { try { const catalog = await catalogResolver(component.id); releases.set(component.id, { catalog, at: Date.now() }); } catch (error) { errors[component.id] = error.message; } }));
     return { ...await snapshot(), updateErrors: errors };
   }
   async function act(payload) {
@@ -185,11 +213,12 @@ function createPlatforms({ serverRoot, pluginPath = path.join(serverRoot, 'left4
           if (!saved.rollback) throw fail('没有可回退的版本', 409);
           for (const change of saved.rollback.changes) {
             const file = await safeFile(game, change.name);
-            if (hash(await fs.readFile(file)) !== change.after) throw fail('文件已被其他操作更改，未回退：' + change.name, 409);
+            let actual = null; try { actual = hash(await fs.readFile(file)); } catch (error) { if (error.code !== 'ENOENT') throw error; }
+            if (actual !== change.after) throw fail('文件已被其他操作更改，未回退：' + change.name, 409);
           }
           // A rollback is itself recoverable if interrupted halfway.
           const undo = [];
-          for (const change of saved.rollback.changes) undo.push({ name: change.name, before: (await fs.readFile(await safeFile(game, change.name))).toString('base64'), mode: (await fs.stat(await safeFile(game, change.name))).mode & 0o777 });
+          for (const change of saved.rollback.changes) { const file = await safeFile(game, change.name); let before = null, mode = 0o644; try { before = (await fs.readFile(file)).toString('base64'); mode = (await fs.stat(file)).mode & 0o777; } catch (error) { if (error.code !== 'ENOENT') throw error; } undo.push({ name: change.name, before, mode }); }
           const prior = saved.rollback.prior;
           saved.pending = { changes: undo }; await saveState(id, saved);
           try { await restore(saved.rollback.changes); await saveState(id, { receipt: prior ? { ...prior, restartRequired: true } : null }); }
@@ -200,15 +229,24 @@ function createPlatforms({ serverRoot, pluginPath = path.join(serverRoot, 'left4
         if ((action === 'install' && present) || (action === 'update' && !present)) throw fail('安装状态已变化，请刷新后重试', 409);
         for (const required of component.requires) if (!await installed(COMPONENTS.find(item => item.id === required))) throw fail('请先安装 ' + required, 409);
         const cached = releases.get(id);
-        const release = cached && Date.now() - cached.at < 10 * 60000 ? cached.release : await releaseResolver(id);
-        if (!payload.version || payload.version !== release.version) throw fail('官方版本已变化，请重新检查更新并确认', 409);
+        const catalog = cached && Date.now() - cached.at < 10 * 60000 ? cached.catalog : await catalogResolver(id);
+        const release = payload.releaseId ? catalog.versions.find(item => item.id === payload.releaseId) : catalog.versions.filter(item => item.version === payload.version).length === 1 ? catalog.versions.find(item => item.version === payload.version) : null;
+        if (!release || !payload.version || payload.version !== release.version) throw fail('官方版本已变化或所选版本无效，请重新获取版本并确认', 409);
+        const requiredMeta = id === 'stripper' && release.file?.match(/-mms(1\.\d+)-/);
+        if (requiredMeta) {
+          const meta = await readState('metamod'); let diskVersion = meta.receipt?.version;
+          for (const [name, digest] of Object.entries(meta.receipt?.probes || {})) { try { if (hash(await fs.readFile(await safeFile(game, name))) !== digest) diskVersion = null; } catch { diskVersion = null; } }
+          let runtimeVersion = null; if (!diskVersion) { try { runtimeVersion = parseRuntime(await capture(['meta version'])).metamod.version; } catch {} }
+          const known = (diskVersion || runtimeVersion || '').match(/^(1\.\d+)\./)?.[1];
+          if (known && known !== requiredMeta[1]) throw fail(`所选 Stripper 构建需要 MetaMod ${requiredMeta[1]}，当前为 ${known}；请先处理依赖版本`, 409);
+        }
         const url = new URL(release.url);
         if (url.protocol !== 'https:' || !['mms.alliedmods.net', 'sm.alliedmods.net', 'github.com'].includes(url.hostname)) throw fail('平台下载源无效');
         const response = await fetchImpl(release.url, { signal: AbortSignal.timeout(120000), redirect: url.hostname === 'github.com' ? 'follow' : 'error', headers: { 'user-agent': 'L4D2-Control' } });
         if (response.url && !['github.com', 'release-assets.githubusercontent.com', 'objects.githubusercontent.com', 'mms.alliedmods.net', 'sm.alliedmods.net'].includes(new URL(response.url).hostname)) throw fail('平台下载重定向地址无效', 502);
         const archive = await limitedResponse(response, LIMIT);
         if (release.sha256 && hash(archive) !== release.sha256) throw fail('官方安装包 SHA-256 校验失败', 502);
-        const files = unpackArchive(archive);
+        const files = await unpackPackage(archive, release.file);
         const selected = [...files].filter(([name]) => allowedFile(id, name));
         if (!component.probes.some(probe => files.has(probe) && elf32(files.get(probe)))) throw fail('安装包缺少适配 L4D2 x86 的 ELF 主组件');
         for (const [name, data] of selected) if (name.endsWith('.so') && !elf32(data)) throw fail('安装包包含不匹配的二进制：' + name);
@@ -220,13 +258,21 @@ function createPlatforms({ serverRoot, pluginPath = path.join(serverRoot, 'left4
           if (before && hash(before) === hash(data)) continue;
           changes.push({ name, before: before ? before.toString('base64') : null, mode, after: hash(data) });
         }
+        // Remove only obsolete managed binaries and alternate entry binaries, with rollback bytes.
+        const obsolete = new Set([...(saved.receipt?.managedFiles || []), ...component.probes]);
+        for (const name of obsolete) {
+          if (files.has(name) || !allowedFile(id, name) || !name.endsWith('.so')) continue;
+          const file = await safeFile(game, name);
+          try { const stat = await fs.stat(file); if (stat.size > LIMIT) throw fail('现有文件过大'); const before = await fs.readFile(file); changes.push({ name, before: before.toString('base64'), mode: stat.mode & 0o777, after: null }); }
+          catch (error) { if (error.code !== 'ENOENT') throw error; }
+        }
         if (!changes.length) return { ok: true, message: '选定版本的文件已存在；保留已有配置与插件。', restartRequired: !!saved.receipt?.restartRequired };
         saved.pending = { changes }; await saveState(id, saved);
         try {
-          for (const [index, change] of changes.entries()) { await fault(index, change.name); await atomic(game, change.name, files.get(change.name), change.mode); }
+          for (const [index, change] of changes.entries()) { await fault(index, change.name); if (change.after === null) await fs.rm(await safeFile(game, change.name)); else await atomic(game, change.name, files.get(change.name), change.mode); }
           const probes = {};
           for (const probe of component.probes) if (files.has(probe)) probes[probe] = hash(files.get(probe));
-          await saveState(id, { receipt: { version: release.version, installedAt: new Date().toISOString(), archiveSha256: hash(archive), probes, restartRequired: true }, rollback: { prior: saved.receipt || null, changes } });
+          await saveState(id, { receipt: { version: release.version, releaseId: release.id || null, managedFiles: selected.map(([name]) => name), installedAt: new Date().toISOString(), archiveSha256: hash(archive), probes, restartRequired: true }, rollback: { prior: saved.receipt || null, changes } });
         } catch (error) { await recover(id, saved); throw error; }
         last = null; return { ok: true, changedFiles: changes.length, preservedFiles: preserved, restartRequired: true, message: `已写入 ${changes.length} 个文件，保留 ${preserved} 个现有配置或插件；请重启游戏进程后检查。` };
       });
@@ -234,4 +280,4 @@ function createPlatforms({ serverRoot, pluginPath = path.join(serverRoot, 'left4
   }
   return { snapshot, checkUpdates, act, dependencies };
 }
-module.exports = { createPlatforms, COMPONENTS, parseRuntime, unpackArchive, allowedFile, officialRelease };
+module.exports = { createPlatforms, COMPONENTS, parseRuntime, unpackArchive, unpackPackage, allowedFile, officialRelease, officialCatalog };

@@ -224,3 +224,9 @@ The ordinary login page includes a sanitized Steam profile-link guide. Password 
 
 ### Built-in project attribution
 The System → About page contains the project introduction, QQ group and license notice. This identity is rendered by the server and has no dashboard switch to hide it. Official fingerprint builds reject missing attribution entries or inconsistent identity metadata. Hash checks detect changes; they are not release signatures or DRM and cannot prevent a source-code owner from modifying the checker. The activity log is under Server settings; the health-check entry is named 服务检查.
+
+### Historical platform versions
+
+Open **Plugins & Platforms → Platforms**, then **Fetch / refresh versions**. Choose a branch or compatibility build and a target version. The catalog lists publisher-hosted Source 1 Linux MetaMod / SourceMod builds and L4DToolZ / Stripper release assets still available for download. Source 2, Windows-only assets and deleted upstream files are excluded. Historical mixed ZIP packages install only L4D2 Linux files.
+
+Selecting a version only previews its cautions and available upstream release notes. Installation, upgrades and downgrades require a separate action and confirmation. Existing configs and SMX plugins are preserved; obsolete managed binaries are removed transactionally. One previous file change can be rolled back. Restart the game manually afterwards and verify runtime versions. Missing per-build notes are explicitly indicated; availability is not a guarantee of compatibility with the current game or plugins. Test historical versions and their dependencies on a staging game server first.

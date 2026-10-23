@@ -657,6 +657,18 @@ body.modal-open { overflow: hidden; }
 .platform-versions dd { margin: 0; font-size: 14px; font-weight: 650; overflow-wrap: anywhere; }
 .platform-caution { display: flex; gap: 8px; font-size: 14px; line-height: 1.7; color: var(--muted); }
 .platform-caution svg { width: 17px; min-width: 17px; margin-top: 3px; }
+.platform-version-picker { display: grid; grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr); gap: 12px; margin: 20px 0; }
+.platform-version-picker label { min-width: 0; font-size: 14px; font-weight: 650; }
+.platform-version-picker small { font-size: 12px; color: var(--muted); font-weight: 400; }
+.platform-version-picker select { display: block; width: 100%; min-height: 44px; margin-top: 8px; padding: 8px; border: 1px solid var(--line); border-radius: 9px; background: var(--bg); color: var(--text); font: inherit; }
+.platform-version-picker select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.platform-version-notes { padding: 16px; border-radius: 12px; background: var(--bg); border: 1px solid var(--line); }
+.platform-version-notes h3 { font-size: 15px; margin: 0 0 10px; overflow-wrap: anywhere; }
+.platform-version-notes .platform-caution { margin: 0 0 12px; }
+.platform-version-notes .platform-caution span { white-space: pre-line; }
+.platform-version-notes summary { font-size: 14px; cursor: pointer; color: var(--accent); }
+.platform-version-notes pre { white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; font-size: 14px; line-height: 1.7; color: var(--muted); max-height: 240px; overflow-y: auto; }
+@media (max-width: 540px) { .platform-version-picker { grid-template-columns: 1fr; } }
 .platform-restart { font-size: 14px; line-height: 1.6; color: var(--accent); }
 .platform-error { font-size: 14px; overflow-wrap: anywhere; }
 .platform-card footer { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 22px; }

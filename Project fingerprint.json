@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "projectId": "l4d2-control-bf312edc896c79baad5c",
-  "fingerprint": "0ced5fd095e480800013e5efac904caa6e5616882842975aa3a1b2d756dd4127",
+  "fingerprint": "aeb1373481929162db2b16b2e2f4d2f9661a2c3776c977f666c19b00fd9eca71",
   "files": [
     {
       "path": "Build project fingerprint.js",
@@ -57,7 +57,7 @@
     },
     {
       "path": "index.html",
-      "sha256": "6e3851e232e26a9c40b5fc552f4493735710572b580fd0066562fa641965db87"
+      "sha256": "e3594752a72a93abf3bbf7fcb61db7a8b615d93b78c71c9909eb8b4cb86e9f13"
     },
     {
       "path": "login.css",
@@ -81,11 +81,15 @@
     },
     {
       "path": "platform manager.js",
-      "sha256": "6b874b8e2883692101dbbe77dd3d5f7877c150c82591e671ed3bc1d849fa8a5b"
+      "sha256": "465aa143efa533631c59d61a79739e79e11999d86dc35f896835678d684c44e1"
+    },
+    {
+      "path": "platform versions.js",
+      "sha256": "2b9eec49b2a539cf5c66f7b1c117dae85384496a5298b4289b670564ca2fa0ab"
     },
     {
       "path": "platforms.js",
-      "sha256": "973eb59c23897084d95d15412184e4bf4f52badc0ab0848246946f0f83319f84"
+      "sha256": "322ab4c397bca8f55fddf64660a23dc126d7c32ddcde75ed526c02253ad596a1"
     },
     {
       "path": "player manager.js",
@@ -113,7 +117,7 @@
     },
     {
       "path": "project fingerprint.js",
-      "sha256": "3978c22ec39180c8321a13ba94a6e9891c862ab51014aa8436a960c62fe39ed4"
+      "sha256": "e4c027aecd94b2767268c3685647593fd95cfebd06a361c39cd5c4647fbe81e4"
     },
     {
       "path": "server.js",
@@ -125,7 +129,7 @@
     },
     {
       "path": "styles.css",
-      "sha256": "35bddbadef55ad976886cbf56a109584d825e9ebf6c4cac430fa1c7dafc4bb87"
+      "sha256": "743b721d6d7dedfa740b42a365864ee46a443bbba5872af85e7b41298a8a8b50"
     }
   ]
 }
