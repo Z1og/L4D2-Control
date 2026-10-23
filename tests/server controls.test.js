@@ -3,14 +3,16 @@ const { createRestartController, inspectGame } = require('../server controls');
 const old = { pid: 101, identity: '101:1', supervised: true }, next = { pid: 102, identity: '102:2', supervised: true };
 const tick = () => new Promise(resolve => setImmediate(resolve));
 
-test('game restart shortcuts share confirmation, busy state and retry without restarting the host', async () => {
+test('game restart is available only on overview with confirmation, busy state and retry', async () => {
   const vm = require('node:vm'), cheerio = require('cheerio');
   const html = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
   const $html = cheerio.load(html);
-  assert.equal($html('[data-game-restart]').length, 2);
+  assert.equal($html('[data-game-restart]').length, 1);
   assert.equal($html('#restartServer').text(), '重启游戏');
-  assert.equal($html('#restartPlatformGame').text(), '重启游戏');
-  assert.equal($html('[data-game-restart][data-admin-only]').length, 2);
+  assert.equal($html('#overviewView [data-game-restart][data-admin-only]').length, 1);
+  assert.equal($html('#restartPlatformGame').length, 0);
+  assert.equal($html('#platformPage [data-game-restart], #platformPage [data-game-restart-status]').length, 0);
+  assert.equal($html('[data-game-restart][data-admin-only]').length, 1);
   assert.match($html('#restartServerDialog').text(), /不重启整台主机/);
   const nodes = new Map(), posts = [], timers = [], notices = [];
   function node(id) {
@@ -19,7 +21,7 @@ test('game restart shortcuts share confirmation, busy state and retry without re
       showModal() { this.open = true; }, close() { this.open = false; this.handlers.close?.(); }, focus() { this.focused = true; } });
     return nodes.get(id);
   }
-  const triggers = ['#restartServer', '#restartPlatformGame'].map(node), statuses = ['#restartServerStatus', '#platformGameRestartStatus'].map(node);
+  const triggers = ['#restartServer'].map(node), statuses = ['#restartServerStatus'].map(node);
   let fail = false;
   const context = vm.createContext({ $: node, restartBusy: false, restartTimer: null,
     document: { querySelectorAll: selector => selector === '[data-game-restart]' ? triggers : statuses },
@@ -31,7 +33,7 @@ test('game restart shortcuts share confirmation, busy state and retry without re
     trigger.onclick(); assert.equal(node('#restartServerDialog').open, true); assert.equal(posts.length, 0);
     node('#cancelServerRestart').onclick(); assert.equal(node('#restartServerDialog').open, false); assert.equal(trigger.focused, true);
   }
-  triggers[1].onclick(); fail = true; await node('#confirmServerRestart').onclick();
+  triggers[0].onclick(); fail = true; await node('#confirmServerRestart').onclick();
   assert.equal(node('#restartServerDialog').open, true); assert.equal(node('#restartServerMessage').textContent, 'fixture failure');
   assert.equal(node('#confirmServerRestart').disabled, false);
   fail = false; await node('#confirmServerRestart').onclick();
