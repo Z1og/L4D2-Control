@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "projectId": "l4d2-control-bf312edc896c79baad5c",
-  "fingerprint": "aeb1373481929162db2b16b2e2f4d2f9661a2c3776c977f666c19b00fd9eca71",
+  "fingerprint": "585ca25357485c353aa56f541e4346dd929099bb63feba20a3c4726df9067052",
   "files": [
     {
       "path": "Build project fingerprint.js",
@@ -57,7 +57,7 @@
     },
     {
       "path": "index.html",
-      "sha256": "e3594752a72a93abf3bbf7fcb61db7a8b615d93b78c71c9909eb8b4cb86e9f13"
+      "sha256": "34b4884d958557e45286d823f53bd59708e69f6749d73e82649d2f670a73c5f1"
     },
     {
       "path": "login.css",
@@ -101,7 +101,7 @@
     },
     {
       "path": "players.js",
-      "sha256": "2fc823e386b60815db1e81f8ac788fdc00257e9c5db46084dfa6eba370110d6c"
+      "sha256": "a58f422c0866d555194871398c306ce300c92583c495670b0cd9463ce16ff87b"
     },
     {
       "path": "project about.js",

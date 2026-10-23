@@ -2,6 +2,46 @@ const test = require('node:test'), assert = require('node:assert/strict'), fs = 
 const { createRestartController, inspectGame } = require('../server controls');
 const old = { pid: 101, identity: '101:1', supervised: true }, next = { pid: 102, identity: '102:2', supervised: true };
 const tick = () => new Promise(resolve => setImmediate(resolve));
+
+test('game restart shortcuts share confirmation, busy state and retry without restarting the host', async () => {
+  const vm = require('node:vm'), cheerio = require('cheerio');
+  const html = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
+  const $html = cheerio.load(html);
+  assert.equal($html('[data-game-restart]').length, 2);
+  assert.equal($html('#restartServer').text(), '重启游戏');
+  assert.equal($html('#restartPlatformGame').text(), '重启游戏');
+  assert.equal($html('[data-game-restart][data-admin-only]').length, 2);
+  assert.match($html('#restartServerDialog').text(), /不重启整台主机/);
+  const nodes = new Map(), posts = [], timers = [], notices = [];
+  function node(id) {
+    if (!nodes.has(id)) nodes.set(id, { disabled: false, isConnected: true, handlers: {}, classList: { toggle() {} },
+      addEventListener(name, fn) { this.handlers[name] = fn; },
+      showModal() { this.open = true; }, close() { this.open = false; this.handlers.close?.(); }, focus() { this.focused = true; } });
+    return nodes.get(id);
+  }
+  const triggers = ['#restartServer', '#restartPlatformGame'].map(node), statuses = ['#restartServerStatus', '#platformGameRestartStatus'].map(node);
+  let fail = false;
+  const context = vm.createContext({ $: node, restartBusy: false, restartTimer: null,
+    document: { querySelectorAll: selector => selector === '[data-game-restart]' ? triggers : statuses },
+    setInterval: fn => { timers.push(fn); return timers.length; }, clearInterval() {}, syncStatus() {}, loadPlayers() {},
+    post: async (url, body) => { posts.push({ url, body }); if (fail) throw Error('fixture failure'); return { status: 'restarting', message: 'waiting' }; }, record: value => notices.push(value), toast() {} });
+  const source = fs.readFileSync(path.join(__dirname, '../players.js'), 'utf8');
+  vm.runInContext(source.slice(source.indexOf('function displayRestartStatus('), source.indexOf('\ncheckRestartStatus();')), context);
+  for (const trigger of triggers) {
+    trigger.onclick(); assert.equal(node('#restartServerDialog').open, true); assert.equal(posts.length, 0);
+    node('#cancelServerRestart').onclick(); assert.equal(node('#restartServerDialog').open, false); assert.equal(trigger.focused, true);
+  }
+  triggers[1].onclick(); fail = true; await node('#confirmServerRestart').onclick();
+  assert.equal(node('#restartServerDialog').open, true); assert.equal(node('#restartServerMessage').textContent, 'fixture failure');
+  assert.equal(node('#confirmServerRestart').disabled, false);
+  fail = false; await node('#confirmServerRestart').onclick();
+  assert.equal(posts.length, 2); assert.equal(posts[1].url, '/api/server/restart'); assert.equal(posts[1].body.confirmed, true);
+  assert.equal(node('#restartServerDialog').open, false); assert.ok(triggers.every(button => button.disabled));
+  triggers[0].onclick(); assert.equal(node('#restartServerDialog').open, false);
+  vm.runInContext('displayRestartStatus({status:"completed",message:"ready"})', context);
+  assert.ok(triggers.every(button => !button.disabled)); assert.ok(statuses.every(message => message.textContent === 'ready'));
+  assert.equal(notices.length, 1);
+});
 test('restart needs explicit confirmation and a single verified supervisor', async () => {
   for (const processes of [[], [old,next], [{ ...old, supervised: false }]]) { let kills = 0; const control = createRestartController({ inspect: async () => processes, terminate: () => kills++ }); await assert.rejects(() => control.start({ confirmed: true })); assert.equal(kills, 0); }
   const control = createRestartController({ inspect: async () => [old] }); await assert.rejects(() => control.start({}), /确认/);

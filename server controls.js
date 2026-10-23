@@ -21,8 +21,8 @@ async function inspectGame(serverRoot, proc = '/proc') {
 function createRestartController({ inspect, terminate = pid => process.kill(pid, 'SIGTERM'), ready = async () => true, sleep = ms => new Promise(resolve => setTimeout(resolve, ms)), now = Date.now }) {
   let state = { status: 'idle', message: '尚未执行重启' }, busy = false;
   async function start(payload) {
-    if (payload.confirmed !== true) throw fail('请先确认重启服务器', 400);
-    if (busy) throw fail('服务器正在重启，请勿重复提交');
+    if (payload.confirmed !== true) throw fail('请先确认重启游戏', 400);
+    if (busy) throw fail('游戏正在重启，请勿重复提交');
     busy = true;
     try {
       const processes = await inspect();
