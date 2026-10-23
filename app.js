@@ -400,19 +400,20 @@ async function startDownload(source, id, title) {
   if (!downloadJobs.some(job => job.id === data.job.id)) downloadJobs.push(data.job);
   renderDownloads(); if (workshopResults.length) renderWorkshopResults(); if (pluginStoreLoaded) renderPluginStoreResults(); toast('已加入下载队列');
 }
-let themeMode = ['auto', 'light', 'dark'].includes(localStorage.getItem('deadAirTheme')) ? localStorage.getItem('deadAirTheme') : 'auto';
-function autoTheme() { const now = new Date(); const minutes = now.getHours() * 60 + now.getMinutes(); const toMinutes = value => { const [h, m] = value.split(':').map(Number); return h * 60 + m; }; const rise = toMinutes($('#sunriseTime').value), set = toMinutes($('#sunsetTime').value); return rise < set ? minutes >= rise && minutes < set : minutes >= rise || minutes < set; }
-function applyTheme(mode) {
-  themeMode = mode;
-  const label = { auto: '跟随日出日落', light: '浅色', dark: '深色' }[mode];
-  document.body.classList.toggle('light', mode === 'light' || mode === 'auto' && autoTheme());
+let themeMode = window.PanelAppearance.get().mode;
+function refreshThemeControls() {
+  const settings = window.PanelAppearance.get(); themeMode = settings.mode;
+  const label = { auto: '跟随日出日落', light: '浅色', dark: '深色' }[themeMode];
   $('#themeToggle').title = '主题：' + label;
   $('#themeToggle').setAttribute('aria-label', '主题：' + label + '，点击切换');
-  $('#themeToggle').innerHTML = '<i data-lucide="' + (mode === 'light' ? 'sun' : mode === 'dark' ? 'moon' : 'sun-moon') + '"></i>';
+  $('#themeToggle').innerHTML = '<i data-lucide="' + (themeMode === 'light' ? 'sun' : themeMode === 'dark' ? 'moon' : 'sun-moon') + '"></i>';
   $('#themeSettingLabel').textContent = label;
-  $$('[data-theme]').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.theme === mode)));
-  localStorage.setItem('deadAirTheme', mode); icons();
+  $('#sunriseTime').value = settings.sunrise; $('#sunsetTime').value = settings.sunset;
+  $$('[data-theme]').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.theme === themeMode)));
+  icons();
 }
+function applyTheme(mode) { window.PanelAppearance.set({ mode }); refreshThemeControls(); }
+window.addEventListener('panelappearancechange', refreshThemeControls);
 
 async function syncStatus() {
   try { const data = await api('/api/status'); document.body.dataset.serverState = data.online ? 'online' : 'offline'; currentMap = data.currentMap || ''; if (isGuest) { $('#overviewPlayerCount').textContent = data.playerCount ?? '—'; $('#overviewPlayerHint').textContent = '真人在线数量 · 不公开玩家资料'; } renderCurrentMap(currentMap); $('#serverStatus strong').textContent = data.online ? '服务器运行正常' : '游戏进程未运行'; $('#serverStatus span:not(.latency)').textContent = `同步于 ${new Date(data.lastSync || Date.now()).toLocaleTimeString()}`; $('#serverStatus .latency').lastChild.textContent = data.online ? '在线' : '离线'; $('#overviewState').textContent = data.online ? '在线' : '离线'; $('#sidebarState').textContent = data.online ? '在线' : '离线'; renderMaps(); }
@@ -548,8 +549,7 @@ $$('[data-theme]').forEach(button => button.onclick = () => applyTheme(button.da
 $('#themeToggle').onclick = () => applyTheme(themeMode === 'auto' ? 'light' : themeMode === 'light' ? 'dark' : 'auto');
 $('#copyAddress').onclick = $('#copyServerConnection').onclick = copyGameConnection;
 $('#serverConnectCommand').onclick = event => { event.currentTarget.select(); copyGameConnection(); };
-$('#sunriseTime').value = localStorage.getItem('deadAirSunrise') || '07:00'; $('#sunsetTime').value = localStorage.getItem('deadAirSunset') || '19:00';
-$('#sunriseTime').onchange = $('#sunsetTime').onchange = () => { localStorage.setItem('deadAirSunrise', $('#sunriseTime').value); localStorage.setItem('deadAirSunset', $('#sunsetTime').value); if (themeMode === 'auto') applyTheme('auto'); toast('主题时段已更新'); };
+$('#sunriseTime').onchange = $('#sunsetTime').onchange = () => { window.PanelAppearance.set({ sunrise: $('#sunriseTime').value, sunset: $('#sunsetTime').value }); toast('主题时段已更新'); };
 $('#refreshBtn').onclick = async () => { const button = $('#refreshBtn'); button.disabled = true; button.setAttribute('aria-busy', 'true'); try { await Promise.all([loadMaps(), loadPlugins(), loadConnection()]); await syncStatus(); toast('状态检查已完成'); } finally { button.disabled = false; button.removeAttribute('aria-busy'); } };
 function rememberBrowseState() {
   if (isGuest) return;
@@ -577,7 +577,7 @@ loadDownloads();
 setInterval(() => { if (!document.hidden && (!$('#workshopView').classList.contains('hidden') || downloadJobs.some(job => !['completed', 'failed', 'cancelled'].includes(job.status)))) loadDownloads(); }, 1500);
 loadConnection();
 Promise.all([loadMaps(), loadPlugins()]).then(syncStatus);
-setInterval(() => { if (themeMode === 'auto') applyTheme('auto'); }, 15 * 60 * 1000);
+// Shared appearance controller refreshes automatic light/dark mode every minute.
 
 function libraryControls(busy) {
   libraryBusy = busy;

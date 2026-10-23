@@ -230,3 +230,8 @@ The System → About page contains the project introduction, QQ group and licens
 Open **Plugins & Platforms → Platforms**, then **Fetch / refresh versions**. Choose a branch or compatibility build and a target version. The catalog lists publisher-hosted Source 1 Linux MetaMod / SourceMod builds and L4DToolZ / Stripper release assets still available for download. Source 2, Windows-only assets and deleted upstream files are excluded. Historical mixed ZIP packages install only L4D2 Linux files.
 
 Selecting a version only previews its cautions and available upstream release notes. Installation, upgrades and downgrades require a separate action and confirmation. Existing configs and SMX plugins are preserved; obsolete managed binaries are removed transactionally. One previous file change can be rolled back. Restart the game manually afterwards and verify runtime versions. Missing per-build notes are explicitly indicated; availability is not a guarantee of compatibility with the current game or plugins. Test historical versions and their dependencies on a staging game server first.
+
+
+### Appearance themes
+
+Use Server Settings → Appearance or the top-right palette button to choose Classic COUI / Cupertino and six accent colors. Light, dark and custom sunrise/sunset modes are independent. Preferences are browser-local and shared by sign-in and panel pages, without changing the server or other users. Cupertino is an original web implementation inspired by [compose-cupertino](https://github.com/alexzhirkevich/compose-cupertino), not an embedded Kotlin library.

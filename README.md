@@ -157,3 +157,8 @@ Changes require confirmation and read-back; mismatches restore previous values. 
 在「插件、平台管理 → 平台管理」点击“获取 / 刷新版本”，按分支或兼容构建选择目标版本。列表来自官方仍可下载的 MetaMod / SourceMod Source 1 Linux 构建和 L4DToolZ / Stripper 发行包；不包含 Source 2、Windows 或官方已删除的文件。历史混合 ZIP 仅提取 L4D2 Linux 文件。
 
 选择版本只更新预览与对应注意事项，不会自动安装。确认“安装所选版本”或“切换 / 修复所选版本”后才写入文件，支持升级和降级；完成后手动重启游戏并核验运行版本。官方未提供逐构建说明的版本会明确提示，不代表已验证所有旧版兼容性。保留已有配置和 SMX，切换时清理不再使用的受管二进制，上一轮文件变更可回退一次；请先在测试服验证旧版依赖。
+
+
+### 外观主题
+
+在服务器设置 → 外观偏好，或点击右上角调色盘，可切换「经典 COUI / Cupertino」界面风格与六种强调配色。明暗模式独立控制，支持自定义日出日落时段；偏好仅保存在当前浏览器，登录页与控制台共用，不影响服务器或其他用户。Cupertino 为原创网页风格实现，设计参考 compose-cupertino，并未嵌入其 Kotlin 组件或改变业务操作。
