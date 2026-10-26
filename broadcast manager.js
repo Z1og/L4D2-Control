@@ -67,6 +67,7 @@ function createBroadcast({ directory, collect, now = Date.now }) {
       const saved = data.feeds[feed] || { items: [], updatedAt: null, error: '' };
       if (feed === 'maps') saved.items = saved.items.filter(item => Date.parse(item.updatedAt) >= monthAgo(at) && Date.parse(item.updatedAt) <= at + 300000);
       saved.items = saved.items.filter(item => !data.dismissed?.includes(item.id));
+      if (feed === 'maps') saved.reviewItems = (saved.reviewItems || []).filter(item => Date.parse(item.updatedAt) >= monthAgo(at) && Date.parse(item.updatedAt) <= at + 300000 && !data.dismissed?.includes(item.id) && !data.entries.some(entry => entry.kind === 'classic' && entry.url === item.url));
       data.feeds[feed] = { ...saved, refreshing: pending.has(feed) };
     }
     return data;
@@ -89,7 +90,7 @@ function createBroadcast({ directory, collect, now = Date.now }) {
     await mutate(data => {
       const index = data.entries.findIndex(item => item.id === id);
       if (index >= 0) data.entries.splice(index, 1);
-      else if (Object.values(data.feeds).some(feed => feed.items.some(item => item.id === id))) {
+      else if (Object.values(data.feeds).some(feed => [...feed.items, ...(feed.reviewItems || [])].some(item => item.id === id))) {
         data.dismissed = [...new Set([...(data.dismissed || []), id])].slice(-2000);
       } else throw Object.assign(new Error('内容已不存在'), { status: 404 });
     });

@@ -521,7 +521,7 @@ async function handleApi(req, res, body) {
     if (req.method === 'GET' && pathname === '/api/downloads') { res.end(JSON.stringify({ jobs: downloads.list() })); return; }
     if (req.method === 'POST' && pathname === '/api/downloads/cancel') { const payload = body ? JSON.parse(body) : {}; res.end(JSON.stringify(downloads.cancel(payload.id))); return; }
     if (req.method === 'POST' && pathname === '/api/downloads/dismiss') { const payload = body ? JSON.parse(body) : {}; res.end(JSON.stringify(downloads.dismiss(payload.id))); return; }
-    if (req.method === 'GET' && pathname === '/api/broadcast') { res.end(JSON.stringify(await broadcast.snapshot())); return; }
+    if (req.method === 'GET' && pathname === '/api/broadcast') { const data = await broadcast.snapshot(); if (req.access.role === 'guest') delete data.feeds.maps.reviewItems; res.end(JSON.stringify(data)); return; }
     if (req.method === 'POST' && pathname === '/api/broadcast/save') { res.end(JSON.stringify(await broadcast.save(body ? JSON.parse(body) : {}))); return; }
     if (req.method === 'POST' && pathname === '/api/broadcast/delete') { res.end(JSON.stringify(await broadcast.remove(body ? JSON.parse(body) : {}))); return; }
     if (req.method === 'POST' && pathname === '/api/broadcast/refresh') { res.end(JSON.stringify(await broadcast.refresh((body ? JSON.parse(body) : {}).feed))); return; }

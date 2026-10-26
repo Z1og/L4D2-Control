@@ -3,6 +3,16 @@ const cheerio = require('cheerio');
 const { parseSearch } = require('./steam source');
 
 const steamFile = id => `https://steamcommunity.com/sharedfiles/filedetails/?id=${id}`;
+function campaignEvidence(item) {
+  const tags = (item.tags || []).map(tag => tag.tag);
+  const mapTags = new Set(['Campaigns', 'Co-op', 'Single Player', 'Versus', 'Realism', 'Realism Versus', 'Survival', 'Scavenge']);
+  if (tags.every(tag => mapTags.has(tag))) return '作者战役分类';
+  const text = String(item.title || '') + '\n' + String(item.description || '');
+  const mapDescription = /\b(?:[2-9]|1\d)[- ](?:map|chapter|level)\s+campaign\b|\bbsp\s*(?:names?|files?)\s*:|\bM[1-9]\s*(?:to|[-–~])\s*M[1-9]\b|(?:自制|原创|合作|完整|移植|全新).{0,5}战役|战役.{0,12}(?:章节|关卡)|地图名[称]?\s*[:：]/i;
+  // Mixed tags often describe scripts/music. Keep uncertain entries for review;
+  // do not call every Campaigns-tagged add-on a map.
+  return Number(item.file_size) >= 8 * 1024 * 1024 && mapDescription.test(text) ? '战役分类与地图说明' : '';
+}
 function monthAgo(now) {
   const date = new Date(now), day = date.getUTCDate();
   date.setUTCDate(1); date.setUTCMonth(date.getUTCMonth() - 1);
@@ -28,7 +38,8 @@ function normalizeMaps(candidates, details, now) {
     const tags = Array.isArray(item.tags) ? item.tags.map(tag => String(tag.tag)) : [];
     if (!card || seen.has(id) || item.result !== 1 || item.consumer_app_id !== 550 || !tags.includes('Campaigns') || !Number.isFinite(updated) || updated < cutoff || updated > now + 300000) return [];
     seen.add(id);
-    return [{ id: `steam-${id}`, workshopId: id, title: card.title, english: '', summary: String(item.description || '').replace(/\[[^\]]*\]/g, '').replace(/<[^>]*>/g, '').slice(0, 500), url: steamFile(id), source: 'Steam 创意工坊', updatedAt: new Date(updated).toISOString(), publishedAt: Number.isFinite(created) && created > 0 ? new Date(created).toISOString() : null, isNew: created >= cutoff && created <= now + 300000, tags: tags.slice(0, 12), kind: 'recent' }];
+    const evidence = campaignEvidence(item);
+    return [{ id: `steam-${id}`, workshopId: id, title: card.title, english: '', summary: String(item.description || '').replace(/\[[^\]]*\]/g, '').replace(/<[^>]*>/g, '').slice(0, 500), url: steamFile(id), source: 'Steam 创意工坊', updatedAt: new Date(updated).toISOString(), publishedAt: Number.isFinite(created) && created > 0 ? new Date(created).toISOString() : null, isNew: created >= cutoff && created <= now + 300000, tags: tags.slice(0, 12), kind: evidence ? 'recent' : 'candidate', evidence }];
   }).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 }
 function createBroadcastSource(proxy = '', { request: injectedRequest, now = Date.now } = {}) {
@@ -69,7 +80,8 @@ function createBroadcastSource(proxy = '', { request: injectedRequest, now = Dat
     const json = JSON.parse(await request('https://api.steampowered.com/ISteamRemoteStorage/GetPublishedFileDetails/v1/', body.toString()));
     const details = json.response?.publishedfiledetails;
     if (!Array.isArray(details) || !details.some(item => item.result === 1 && item.consumer_app_id === 550)) throw new Error('Steam 地图详情不可用，保留上次内容');
-    return { items: normalizeMaps(candidates, details, now()), sourceUrl, scanned: ids.length, scope: `检查最近更新的 ${ids.length} 个战役条目，按地图更新时间筛选近一个月；分包按工坊条目展示，不代表全部地图。` };
+    const normalized = normalizeMaps(candidates, details, now()), items = normalized.filter(item => item.kind === 'recent'), reviewItems = normalized.filter(item => item.kind === 'candidate');
+    return { items, reviewItems, sourceUrl, scanned: ids.length, scope: `检查 ${ids.length} 个工坊战役分类条目，按作者分类、地图说明与更新时间筛选近一个月；${reviewItems.length} 条混合分类内容留待管理员核验。分包单独展示，尚未下载核验地图文件。` };
   };
 }
-module.exports = { createBroadcastSource, parseGuides, normalizeMaps, monthAgo };
+module.exports = { createBroadcastSource, parseGuides, normalizeMaps, monthAgo, campaignEvidence };

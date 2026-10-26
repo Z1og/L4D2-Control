@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "projectId": "l4d2-control-bf312edc896c79baad5c",
-  "fingerprint": "36eb60b57a3f70b84e3944001c6292e1e8ef010334e96d7747e60229daae7174",
+  "fingerprint": "67af500d94362ccc501d3c09dbb0607bacff8b15048cd7b78fba1c4672fbb7be",
   "files": [
     {
       "path": "Build project fingerprint.js",
@@ -65,7 +65,7 @@
     },
     {
       "path": "broadcast manager.js",
-      "sha256": "f0a504045113d983d7903f51eebd38d3ecc4ffbac65fd4fbc19c2a612b69f7fb"
+      "sha256": "190426d41dad107710ab1c9d38cdfd9ae2c1cf768b0d06401d0bb8ac753a11fc"
     },
     {
       "path": "broadcast seeds.js",
@@ -73,7 +73,7 @@
     },
     {
       "path": "broadcast sources.js",
-      "sha256": "ffb90063d9f567f10637d442f1f601f63308cd9db6c1faefebc1176929051d14"
+      "sha256": "bc88a3059029642e9df4dbeebb1aa125b5253bcf613b963bcb179f82ec611336"
     },
     {
       "path": "broadcast.css",
@@ -81,11 +81,11 @@
     },
     {
       "path": "broadcast.js",
-      "sha256": "5449ef5300d21796029a16283f867ad3a88150ca864614ca39b5b95bf481bb90"
+      "sha256": "5528dcb1df3a3c1ff5606ebd697934ddd7643c1c4ee031913ee4d57924cb9f77"
     },
     {
       "path": "index.html",
-      "sha256": "d8d710e5b4729651169853804861c6a003e883ec9c77012ef3d47e110e5428ea"
+      "sha256": "6d6a29753583aea3f96ad97b847402fdc9cb0c5ae44a5ab6ab3ea19fbf4e1391"
     },
     {
       "path": "login.css",
@@ -153,7 +153,7 @@
     },
     {
       "path": "server.js",
-      "sha256": "e506190e290d8fa771247e4a7c5e5b7dc94f376544dddb33ec75bfefe0aa3604"
+      "sha256": "d533fcb0f5f242ac37d012c367cf542bab40f21cf6705f4682994bb7454fed32"
     },
     {
       "path": "sourcemod/L4D2 Control Players.sp",

@@ -1,6 +1,6 @@
 const test = require('node:test'), assert = require('node:assert/strict'), fs = require('node:fs/promises'), path = require('node:path'), os = require('node:os');
 const { createBroadcast, cleanEntry, sourceLink } = require('../broadcast manager');
-const { normalizeMaps, parseGuides, createBroadcastSource, monthAgo } = require('../broadcast sources');
+const { normalizeMaps, parseGuides, createBroadcastSource, monthAgo, campaignEvidence } = require('../broadcast sources');
 const at = Date.parse('2026-10-26T08:00:00Z');
 async function temp(t) { const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'Radio test ')); t.after(() => fs.rm(dir, { recursive: true, force: true })); return dir; }
 const entry = { kind: 'qa', title: '紫黑贴图怎么解决？', content: '核对地图版本\n检查依赖', tags: ['地图故障'], map: 'Urban Flight' };
@@ -57,6 +57,22 @@ test('expired maps disappear from stored cache without initiating a new collecti
   const manager = createBroadcast({ directory: await temp(t), now: () => clock, collect: async () => ({ items: [{ id: 'steam-1', updatedAt: new Date(at).toISOString() }] }) });
   await manager.refresh('maps'); assert.equal((await manager.snapshot()).feeds.maps.items.length, 1);
   clock += 40 * 86400000; assert.equal((await manager.snapshot()).feeds.maps.items.length, 0);
+});
+test('Campaigns-tagged scripts, music and character mods stay out of recent maps; mixed campaign packages retain evidence', () => {
+  const item = (title, description, extraTags, file_size = 500000000) => ({ title, description, file_size, tags: ['Campaigns', ...extraTags].map(tag => ({ tag })) });
+  for (const fixture of [item('更多生还者AI功能', 'Advanced Bot AI custom features', ['Scripts'], 100000), item('Memories', 'A safe-room theme for The Passing', ['Scripts', 'Sounds']), item('Nightmare Aesthetics', 'The main mod defining the look of the world of L4D', ['Miscellaneous', 'Models']), item('Character skin', 'A new look for Nick', ['Nick'])]) assert.equal(campaignEvidence(fixture), '');
+  assert.ok(campaignEvidence(item('Archive:Zero part1', 'Fixed tanks from M1 to M5 have been reduced.', ['Scripts', 'Sounds', 'Models'])));
+  assert.ok(campaignEvidence(item('NOT SO SPIRAL', 'A chaotic 7-map campaign built from a blank grid.', ['Other', 'Textures', 'Sounds'])));
+  assert.ok(campaignEvidence(item('Reverse Dead Air', 'The campaign in reverse.', ['Co-op', 'Versus', 'Single Player'])));
+});
+test('uncertain items remain in the admin review queue until curated or dismissed', async t => {
+  const pending = { id: 'steam-55', title: '待确认地图', kind: 'candidate', updatedAt: new Date(at).toISOString(), url: 'https://steamcommunity.com/sharedfiles/filedetails/?id=55' };
+  const manager = createBroadcast({ directory: await temp(t), now: () => at, collect: async () => ({ items: [], reviewItems: [pending] }) });
+  await manager.refresh('maps'); assert.equal((await manager.snapshot()).feeds.maps.reviewItems.length, 1);
+  await manager.save({ ...entry, kind: 'classic', url: pending.url }); assert.equal((await manager.snapshot()).feeds.maps.reviewItems.length, 0);
+  const id = (await manager.snapshot()).entries.find(x => x.url === pending.url).id;
+  await manager.remove({ id, confirmed: true }); assert.equal((await manager.snapshot()).feeds.maps.reviewItems.length, 1);
+  await manager.remove({ id: pending.id, confirmed: true }); await manager.refresh('maps'); assert.equal((await manager.snapshot()).feeds.maps.reviewItems.length, 0);
 });
 const guideHtml = (id, title = '中文通关攻略') => `<a class="workshopItemCollection" data-appid="550" data-publishedfileid="${id}"><span class="guide"></span><div class="workshopItemTitle">${title}</div><span class="workshopItemAuthorName">作者 &amp; 同伴</span><div class="workshopItemShortDesc">路线与补给</div></a>`;
 test('guide parser scopes title and attribution to each guide and rejects other apps', () => {
