@@ -11,7 +11,7 @@ function cvarValue(output, name) {
   return null;
 }
 function createGameplayController({capture, directory, onlineCount = async()=>0, now=Date.now}) {
-  const file = path.join(directory,'gameplay.txt'); let busy=false;
+  const file = path.join(directory,'gameplay.txt'); let busy=false, publicCache=null, publicPending=null;
   async function read() {
     const output = await capture([...VARS.map(name=>'sm_cvar '+name),'bots_limit','sv_maxplayers','sm plugins list']);
     const values = Object.fromEntries(VARS.map(name=>[name,cvarValue(output,name)]));
@@ -32,7 +32,7 @@ function createGameplayController({capture, directory, onlineCount = async()=>0,
     if(body.confirmed!==true)throw fail('请先确认玩法变更',400);
     if(!MODES.some(x=>x.id===body.mode)||!DIFFICULTIES.some(x=>x.id===body.difficulty)||typeof body.allowDirect!=='boolean')throw fail('模式、难度或加入设置无效',400);
     if(typeof body.multiplayer!=='boolean')throw fail('多人设置无效',400);
-    busy=true;
+    busy=true; publicCache=null;
     try{
       const before=await read(), changes={mp_gamemode:body.mode,z_difficulty:body.difficulty,sv_allow_lobby_connect_only:body.allowDirect?'0':'1'};
       const cooperative=['coop','realism'].includes(body.mode);
@@ -64,8 +64,18 @@ function createGameplayController({capture, directory, onlineCount = async()=>0,
         if(changed.length){try{await capture(set(Object.entries(original)));const restored=await read();if(Object.entries(original).some(([key,value])=>restored.values[key]!==value))throw Error('rollback mismatch');}catch{throw fail('保存失败且未确认恢复，请刷新并检查游戏控制台',502);}}
         throw error;
       }
-    }finally{busy=false;}
+    }finally{busy=false;publicCache=null;}
   }
-  return {read:async()=>{const result=await read();delete result.values;return result;},apply};
+  async function readPublic() {
+    if(publicCache && now()-publicCache.updatedAt<10000)return {...publicCache};
+    if(!publicPending)publicPending=(async()=>{
+      const data=await read();
+      publicCache={mode:data.mode,modeName:MODES.find(x=>x.id===data.mode)?.name||data.mode,difficulty:data.difficulty,difficultyName:DIFFICULTIES.find(x=>x.id===data.difficulty)?.name||data.difficulty,
+        maxPlayers:data.maxPlayers>0?data.maxPlayers:null,botCount:data.botCount,allowDirect:data.values.sv_allow_lobby_connect_only===null?null:data.allowDirect,updatedAt:data.updatedAt};
+      return publicCache;
+    })().finally(()=>{publicPending=null;});
+    return {...await publicPending};
+  }
+  return {read:async()=>{const result=await read();delete result.values;return result;},readPublic,apply};
 }
 module.exports={createGameplayController,MODES,DIFFICULTIES,cvarValue};

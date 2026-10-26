@@ -101,7 +101,7 @@ function createBroadcast({ directory, collect, now = Date.now }) {
     if (pending.has(feed)) return pending.get(feed);
     const operation = (async () => {
       try {
-        const result = await collect(feed);
+        const result = await collect(feed, (await load()).feeds[feed]);
         await mutate(data => { data.feeds[feed] = { ...result, updatedAt: new Date(now()).toISOString(), error: '', errorAt: null }; });
       } catch (error) {
         await mutate(data => { data.feeds[feed] = { ...(data.feeds[feed] || { items: [], updatedAt: null }), error: error.message, errorAt: new Date(now()).toISOString() }; });

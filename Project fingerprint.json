@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "projectId": "l4d2-control-bf312edc896c79baad5c",
-  "fingerprint": "11fa2b42d3fb1b2ec88a02bd455017cc4db00e4cd4ad33e57100e0eb8b740329",
+  "fingerprint": "f096bf6b725abfa60d9dd0b3e06b8d318418e500cdec3349cd973bf4bffb39c4",
   "files": [
     {
       "path": "Build project fingerprint.js",
@@ -21,7 +21,7 @@
     },
     {
       "path": "access control.js",
-      "sha256": "1bbd0086629f7d0426d3a2d929e4faf1d3babb8058a9aa96391b4e8224b15da0"
+      "sha256": "b3584a872e90fcd1af431baf7443e415fdd4105a09cb109e32a1409b30afbdeb"
     },
     {
       "path": "account password.js",
@@ -29,7 +29,7 @@
     },
     {
       "path": "app.js",
-      "sha256": "1ba9e0c48bc8f0c7518b80a7e46c513c3a3cdf19f8720636e29a4bd709cec437"
+      "sha256": "2ff9f952edbbeb74a1a0d9ec67b73d5932810696c466c33e14a46f96df28a59a"
     },
     {
       "path": "appearance.css",
@@ -65,7 +65,7 @@
     },
     {
       "path": "broadcast manager.js",
-      "sha256": "190426d41dad107710ab1c9d38cdfd9ae2c1cf768b0d06401d0bb8ac753a11fc"
+      "sha256": "094b20a8956dee29a75bb51f4160e2125bd82158f40fd3864f1290c41befad2d"
     },
     {
       "path": "broadcast seeds.js",
@@ -73,19 +73,19 @@
     },
     {
       "path": "broadcast sources.js",
-      "sha256": "02b5f8a9ffa5fc185776bb9c36d1ff01df42a1b32d719716837984061072dc32"
+      "sha256": "fb044ecfc8e1e911510ed812a0ac2c17ca645270e71746a7556afdcaf4089c9b"
     },
     {
       "path": "broadcast.css",
-      "sha256": "907e07cf7c943e65b4e08b066586cc90c0eabb9e9f980e685c21929f1402f6a1"
+      "sha256": "a7ac39bcab8022ea7843d5d284d99abdd230586bd8f26068337c82105f196b12"
     },
     {
       "path": "broadcast.js",
-      "sha256": "d35b5858d11dcb3791bf734740343b24cbc5f98b80e345ff38fd38df0278b71b"
+      "sha256": "a268d4f1bc6fe73780e9b291238338b69fa809a7abc4e2cb081ba3a743c04451"
     },
     {
       "path": "index.html",
-      "sha256": "6d6a29753583aea3f96ad97b847402fdc9cb0c5ae44a5ab6ab3ea19fbf4e1391"
+      "sha256": "50bf35f0648ec0a6a4d74d15bfbd2822aa557de1928febeafbf2a37cfb59d221"
     },
     {
       "path": "login.css",
@@ -153,7 +153,7 @@
     },
     {
       "path": "server.js",
-      "sha256": "d533fcb0f5f242ac37d012c367cf542bab40f21cf6705f4682994bb7454fed32"
+      "sha256": "a5d0c01371f0a6621fdb9f1e0500fdf5ba7b5455ebf0616e9d7eea21becd9c4c"
     },
     {
       "path": "sourcemod/L4D2 Control Players.sp",
@@ -161,7 +161,7 @@
     },
     {
       "path": "styles.css",
-      "sha256": "00d3b65fe5785f77a52ffe40d6cb26f8e9f6a42b0c5479d960cc87639fc95d06"
+      "sha256": "da857e67408b960c1eaf41be05e60177c3636ce0b0858de6e448306008a7e1af"
     }
   ]
 }

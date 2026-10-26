@@ -71,7 +71,7 @@ function savedPanelView() {
 function navigate(view) {
   if (view === 'logs') view = 'settings';
   if (view === 'proxy') { selectContentSection('proxy', true); view = 'workshop'; }
-  if (!Object.hasOwn(panelViews, view) || typeof isGuest !== 'undefined' && isGuest && !['overview', 'maps', 'plugins', 'broadcast', 'about'].includes(view)) view = 'overview';
+  if (!Object.hasOwn(panelViews, view) || typeof isGuest !== 'undefined' && isGuest && !['overview', 'gameplay', 'maps', 'plugins', 'broadcast', 'about'].includes(view)) view = 'overview';
   try { sessionStorage.setItem('l4d2-panel-view', view); } catch {}
   try { if (location.hash !== `#${view}`) history.replaceState(null, '', `#${view}`); } catch {}
   window.panelState?.activate(view);
@@ -90,7 +90,7 @@ function navigate(view) {
 document.addEventListener('DOMContentLoaded', () => navigate(savedPanelView()), { once: true });
 window.addEventListener('hashchange', () => navigate(savedPanelView()));
 async function api(url, options) {
-  if (isGuest && !['/api/config','/api/status','/api/maps','/api/plugins','/api/broadcast','/api/openlist/map-download-info','/api/auth/session','/api/auth/logout','/api/auth/password'].includes(new URL(url,location.origin).pathname)) throw new Error('普通账号没有此操作权限');
+  if (isGuest && !['/api/config','/api/status','/api/maps','/api/plugins','/api/gameplay','/api/broadcast','/api/openlist/map-download-info','/api/auth/session','/api/auth/logout','/api/auth/password'].includes(new URL(url,location.origin).pathname)) throw new Error('普通账号没有此操作权限');
   const settings = { ...options, headers: { ...options?.headers } };
   if (!['GET', 'HEAD'].includes((settings.method || 'GET').toUpperCase())) { settings.headers['x-csrf-token'] = panelCsrf; if (!settings.headers['content-type']) settings.headers['content-type'] = 'application/json'; }
   const response = await fetch(url, settings);
@@ -751,6 +751,8 @@ function applyAccessPresentation() {
   $('#sessionHint').textContent = isGuest ? '仅查看与直连下载' : '服务器管理权限';
   $('#sessionAvatar').textContent = isGuest ? 'P' : 'A';
   if (isGuest) {
+    $('#gameplayDescription').textContent = '查看当前模式、难度和房间人数。';
+    $('#gameplayPublic').hidden = false;
     $('#mapsView .library-help').textContent = '展开查看战役和章节。已完成云端备份的自定义地图可以“直连下载导出（推荐）”；官方地图不提供导出。';
     $('#pluginsView .library-help').textContent = '这里展示服务器安装的插件及启用状态。普通账号只能查看，不能启用、停用或导出插件。';
     $('#overviewView .recent-panel h2').textContent = '地图快速浏览'; $('#overviewView .recent-panel .panel-heading p').textContent = '展开查看你想玩的战役';

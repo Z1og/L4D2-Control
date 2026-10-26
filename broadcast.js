@@ -43,7 +43,7 @@
     el('broadcastResultCount').textContent = `${rows.length} 条内容`; el('broadcastPageNumber').textContent = `${page} / ${pages}`;
     el('broadcastPrev').disabled = page <= 1; el('broadcastNext').disabled = page >= pages;
     const feedName = tab === 'maps' ? 'maps' : 'guides', feed = data?.feeds[feedName];
-    el('broadcastFeedStatus').textContent = feed ? [feed.updatedAt ? `网络资讯采集于 ${new Date(feed.updatedAt).toLocaleString('zh-CN')}` : '尚未采集网络资讯', feed.scope || (tab === 'maps' ? '经典清单可由管理员维护；近一个月以地图更新时间计算。' : '网络链接保留作者与出处；自定义答疑可补充版本和验证日期。'), feed.error ? `上次更新失败：${feed.error}。已保留原有内容。` : ''].join(' · ') : '正在读取广播内容…';
+    el('broadcastFeedStatus').textContent = feed ? [feed.updatedAt ? `网络资讯采集于 ${new Date(feed.updatedAt).toLocaleString('zh-CN')}` : '尚未采集网络资讯', feed.scope || (tab === 'maps' ? '经典清单可由管理员维护；近一个月以地图更新时间计算。' : '网络链接保留作者与出处；自定义答疑可补充版本和验证日期。'), feed.error ? `上次更新失败：${feed.error}。已保留原有内容。` : '', feed.translationError].filter(Boolean).join(' · ') : '正在读取广播内容…';
     el('refreshBroadcastFeed').disabled = Boolean(feed?.refreshing); el('refreshBroadcastFeed').innerHTML = `<i data-lucide="${feed?.refreshing ? 'loader-circle' : 'cloud-download'}"></i>${feed?.refreshing ? '正在采集…' : tab === 'maps' ? '更新地图资讯' : '更新网络攻略'}`;
     const keyword = `求生之路2 ${el('broadcastSearch').value.trim() || '地图攻略'}`;
     el('radioBiliSearch').href = 'https://search.bilibili.com/all?keyword=' + encodeURIComponent(keyword);
@@ -88,6 +88,8 @@
   function showDetail(id, open = true) {
     const item = entries().find(x => x.id === id); if (!item) return; detail = item;
     el('broadcastDetailTitle').textContent = item.title; el('broadcastDetailKind').textContent = names[item.kind]; el('broadcastDetailMeta').textContent = meta(item);
+    el('broadcastOriginal').hidden = !item.summaryOriginal; el('broadcastOriginal').open = false;
+    el('broadcastOriginalText').textContent = item.summaryOriginal || '';
     el('broadcastDetailBody').textContent = [item.english && item.english !== item.title ? item.english : '', item.content || item.summary, item.applicability ? `适用条件：${item.applicability}` : '', item.verifiedAt ? `管理员记录的验证日期：${item.verifiedAt}` : '', item.kind === 'recent' ? `项目发布：${date(item.publishedAt) || '未知'}\n项目更新：${date(item.updatedAt)}\n请查看作者说明，确认完整分包、依赖与适用玩法。` : item.kind === 'candidate' ? '作者标注了战役分类，但缺少明确的地图说明，尚不能确认为地图。核对作者页面后，可以收录为经典地图或移除资讯。' : '', item.linkType === 'search' ? '此链接打开地图名称搜索，请核对作者、版本与全部分包。' : ''].filter(Boolean).join('\n\n');
     const map = (item.map || (isMap(item) ? item.english || item.title : '')).toLowerCase();
     const related = map ? entries().filter(x => x.id !== id && x.map && (x.map.toLowerCase().includes(map) || map.includes(x.map.toLowerCase()))).slice(0, 8) : [];

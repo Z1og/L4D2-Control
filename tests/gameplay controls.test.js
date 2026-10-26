@@ -33,8 +33,15 @@ test('readback mismatch rolls all changed values back and never persists false s
  const f=fixture(t,{ignore:'bots_limit'});await assert.rejects(()=>f.control.apply({...payload,botCount:6}),/读回/);
  assert.equal(f.values.sv_maxplayers,'4');assert.equal(f.values.sv_visiblemaxplayers,'4');assert.equal(fs.existsSync(path.join(f.directory,'gameplay.txt')),false);
 });
-test('gameplay navigation sits above maps and is administrator-only',()=>{
+test('gameplay navigation is shared while settings and map reload stay administrator-only',()=>{
  const html=fs.readFileSync(path.join(__dirname,'../index.html'),'utf8');
- assert.ok(html.indexOf('data-view="gameplay"')<html.indexOf('data-view="maps"'));assert.match(html,/<section class="content hidden" data-admin-only id="gameplayView"/);
+ assert.ok(html.indexOf('data-view="gameplay"')<html.indexOf('data-view="maps"'));assert.match(html,/<section class="content hidden" id="gameplayView"/);assert.match(html,/<form data-admin-only id="gameplayForm"/);assert.match(html,/gameplay-reload" data-admin-only/);
  assert.match(html,/id="gameplayMaxPlayers"/);assert.doesNotMatch(html,/<span>Co-op · 合作模式<\/span>/);
+});
+
+test('ordinary gameplay snapshot exposes only live public values and invalidates after admin changes',async t=>{
+ const f=fixture(t);const s=await f.control.readPublic();
+ assert.deepEqual(Object.keys(s).sort(),['mode','modeName','difficulty','difficultyName','maxPlayers','botCount','allowDirect','updatedAt'].sort());
+ assert.equal(s.modeName,'合作战役');assert.equal(s.difficultyName,'普通');assert.equal(s.maxPlayers,4);assert.equal(f.writes.length,0);
+ await f.control.apply(payload);const changed=await f.control.readPublic();assert.equal(changed.maxPlayers,8);
 });

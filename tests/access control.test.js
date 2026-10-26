@@ -47,8 +47,9 @@ test('ordinary session whitelist denies management, raw downloads, assets and CS
  const access=createAccess({password:'admin-password',authenticateGuest:async()=>({steam64:id,name:'Test'})}),res=response();
  const session=await access.auth(post(),res,'/api/auth/guest',{}),cookie=res.headers['set-cookie'].split(';')[0];
  assert.match(res.headers['set-cookie'],/HttpOnly; SameSite=Strict/);assert.match(res.headers['set-cookie'],/Secure/);
- for(const url of ['/api/config','/api/status','/api/maps','/api/plugins','/'])assert.equal((await access.authorize(request('GET',cookie),url)).role,'guest');
- for(const url of ['/api/players','/api/proxy/export','/api/diagnostics','/api/gameplay','/api/maps/export','/api/openlist/download','/server.js','/mihomo/configs'])await assert.rejects(()=>access.authorize(request('GET',cookie),url),e=>e.status===403);
+ for(const url of ['/api/config','/api/status','/api/maps','/api/plugins','/api/gameplay','/api/broadcast','/'])assert.equal((await access.authorize(request('GET',cookie),url)).role,'guest');
+ for(const url of ['/api/players','/api/proxy/export','/api/diagnostics','/api/maps/export','/api/openlist/download','/server.js','/mihomo/configs'])await assert.rejects(()=>access.authorize(request('GET',cookie),url),e=>e.status===403);
+ for(const url of ['/api/gameplay','/api/map','/api/broadcast/save','/api/broadcast/delete','/api/broadcast/refresh'])await assert.rejects(()=>access.authorize(post(cookie,session.csrf),url),e=>e.status===403);
  await assert.rejects(()=>access.authorize(post(cookie),'/api/openlist/map-download-info'),/刷新/);
  assert.equal((await access.authorize(post(cookie,session.csrf),'/api/openlist/map-download-info')).role,'guest');
  for(let i=0;i<19;i++)await access.authorize(post(cookie,session.csrf),'/api/openlist/map-download-info');

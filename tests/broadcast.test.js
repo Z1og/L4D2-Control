@@ -1,6 +1,6 @@
 const test = require('node:test'), assert = require('node:assert/strict'), fs = require('node:fs/promises'), path = require('node:path'), os = require('node:os');
 const { createBroadcast, cleanEntry, sourceLink } = require('../broadcast manager');
-const { normalizeMaps, parseGuides, createBroadcastSource, monthAgo, campaignEvidence } = require('../broadcast sources');
+const { normalizeMaps, parseGuides, createBroadcastSource, monthAgo, campaignEvidence, chineseSummaries } = require('../broadcast sources');
 const at = Date.parse('2026-10-26T08:00:00Z');
 async function temp(t) { const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'Radio test ')); t.after(() => fs.rm(dir, { recursive: true, force: true })); return dir; }
 const entry = { kind: 'qa', title: '紫黑贴图怎么解决？', content: '核对地图版本\n检查依赖', tags: ['地图故障'], map: 'Urban Flight' };
@@ -96,4 +96,16 @@ test('source collector bounds scanning and verifies maps against batch metadata'
   assert.equal((await collect('guides')).items[0].title, '中文通关攻略');
   const data = await collect('maps'); assert.equal(data.items.length, 1); assert.equal(data.scanned, 1); assert.match(calls[2].body, /publishedfileids%5B0%5D=99/);
   await assert.rejects(() => collect('other'), /未知/);
+});
+
+test('foreign summaries are translated in batches, cached by original text and remain inspectable',async()=>{
+ let calls=0;const request=async(url,body,options)=>{calls++;assert.match(url,/edge\.microsoft\.com/);assert.equal(options.json,true);return JSON.stringify(JSON.parse(body).map(text=>({translations:[{text:'中文译文：'+text}]})));};
+ const source=[{id:'1',summary:'A campaign in a deserted city.'},{id:'2',summary:'三章节地图，前往楼顶寻找救援。'}];
+ const first=await chineseSummaries({items:structuredClone(source)},request);assert.equal(calls,1);assert.equal(first.items[0].summaryOriginal,source[0].summary);assert.match(first.items[0].summary,/中文译文/);assert.equal(first.items[1].summaryOriginal,undefined);
+ const again=await chineseSummaries({items:structuredClone(source)},request,first);assert.equal(calls,1);assert.equal(again.items[0].summary,first.items[0].summary);
+ const updated=await chineseSummaries({items:[{id:'1',summary:'An updated campaign in the city.'}]},request,first);assert.equal(calls,2);assert.match(updated.items[0].summaryOriginal,/updated/);
+});
+test('translation failure preserves source content and surfaces an explicit error',async()=>{
+ const result=await chineseSummaries({items:[{id:'1',summary:'Original campaign description'}]},async()=>{throw Error('upstream 429');});
+ assert.equal(result.items[0].summary,'Original campaign description');assert.match(result.translationError,/upstream 429/);assert.equal(result.items[0].summaryOriginal,undefined);
 });

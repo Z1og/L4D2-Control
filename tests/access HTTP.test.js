@@ -30,8 +30,9 @@ test('HTTP authentication, privacy projection, forbidden operations, ban invalid
  const guestPage=await(await req('/')).text();assert.match(guestPage,/data-panel-role="guest"/);assert.match(guestPage,/id="aboutView"/);assert.match(guestPage,/class="project-identity"/);assert.match(guestPage,/1002677414/);assert.doesNotMatch(guestPage,/__L4D2_ABOUT_/);
  data=await(await req('/api/config')).json();assert.deepEqual(Object.keys(data).sort(),['gameAddress','openList']);assert.deepEqual(Object.keys(data.openList),['enabled']);
  for(const asset of ['/appearance.js','/appearance.css'])assert.equal((await req(asset)).status,200,asset);
- for(const url of ['/api/platforms','/api/players','/api/gameplay','/api/diagnostics','/api/proxy/nodes','/api/maps/export?package=a.vpk','/api/openlist/maps','/api/players/whitelist','/server.js'])assert.equal((await req(url)).status,403,url);
+ for(const url of ['/api/platforms','/api/players','/api/diagnostics','/api/proxy/nodes','/api/maps/export?package=a.vpk','/api/openlist/maps','/api/players/whitelist','/server.js'])assert.equal((await req(url)).status,403,url);
  for(const url of ['/api/platforms/check','/api/platforms/action','/api/map','/api/gameplay','/api/server/restart','/api/maps/import','/api/plugins/import','/api/players/moderation','/api/players/notes'])assert.equal((await req(url,{confirmed:true})).status,403,url);
+ const gameplayReply=await req('/api/gameplay');assert.notEqual(gameplayReply.status,403);assert.equal(gameplayReply.status,502);assert.equal((await gameplayReply.json()).error,'服务暂时不可用，请稍后再试或联系管理员');
  const radio=await req('/api/broadcast');assert.equal(radio.status,200);const radioPublic=await radio.json();assert.ok(radioPublic.entries.length>=14);assert.equal(radioPublic.feeds.maps.reviewItems,undefined);
  for(const asset of ['/broadcast.js','/broadcast.css'])assert.equal((await req(asset)).status,200);
  for(const route of ['/api/broadcast/save','/api/broadcast/delete','/api/broadcast/refresh'])assert.equal((await req(route,{confirmed:true})).status,403);

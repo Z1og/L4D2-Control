@@ -425,7 +425,7 @@ async function handleApi(req, res, body) {
     if (req.method === 'GET' && req.url === '/api/status') { res.end(JSON.stringify(await (req.access.role === 'guest' ? guestStatus() : status()))); return; }
     if (pathname === '/api/gameplay') {
       if (!localMode) throw Object.assign(new Error('玩法管理需要在游戏服务器本机运行面板'), { status: 400 });
-      if (req.method === 'GET') { res.end(JSON.stringify(await gameplay.read())); return; }
+      if (req.method === 'GET') { res.end(JSON.stringify(await (req.access.role === 'guest' ? gameplay.readPublic() : gameplay.read()))); return; }
       if (req.method === 'POST') { res.end(JSON.stringify(await gameplay.apply(body ? JSON.parse(body) : {}))); return; }
       res.statusCode = 405; res.end(JSON.stringify({error:'method not allowed'})); return;
     }

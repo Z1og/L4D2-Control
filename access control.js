@@ -2,7 +2,7 @@
 const crypto = require('node:crypto');
 const { requestIP } = require('./ip regions');
 
-const GUEST_READ = new Set(['/api/config', '/api/status', '/api/maps', '/api/plugins', '/api/broadcast']);
+const GUEST_READ = new Set(['/api/config', '/api/status', '/api/maps', '/api/plugins', '/api/gameplay', '/api/broadcast']);
 const GUEST_WRITE = new Set(['/api/openlist/map-download-info']);
 const PUBLIC_FILES = new Set(['/login', '/login.html', '/login.js', '/login.css', '/appearance.js', '/appearance.css', '/assets/Steam%20profile%20guide.png', '/assets/Steam profile guide.png', '/project-license']);
 const PANEL_FILES = new Set(['/', '/index.html', '/app.js', '/broadcast.js', '/broadcast.css', '/account password.js', '/account%20password.js', '/panel state.js', '/panel%20state.js', '/players.js', '/platforms.js', '/gameplay.js', '/styles.css', '/downloads/baidu-download-helper.zip', '/downloads/baidu-download-helper-guide']);

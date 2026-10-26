@@ -39,19 +39,45 @@ function normalizeMaps(candidates, details, now) {
     return [{ id: `steam-${id}`, workshopId: id, title: card.title, english: '', summary: String(item.description || '').replace(/\[[^\]]*\]/g, '').replace(/<[^>]*>/g, '').slice(0, 500), url: steamFile(id), source: 'Steam 创意工坊', updatedAt: new Date(updated).toISOString(), publishedAt: Number.isFinite(created) && created > 0 ? new Date(created).toISOString() : null, isNew: created >= cutoff && created <= now + 300000, tags: tags.slice(0, 12), kind: evidence ? 'recent' : 'candidate', evidence }];
   }).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 }
+function needsChineseSummary(text) {
+  const letters = (text.match(/\p{L}/gu) || []).length, chinese = (text.match(/\p{Script=Han}/gu) || []).length;
+  return letters - chinese >= 4 && (!chinese || letters - chinese >= 24 && chinese / letters < 0.65);
+}
+async function chineseSummaries(result, request, previous) {
+  const saved = new Map([...(previous?.items || []), ...(previous?.reviewItems || [])].map(item => [item.id, item]));
+  const pending = [];
+  for (const item of [...result.items, ...(result.reviewItems || [])]) {
+    if (!item.summary || !needsChineseSummary(item.summary)) continue;
+    const cached = saved.get(item.id);
+    if (cached?.summaryOriginal === item.summary && cached.translationSource && cached.summary) {
+      Object.assign(item, { summary: cached.summary, summaryOriginal: cached.summaryOriginal, translationSource: cached.translationSource });
+    } else pending.push(item);
+  }
+  result.translationError = '';
+  try {
+    for (let offset = 0; offset < pending.length; offset += 20) {
+      const batch = pending.slice(offset, offset + 20);
+      const translated = JSON.parse(await request('https://edge.microsoft.com/translate/translatetext?isEnterpriseClient=false&to=zh-Hans', JSON.stringify(batch.map(item => item.summary)), { json: true, label: '简介翻译' }));
+      if (!Array.isArray(translated) || translated.length !== batch.length || translated.some(item => typeof item?.translations?.[0]?.text !== 'string' || !item.translations[0].text.trim())) throw new Error('翻译服务返回无效内容');
+      batch.forEach((item, index) => { item.summaryOriginal = item.summary; item.summary = translated[index].translations[0].text.trim(); item.translationSource = 'Microsoft 翻译'; });
+    }
+  } catch (error) { result.translationError = `部分简介翻译失败，已保留原文：${error.message}`; }
+  return result;
+}
 function createBroadcastSource(proxy = '', { request: injectedRequest, now = Date.now } = {}) {
   if (proxy && !/^socks5h:\/\/127\.0\.0\.1:\d{2,5}$/.test(proxy)) throw new Error('无线广播代理配置无效');
-  const request = injectedRequest || ((url, body) => new Promise((resolve, reject) => {
-    const args = ['--fail', '--silent', '--show-error', '--max-time', '25', '-A', 'L4D2-Control/1.0'];
+  const request = injectedRequest || ((url, body, options = {}) => new Promise((resolve, reject) => {
+    const args = ['--fail', '--location', '--silent', '--show-error', '--max-time', '25', '-A', 'L4D2-Control/1.0'];
     if (proxy) args.push('--proxy', proxy);
+    if (options.json) args.push('--header', 'Content-Type: application/json');
     if (body) args.push('--data', body);
     args.push(url);
     execFile(process.platform === 'win32' ? 'curl.exe' : 'curl', args, { timeout: 30000, maxBuffer: 8 * 1024 * 1024 }, (error, stdout) => {
-      if (error) { reject(new Error(`Steam 资讯读取失败${error.code ? `（${error.code}）` : ''}，请检查内容代理后重试`)); return; }
+      if (error) { reject(new Error(`${options.label || 'Steam 资讯'}读取失败${error.code ? `（${error.code}）` : ''}，请检查内容代理后重试`)); return; }
       resolve(stdout);
     });
   }));
-  return async feed => {
+  return async (feed, previous) => {
     if (feed === 'guides') {
       const url = 'https://steamcommunity.com/app/550/guides/?browsefilter=toprated&browsesort=toprated&requiredtags%5B0%5D=schinese&l=schinese';
       const found = [];
@@ -62,7 +88,7 @@ function createBroadcastSource(proxy = '', { request: injectedRequest, now = Dat
       }
       const items = [...new Map(found.map(item => [item.id, item])).values()].slice(0, 30);
       if (!items.length) throw new Error('未读取到 Steam 指南，保留上次内容；请稍后重试');
-      return { items: items.map(item => ({ ...item, id: `guide-${item.id}`, kind: 'guide', source: 'Steam 社区指南', tags: ['网络攻略'], content: '', map: '' })), sourceUrl: url, scope: 'Steam 简体中文标签的高评分指南，筛选含中文标题或摘要的条目；最多检查 90 条、展示 30 条，摘要来自作者，未经人工验证。' };
+      return chineseSummaries({ items: items.map(item => ({ ...item, id: `guide-${item.id}`, kind: 'guide', source: 'Steam 社区指南', tags: ['网络攻略'], content: '', map: '' })), sourceUrl: url, scope: 'Steam 简体中文标签的高评分指南，筛选含中文标题或摘要的条目；最多检查 90 条、展示 30 条，摘要来自作者，未经人工验证。' }, request, previous);
     }
     if (feed !== 'maps') throw new Error('未知资讯来源');
     const candidates = [], sourceUrl = 'https://steamcommunity.com/workshop/browse/?appid=550&browsesort=lastupdated&requiredtags%5B%5D=Campaigns&l=schinese';
@@ -78,7 +104,7 @@ function createBroadcastSource(proxy = '', { request: injectedRequest, now = Dat
     const details = json.response?.publishedfiledetails;
     if (!Array.isArray(details) || !details.some(item => item.result === 1 && item.consumer_app_id === 550)) throw new Error('Steam 地图详情不可用，保留上次内容');
     const normalized = normalizeMaps(candidates, details, now()), items = normalized.filter(item => item.kind === 'recent'), reviewItems = normalized.filter(item => item.kind === 'candidate');
-    return { items, reviewItems, sourceUrl, scanned: ids.length, scope: `检查 ${ids.length} 个工坊战役分类条目，按地图说明、包大小与更新时间筛选近一个月；${reviewItems.length} 条缺少明确地图说明的内容留待管理员核验。分包单独展示，尚未下载核验地图文件。` };
+    return chineseSummaries({ items, reviewItems, sourceUrl, scanned: ids.length, scope: `检查 ${ids.length} 个工坊战役分类条目，按地图说明、包大小与更新时间筛选近一个月；${reviewItems.length} 条缺少明确地图说明的内容留待管理员核验。分包单独展示，尚未下载核验地图文件。` }, request, previous);
   };
 }
-module.exports = { createBroadcastSource, parseGuides, normalizeMaps, monthAgo, campaignEvidence };
+module.exports = { createBroadcastSource, parseGuides, normalizeMaps, monthAgo, campaignEvidence, chineseSummaries };

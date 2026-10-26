@@ -5,12 +5,12 @@ const path = require('node:path');
 const vm = require('node:vm');
 const app = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
 const code = app.slice(app.indexOf('const panelViews ='), app.indexOf('async function api('));
-function fixture(hash = '', saved = null, blocked = false) {
+function fixture(hash = '', saved = null, blocked = false, guest = false) {
   const views = ['overview', 'gameplay', 'maps', 'plugins', 'diagnostics', 'workshop', 'proxy', 'players', 'broadcast', 'settings', 'about'];
   const events = {}, calls = [];
   const nodes = views.map(view => ({ id: view + 'View', dataset: { view }, classList: { toggle() {} }, setAttribute() {}, removeAttribute() {} }));
   const title = {}, location = { hash };
-  const context = vm.createContext({ location, history: { replaceState(a, b, value) { if (blocked) throw Error('Denied'); location.hash = value; } },
+  const context = vm.createContext({ isGuest: guest, location, history: { replaceState(a, b, value) { if (blocked) throw Error('Denied'); location.hash = value; } },
     sessionStorage: { getItem() { if (blocked) throw Error('Denied'); return saved; }, setItem(key, value) { if (blocked) throw Error('Denied'); saved = value; } },
     document: { addEventListener(name, fn) { events[name] = fn; } }, window: { addEventListener(name, fn) { events[name] = fn; } },
     $: () => title, $$: () => nodes, icons() {}, loadGameplay() { calls.push('gameplay'); }, loadProxy() { calls.push('proxy'); }, loadPlayers() { calls.push('players'); },
@@ -241,4 +241,9 @@ test('reloading content downloads restores the proxy tab without searching provi
   f.context.restoreBrowseState();
   assert.equal(f.context.contentSection, 'proxy'); assert.equal(f.context.contentSource, 'gamemaps');
   assert.equal(f.context.proxyLoads, 0); assert.equal(f.requests.length, 0);
+});
+
+test('ordinary navigation restores gameplay and broadcast while management routes stay blocked',()=>{
+ for(const view of ['gameplay','broadcast']){const f=fixture('#'+view,null,false,true);f.events.DOMContentLoaded();assert.equal(f.location.hash,'#'+view);}
+ for(const view of ['players','settings','diagnostics','workshop']){const f=fixture('#'+view,null,false,true);f.events.DOMContentLoaded();assert.equal(f.location.hash,'#overview');}
 });
