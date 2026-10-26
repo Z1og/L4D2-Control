@@ -8,9 +8,9 @@ const entry = { kind: 'qa', title: '紫黑贴图怎么解决？', content: '核�
 test('radio data survives restarts, serialized edits and confirmed deletion without any network reads', async t => {
   const directory = await temp(t); let calls = 0;
   const make = () => createBroadcast({ directory, now: () => at, collect: async () => { calls++; return { items: [] }; } });
-  const manager = make(), baseline = await manager.snapshot(); assert.equal(baseline.entries.length, 166); assert.equal(calls, 0);
+  const manager = make(), baseline = await manager.snapshot(); assert.equal(baseline.entries.length, 206); assert.equal(calls, 0);
   await Promise.all(Array.from({ length: 5 }, (_, i) => manager.save({ ...entry, title: '问题 ' + i })));
-  let snapshot = await make().snapshot(); assert.equal(snapshot.entries.length, 171); assert.equal(calls, 0);
+  let snapshot = await make().snapshot(); assert.equal(snapshot.entries.length, 211); assert.equal(calls, 0);
   const saved = snapshot.entries.find(x => x.title === '问题 0');
   await manager.save({ ...saved, content: '已解决', verifiedAt: '2026-10-26', pinned: true });
   assert.equal((await make().snapshot()).entries.find(x => x.id === saved.id).content, '已解决');
@@ -20,9 +20,9 @@ test('radio data survives restarts, serialized edits and confirmed deletion with
 });
 test('researched classic catalogue has Chinese summaries, unique campaigns and real source articles', () => {
   const { classics } = require('../broadcast classics');
-  assert.equal(classics.length, 160);
-  assert.equal(new Set(classics.map(x => x.id)).size, 160);
-  assert.equal(new Set(classics.map(x => x.english.toLowerCase())).size, 160);
+  assert.equal(classics.length, 200);
+  assert.equal(new Set(classics.map(x => x.id)).size, 200);
+  assert.equal(new Set(classics.map(x => x.english.toLowerCase())).size, 200);
   for (const item of classics) {
     assert.match(item.title, /[\u3400-\u9fff]/);
     assert.match(item.summary, /[\u3400-\u9fff]/);
@@ -31,6 +31,17 @@ test('researched classic catalogue has Chinese summaries, unique campaigns and r
   }
   assert.deepEqual(new Set(classics.map(x => new URL(x.url).hostname)), new Set(['www.gamemaps.com', 'www.xiaoheihe.cn', 'www.bilibili.com']));
 });
+test('Heybox expansion spans distinct source posts and excludes model-only items and duplicate variants', () => {
+  const { classics, introducedRevision } = require('../broadcast classics');
+  const added = classics.filter(item => introducedRevision[item.id] === 4);
+  assert.equal(added.length, 40);
+  assert.equal(new Set(added.map(item => item.url)).size, 14);
+  assert.ok(added.every(item => new URL(item.url).hostname === 'www.xiaoheihe.cn'));
+  assert.ok(added.every(item => !/Nightmare House 2 Flashlight Mod/.test(item.english)));
+  assert.ok(added.every(item => item.publishedAt === null && item.updatedAt === null));
+  assert.equal(classics.filter(item => item.id === 'classic-zengcheng').length, 1);
+});
+
 test('catalogue upgrade replaces untouched placeholders but preserves edits, deleted classics and cached feeds', async t => {
   const directory = await temp(t), file = path.join(directory, 'broadcast.json');
   const untouched = { id: 'classic-urban-flight', kind: 'classic', title: '城市航班', english: 'Urban Flight', summary: '城市撤离题材战役候选，可作为好友联机的拓展路线。', content: '', url: 'https://steamcommunity.com/workshop/browse/?appid=550&searchtext=Urban%20Flight&requiredtags%5B%5D=Campaigns', source: 'Steam 战役搜索', author: '', tags: ['城市', '战役'], map: 'Urban Flight', pinned: false, publishedAt: null, updatedAt: null, linkType: 'search' };
@@ -39,7 +50,7 @@ test('catalogue upgrade replaces untouched placeholders but preserves edits, del
   await fs.writeFile(file, JSON.stringify({ schema: 1, entries: [untouched, edited], feeds: { guides: feed }, dismissed: ['classic-nanning'] }));
   const make = () => createBroadcast({ directory, collect: () => { throw Error('must not collect'); } });
   const manager = make(), data = await manager.snapshot();
-  assert.equal(data.classicCatalogueRevision, 3);
+  assert.equal(data.classicCatalogueRevision, 4);
   assert.equal(data.entries.find(x => x.id === untouched.id).linkType, 'article');
   assert.deepEqual(data.entries.find(x => x.id === edited.id), edited);
   assert.ok(!data.entries.some(x => x.id === 'classic-yama'));
@@ -52,27 +63,27 @@ test('catalogue upgrade replaces untouched placeholders but preserves edits, del
   assert.deepEqual(restarted.entries, JSON.parse(await fs.readFile(file, 'utf8')).entries);
 });
 
-for (const sourceRevision of [1, 2]) test('catalogue revision ' + sourceRevision + ' upgrades without resurrecting deleted or changing edited records', async t => {
+for (const sourceRevision of [1, 2, 3]) test('catalogue revision ' + sourceRevision + ' upgrades without resurrecting deleted or changing edited records', async t => {
   const { classics, introducedRevision, catalogueRevision } = require('../broadcast classics');
   const directory = await temp(t), file = path.join(directory, 'broadcast.json');
   const previous = structuredClone(classics.filter(x => introducedRevision[x.id] <= sourceRevision));
-  assert.equal(previous.length, sourceRevision === 1 ? 50 : 120);
+  assert.equal(previous.length, ({ 1: 50, 2: 120, 3: 160 })[sourceRevision]);
   const entries = previous.filter(x => !['classic-nanning', 'classic-urban-flight'].includes(x.id));
   entries.find(x => x.id === 'classic-back-to-school').content = '保留我自己记下的路线';
   const qa = { id: 'private-qa', ...entry }, feeds = { guides: { items: [{ id: 'cached', title: '本地攻略缓存' }] } };
-  const dismissed = sourceRevision === 1 ? 'classic-plan-b' : 'classic-orange-onslaught';
+  const dismissed = ({ 1: 'classic-plan-b', 2: 'classic-orange-onslaught', 3: 'classic-unattainable' })[sourceRevision];
   await fs.writeFile(file, JSON.stringify({ schema: 1, classicCatalogueRevision: sourceRevision, entries: [...entries, qa], feeds, dismissed: [dismissed] }));
   const make = () => createBroadcast({ directory, collect: () => { throw Error('must not collect'); } });
   const manager = make(), upgraded = await manager.snapshot();
   assert.equal(upgraded.classicCatalogueRevision, catalogueRevision);
-  assert.equal(upgraded.entries.filter(x => x.kind === 'classic').length, 157);
+  assert.equal(upgraded.entries.filter(x => x.kind === 'classic').length, 197);
   for (const existing of [...entries, qa]) assert.deepEqual(upgraded.entries.find(x => x.id === existing.id), existing);
   for (const id of ['classic-nanning', 'classic-urban-flight', dismissed]) assert.ok(!upgraded.entries.some(x => x.id === id));
   assert.deepEqual(JSON.parse(await fs.readFile(file, 'utf8')).feeds, feeds);
-  const removed = sourceRevision === 1 ? 'classic-wan-li' : 'classic-whispers-winter';
+  const removed = ({ 1: 'classic-wan-li', 2: 'classic-whispers-winter', 3: 'classic-cambalache-2' })[sourceRevision];
   await manager.remove({ id: removed, confirmed: true });
   const restarted = await make().snapshot();
-  assert.equal(restarted.entries.filter(x => x.kind === 'classic').length, 156);
+  assert.equal(restarted.entries.filter(x => x.kind === 'classic').length, 196);
   assert.ok(!restarted.entries.some(x => x.id === removed));
   assert.deepEqual(restarted.entries, JSON.parse(await fs.readFile(file, 'utf8')).entries);
 });
