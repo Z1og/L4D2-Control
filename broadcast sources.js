@@ -4,13 +4,10 @@ const { parseSearch } = require('./steam source');
 
 const steamFile = id => `https://steamcommunity.com/sharedfiles/filedetails/?id=${id}`;
 function campaignEvidence(item) {
-  const tags = (item.tags || []).map(tag => tag.tag);
-  const mapTags = new Set(['Campaigns', 'Co-op', 'Single Player', 'Versus', 'Realism', 'Realism Versus', 'Survival', 'Scavenge']);
-  if (tags.every(tag => mapTags.has(tag))) return '作者战役分类';
   const text = String(item.title || '') + '\n' + String(item.description || '');
-  const mapDescription = /\b(?:[2-9]|1\d)[- ](?:map|chapter|level)\s+campaign\b|\bbsp\s*(?:names?|files?)\s*:|\bM[1-9]\s*(?:to|[-–~])\s*M[1-9]\b|(?:自制|原创|合作|完整|移植|全新).{0,5}战役|战役.{0,12}(?:章节|关卡)|地图名[称]?\s*[:：]/i;
-  // Mixed tags often describe scripts/music. Keep uncertain entries for review;
-  // do not call every Campaigns-tagged add-on a map.
+  const mapDescription = /\b(?:[2-9]|1\d)[- ](?:map|chapter|level)\s+campaign\b|\bbsp\s*(?:names?|files?)\s*:|\bM[1-9]\s*(?:to|[-–~])\s*M[1-9]\b|(?:自制|原创|合作|完整|移植|全新).{0,5}战役|战役.{0,12}(?:章节|关卡)|[二三四五六七八九十2-9]\s*(?:个)?章节|地图名[称]?\s*[:：]|\bmap\s+name\s*:|\bL4D2\s+port\b.{0,120}\b(?:campaign|survival map)\b/i;
+  // Authors also give music and texture patches only the Campaigns tag.
+  // Require positive map evidence regardless of tags; uncertainty stays in review.
   return Number(item.file_size) >= 8 * 1024 * 1024 && mapDescription.test(text) ? '战役分类与地图说明' : '';
 }
 function monthAgo(now) {
@@ -81,7 +78,7 @@ function createBroadcastSource(proxy = '', { request: injectedRequest, now = Dat
     const details = json.response?.publishedfiledetails;
     if (!Array.isArray(details) || !details.some(item => item.result === 1 && item.consumer_app_id === 550)) throw new Error('Steam 地图详情不可用，保留上次内容');
     const normalized = normalizeMaps(candidates, details, now()), items = normalized.filter(item => item.kind === 'recent'), reviewItems = normalized.filter(item => item.kind === 'candidate');
-    return { items, reviewItems, sourceUrl, scanned: ids.length, scope: `检查 ${ids.length} 个工坊战役分类条目，按作者分类、地图说明与更新时间筛选近一个月；${reviewItems.length} 条混合分类内容留待管理员核验。分包单独展示，尚未下载核验地图文件。` };
+    return { items, reviewItems, sourceUrl, scanned: ids.length, scope: `检查 ${ids.length} 个工坊战役分类条目，按地图说明、包大小与更新时间筛选近一个月；${reviewItems.length} 条缺少明确地图说明的内容留待管理员核验。分包单独展示，尚未下载核验地图文件。` };
   };
 }
 module.exports = { createBroadcastSource, parseGuides, normalizeMaps, monthAgo, campaignEvidence };

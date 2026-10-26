@@ -61,9 +61,15 @@ test('expired maps disappear from stored cache without initiating a new collecti
 test('Campaigns-tagged scripts, music and character mods stay out of recent maps; mixed campaign packages retain evidence', () => {
   const item = (title, description, extraTags, file_size = 500000000) => ({ title, description, file_size, tags: ['Campaigns', ...extraTags].map(tag => ({ tag })) });
   for (const fixture of [item('更多生还者AI功能', 'Advanced Bot AI custom features', ['Scripts'], 100000), item('Memories', 'A safe-room theme for The Passing', ['Scripts', 'Sounds']), item('Nightmare Aesthetics', 'The main mod defining the look of the world of L4D', ['Miscellaneous', 'Models']), item('Character skin', 'A new look for Nick', ['Nick'])]) assert.equal(campaignEvidence(fixture), '');
+  // Real upstream entries whose sole Campaigns tag previously bypassed screening.
+  assert.equal(campaignEvidence(item('DJ TAPIA (TANK)', 'Sonia Sonia Bola de Cebo con patas', [])), '');
+  assert.equal(campaignEvidence(item('[Fix / Parche] Insurgencia - Textures and Lighting Fix (No More White Props)', 'Parche de Texturas, Iluminacion y Scripts para Insurgencia. Fix completo para la campana de Left 4 Dead 2', [])), '');
+  assert.equal(campaignEvidence(item('Unknown add-on', 'Campaign content', [])), '');
   assert.ok(campaignEvidence(item('Archive:Zero part1', 'Fixed tanks from M1 to M5 have been reduced.', ['Scripts', 'Sounds', 'Models'])));
   assert.ok(campaignEvidence(item('NOT SO SPIRAL', 'A chaotic 7-map campaign built from a blank grid.', ['Other', 'Textures', 'Sounds'])));
-  assert.ok(campaignEvidence(item('Reverse Dead Air', 'The campaign in reverse.', ['Co-op', 'Versus', 'Single Player'])));
+  assert.ok(campaignEvidence(item('Reverse Dead Air', 'The campaign in reverse. bsp names: r_c11m5_runway', ['Co-op', 'Versus', 'Single Player'])));
+  assert.ok(campaignEvidence(item('上海外滩', '三章节战役', [])));
+  assert.equal(campaignEvidence(item('Map names list', 'bsp names: c1m1', [], 100000)), '');
 });
 test('uncertain items remain in the admin review queue until curated or dismissed', async t => {
   const pending = { id: 'steam-55', title: '待确认地图', kind: 'candidate', updatedAt: new Date(at).toISOString(), url: 'https://steamcommunity.com/sharedfiles/filedetails/?id=55' };
@@ -85,7 +91,7 @@ test('source collector bounds scanning and verifies maps against batch metadata'
     calls.push({ url, body });
     if (url.includes('/guides/')) return guideHtml('45');
     if (url.includes('/browse/')) return '<a href="https://steamcommunity.com/sharedfiles/filedetails/?id=99"><img alt="战役标题" src="https://example.com/a.jpg"></a>';
-    return JSON.stringify({ response: { publishedfiledetails: [{ publishedfileid: '99', result: 1, consumer_app_id: 550, time_updated: at / 1000, time_created: at / 1000, tags: [{ tag: 'Campaigns' }] }] } });
+    return JSON.stringify({ response: { publishedfiledetails: [{ publishedfileid: '99', result: 1, consumer_app_id: 550, time_updated: at / 1000, time_created: at / 1000, description: 'A 4-map campaign.', file_size: 500000000, tags: [{ tag: 'Campaigns' }] }] } });
   } });
   assert.equal((await collect('guides')).items[0].title, '中文通关攻略');
   const data = await collect('maps'); assert.equal(data.items.length, 1); assert.equal(data.scanned, 1); assert.match(calls[2].body, /publishedfileids%5B0%5D=99/);
