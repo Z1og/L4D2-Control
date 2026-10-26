@@ -135,16 +135,60 @@ const expandedCommunity = [
   ['left-4-portal-overgrown', '传送门 2：杂草丛生', 'Left 4 Portal 2 Overgrown', '将传送门 2 的高细节设施与植被侵入场景带入求生，并结合互动机关，适合喜欢光圈科技风格的玩家。', ['游戏复刻', '机关', '科幻'], '自定义资源较多，按发布说明安装完整分包后再联机。']
 ].map(([id, title, english, summary, tags, content]) => ({ id, title, english, summary, tags, content, url: heybox, source: '小黑盒 · 精选三方图合集', author: '吉里吉里吉里' }));
 
+const furtherMaps = [
+  ['road-nowhere-2', '无路可逃 2', 'Road To Nowhere 2', '撞上警察路障后，小队听说格林维尔仍在抵抗感染，便向这个最后的避难地点前进。六章路线围绕赶在局势失控前抵达小镇展开。', ['经典战役', '小镇'], 3560, 'MapEater', '流程包含六章，组队前预留时间；安装时核对 L4D2 版本。'],
+  ['left-4-duluth', '德卢斯求生', 'Left 4 Duluth', '以美国德卢斯为舞台，并展示当地艺术与音乐。路线经过明尼苏达大学德卢斯校区、空中步道和运河公园等地，适合城市地景爱好者。', ['城市', '风景'], 2818, 'yord', '页面章节数量与简介口径有差异，开服章节以实际地图包和作者说明为准。'],
+  ['death-strip', '死亡地带', 'Death Strip', '带有漫画感的六章夜间战役。每章偏短，通过连续的小段路线构成整场逃亡，适合想体验早期社区美术风格的队伍。', ['经典战役', '夜景'], 3470, 'Draxonfly', '作者说明这是早期制图作品，部分区域较粗糙；先了解场景风格再下载。'],
+  ['a-dam-mission', '大坝任务', 'A Dam Mission', '以大坝任务为题材的五章战役，包含较长路线和配音内容。适合想完整体验一场长线社区冒险的玩家。', ['工业设施', '长篇战役'], 5891, 'Motanum', '这与 Dam It 系列是不同作品；检索时核对完整名称与作者。'],
+  ['beldurra', '贝尔杜拉', 'Beldurra', '穿过已经沦为废墟的贝尔杜拉，沿河抵达回收场。三章路线会实时变化装备和障碍，让熟悉的路程也保留不确定性。', ['城市', '随机路线'], 3773, 'SaveYourNeighbors', '这是第一部，与 Beldurra 2 分开安装；物资与障碍可能随一局变化。'],
+  ['run-hills', '逃至山上', 'Run To The Hills', '听说 CEDA 已在灰山设置撤离前哨，幸存者决定向山中求援。五章老牌路线围绕寻找最后的安全地点展开。', ['山林', '经典战役'], 2559, 'lordnitro', '当前发布说明提到 3.0 版，下载前查看更新日志并统一队伍版本。'],
+  ['gas-fever', '燃油危机', 'Gas Fever', '发生在消逝之前的三章战役：赛车已经没油，小队必须找到加油站，并面对带有发电机机制的终章。', ['机关', '经典战役'], 2689, 'SiegfrieD', '终章包含自定义发电机机制，首次游玩留意交互提示并分工。'],
+  ['deadly-dispatch', '致命转运', 'Deadly Dispatch', '从小车库上方的暂避处出发，穿越黑暗市区，前往被 CEDA 征用仓库中的撤离站。三章路线适合补玩传统城市求生。', ['城市', '夜景'], 2443, 'CaptainWinky', '发布页提供第三版；安装前核对所需附加资源与队伍版本。'],
+  ['whispers-winter', '冬日低语', 'Whispers of Winter', '五章战役连接购物中心、军事前哨、火车货场、港口与灯塔，随着撤离线索在冬日环境中不断前进。', ['雪景', '风景'], 20760, 'Okay_', '作者列出合作、对抗、生存和清道夫支持，各模式章节配置可能不同。'],
+  ['stargate-sg4', '星际之门 SG-4', 'Stargate SG-4 v2', '星际之门指挥中心复活比尔，让四名幸存者寻找感染源并将其摧毁；问题在于目标并不位于地球。五章科幻冒险。', ['科幻', '游戏复刻'], 6963, 'greenhood', '包含自定义声音缓存，若缺少声音，先按作者当前说明核对资源。'],
+  ['the-cure', '解药', 'The Cure', '小队必须从废弃医疗设施取回失落的感染解药。五章任务式战役把寻找救援变成主动夺回人类希望的旅程。', ['医院', '剧情'], 11669, 'goldwave', '与 Cure 2 是两部不同战役，推荐先玩本作了解任务背景。'],
+  ['frozen-two', '冰封：第二部', 'Frozen: Chapter 2', '冬天已经到来，幸存者被军方封锁在伊利诺伊州格尼市一角。军队失守、粮食告罄之后，小队必须离开据点。', ['雪景', '城市'], 6123, 'SpeedBoost', '故事承接 Beginning Hours；标题第二部不代表只有两个可玩章节。'],
+  ['traps-map', '陷阱地图', 'Traps Map v4.0 (UPDATED! 2/7/19)', '三章机关战役加入陷阱、谜题、迷宫、脚本尸潮与挑战终章。适合喜欢观察环境、与朋友合作试错的玩家。', ['机关', '解谜'], 2652, 'jamesar', '发布页为 4.0 版，加入了新终章与修复；机关前先集合队友。'],
+  ['firetower-trail', '瞭望塔小径', 'Firetower Trail', '穿过 Zentech 公司的设施抵达露营地，再向火灾瞭望塔前进。小队希望在那里找到最后一处能够安全过夜的地点。', ['森林', '工业设施'], 2752, 'Trunten', '发布页标为 Beta；当前已知问题与版本以作者说明为准。'],
+  ['hong-kong', '香港', 'Hong Kong', '中国主题竞赛的三章作品，把感染爆发后的香港作为求生舞台。幸存者被困在城中，只能另找出路。', ['中国题材', '城市'], 3108, 'hihi1210', '页面提到第二版更新，注意与其他香港题材地图区分。'],
+  ['never-ending-war', '无尽战争：第三部', 'Never Ending War: Chapter 3', '五章社区战役，加入角色配音、自定义涂鸦、纹理与 Tank 内容。适合按系列补玩带有自定义演出的早期作品。', ['剧情', '经典战役'], 4652, 'SpeedBoost', 'Chapter 3 指系列第三部，页面实际列出五张地图；自定义 Tank 可能受替换模组影响。'],
+  ['gunk', '黏液危机', 'Gunk', '军方试图把 Spitter 的绿色黏液用于导弹，却导致计划失控。六章战役以生化实验引发的灾难为背景。', ['军事设施', '末世氛围'], 16952, 'Trunten', '作者要求未经许可不得转载地图包；本条仅收录介绍与原发布页。'],
+  ['return-louisianna', '归途：逃离路易斯安那', 'The Return: Escape from Louisianna', '直升机坠落让小队停在荒废小镇，四人必须协同突破尸群，抵达仍有机会获救的撤离区。五章传统逃亡战役。', ['小镇', '经典战役'], 2898, 'hiiii51', '英文原名使用 Louisianna 拼写，检索资源时按该名称匹配。'],
+  ['orange-onslaught', '橙色突击', 'Orange Onslaught', '幸存者进入奇异的橙色方块世界，在开阔地形、独特机关和特别来客之间寻找离开危险区的方法。四章创意战役。', ['创意玩法', '机关'], 10051, 'RainingMetal', '与其他 Orange 地图是不同作品，下载时核对完整英文名。'],
+  ['undead-smackdown', '亡灵摔角之夜', 'Undead Smackdown', '小队向原定举办传奇摔角比赛的竞技场前进，但感染已经扩散。四章旅程以摔角和场馆题材呈现另一种城市求生。', ['城市', '创意玩法'], 14590, 'KILLER_9639', '这是作者首部战役，游玩前可先阅读当前反馈与版本说明。'],
+  ['pesaro', '佩萨罗', 'Pesaro', '从意大利佩萨罗的安娜·弗兰克小学出发，幸存者要前往菲奥伦佐拉海岸，搭乘等待中的渔船撤离。五章异国城市之旅。', ['城市', '海滨'], 25057, 'SimoFY', '按发布页核对版本与章节，首次组队预留完整游玩时间。'],
+  ['infected-city-2', '感染之城 2', 'Infected City II', '延续感染之城的故事，幸存者再次穿过沦陷城市，试图逃离丧尸末日。五章路线适合城市战役爱好者补完。', ['城市', '经典战役'], 7741, 'Super Fly', '发布页标为 Beta；与第一部和修复改版分开核对。'],
+  ['skipping-class', '逃课', 'Skipping Class', '两章短流程战役，采用折返路线并加入自定义纹理和配音。适合时间有限、想体验一段完整社区路线的队伍。', ['短流程', '探索'], 6730, 'Paz', '1.4 版调整过玩法与视觉，核对所选版本的说明。'],
+  ['urban-disaster', '都市灾难', 'Urban Disaster', '飞行员感染后，小队被迫在另一片沦陷区域降落，必须重新寻找撤离车辆。五章路线由导演安排不同的通行路径。', ['城市', '随机路线'], 2768, 'Koukin_Shuuyu', '不同一局可能出现不同路线，实况中的通行方式不一定固定重现。'],
+  ['goodbye-nanning', '再见了，南宁', 'Goodbye,Nanning', '四人从心圩街来到电力学校附近，决定寻找新的出路。这部南宁题材国产地图提供战役路线及额外生存内容。', ['国产地图', '城市'], 26998, 'HerobrineAce', '来源页为 V5.4 重置版，四张地图中一张用于生存；作者提醒难度较高。'],
+  ['dead-street-2', '死亡街道 2', 'Dead Street 2', '沿公交轨道赶往车站，再穿越地下隧道和警察局，最后固守等待救援。四章路线串联城市交通与警局场景。', ['城市', '警局'], 2608, 'wilhelm screamer', '区分 L4D2 版与一代原版，按作者地图列表启动战役。'],
+  ['cure-2', '解药 2', 'Cure 2', '小队运送解药前往实验室时坠机，感染者先一步找到货物。幸存者必须夺回解药，继续完成前作留下的任务。', ['医院', '剧情'], 16782, 'hittenzdirten', '这是 The Cure 的续篇，五章地图包不要与前作混用。'],
+  ['lord-rings', '指环王战役', 'Lord Of The Rings Campaign', '把两张 CS:S 僵尸逃跑地图与中世纪题材模组的终章组合成三章合作旅程，适合想在求生里体验奇幻冒险的队伍。', ['奇幻', '游戏复刻'], 25147, 'PopTheseFools', '属于社区组合战役，存在多个同题材版本，先核对作者与完整名称。'],
+  ['vague-reminders', '模糊记忆', 'Vague Reminders', '穿过废品场、地下铁路和四层办公楼，再进入遍布 Witch 的树篱迷宫。四种诡异环境组成一场不同寻常的逃亡。', ['探索', '恐怖氛围'], 3410, 'finalhour10000', '迷宫中有大量 Witch，首次游玩放慢脚步并与队友沟通。'],
+  ['cambalache', '布宜诺斯艾利斯', 'Cambalache - Buenos Aires', '绿流感在春末抵达布宜诺斯艾利斯，小队必须利用一切交通方式逃离这座城市。四章路线适合南美城市风景爱好者。', ['城市', '风景'], 25425, 'Rodry_metal', '发布页包含西班牙文和英文说明，下载时核对标题与当前版本。'],
+  ['escape-valencia', '逃离瓦伦西亚', 'Escape From Valencia', '以西班牙瓦伦西亚真实地点为蓝本的四章战役，把城市环境探索与合作撤离结合起来。', ['城市', '风景'], 8798, 'Non_Essential', '作者提醒仍有少量已知问题，页面说明包含部分被游戏更新移除的材质资源。'],
+  ['open-road', '开放公路', 'Open Road', '从教区撤离的直升机再次坠落，四名幸存者不得不踏上新的五章求生路线。适合继续追随二代角色冒险的玩家。', ['经典战役', '探索'], 2741, 'ics', '作者建议通过其工坊版本获取更新，手动包与工坊不要重复安装。'],
+  ['loony-park', '疯狂乐园', 'Loony Park', '重现斩妖除魔资料片中的疯狂乐园，加入链锯、晨星锤与隐藏武器。单章路线以怪诞场景和自定义装备为特色。', ['游戏复刻', '自定义武器'], 15871, 'Phaeton', '这是一张独立单章地图，不能按完整多章战役理解；留意武器模组冲突。'],
+  ['dead-high-school', '死亡高中', 'Dead High School', '小队必须杀出重围抵达当地高中，并守候能够把他们送往安全区的直升机。四章传统救援战役。', ['校园', '防守'], 2630, 'Calleberg', '发布页的维护说明年代较早，当前版本与后续更新以作者页面为准。'],
+  ['left-prypiat', '遗落普里皮亚季', 'Left In Prypiat', '把一场大型求生旅程集中在单张地图中，以普里皮亚季题材呈现连续探索。适合喜欢长距离单关推进的队伍。', ['探索', '长流程'], 16942, 'SacriPan!', '这是较大的单章战役，缺少多章安全屋分段体验；先核对所选版本说明。'],
+  ['last-baktun', '最后的伯克盾周期', 'Last Baktun', '承接 The Return of the Jockeys 的故事，三章终篇把幸存者推向时间尽头。适合寻找高难度系列收尾挑战的玩家。', ['高难度', '剧情'], 6055, 'flapjax', '作者明确提醒简单难度也可能有挑战，建议固定队充分准备。'],
+  ['umbrella', '保护伞', 'Umbrella', '从参考 Red Queen 的第一关展开六章谜题旅程，把研究设施中的找路、机关与生存结合起来，适合解谜爱好者。', ['解谜', '地下设施'], 2340, 'ShadeXIII', '发布页标为 Beta，作者要求开启游戏指导以显示线索。'],
+  ['hl2-water-hazard', '半条命 2：水障', 'Half-Life 2: Water Hazard', '跟随半条命 2 水障与东黑山基地题材展开长线旅程，将经典单人路线带入求生战役。', ['游戏复刻', '长篇战役'], 7343, 'Angerfist', '发布页标为 Beta，并明确需要 Half-Life 2 Texture Pack；流程长且难度较高。'],
+  ['hl2-route-kanal', '半条命 2：运河航道', 'Half-Life 2: Route Kanal', '将戈登·弗里曼走过的运河航道改编为六章求生路线，鼓励通过探索寻找资源与出路。', ['游戏复刻', '探索'], 6781, 'Angerfist', '需要作者链接的 Half-Life 2 Texture Pack，否则会缺少纹理。'],
+  ['hl2-point-insertion', '半条命 2：进入与红色信件日', 'Half-Life 2: Point Insertion and A Red Letter Day', '沿半条命 2 开篇的城市与设施前进，把进入 17 号城市和红色信件日的场景改编为六章求生路线。', ['游戏复刻', '城市'], 6629, 'Angerfist', '需要额外 Half-Life 2 Texture Pack，勿将标题中的原作章节数当作地图包章节数。']
+].map(([id, title, english, summary, tags, number, author, content]) => ({ id, title, english, summary, tags, content, url: `https://www.gamemaps.com/details/${number}`, source: 'GameMaps · 地图发布页', author }));
+
 const previous = [...gameMaps, ...community, ...videos];
 const expansion = [...expandedMaps, ...expandedCommunity];
-const all = [...previous, ...expansion];
+const all = [...previous, ...expansion, ...furtherMaps];
 const first = ['back-to-school', 'urban-flight', 'suicide-blitz-2', 'i-hate-mountains-2', 'day-break', 'warcelona', 'yama', 'dark-wood'];
 all.sort((a, b) => (first.includes(a.id) ? first.indexOf(a.id) : first.length) - (first.includes(b.id) ? first.indexOf(b.id) : first.length));
 const classics = all.map(item => ({ ...item, id: `classic-${item.id}`, kind: 'classic', map: item.english, pinned: false, publishedAt: null, updatedAt: null, linkType: 'article' }));
 // Each revision imports only its own additions, preserving removals from older catalogues.
 const introducedRevision = Object.fromEntries([
   ...previous.map(item => [`classic-${item.id}`, first.includes(item.id) ? 0 : 1]),
-  ...expansion.map(item => [`classic-${item.id}`, 2])
+  ...expansion.map(item => [`classic-${item.id}`, 2]),
+  ...furtherMaps.map(item => [`classic-${item.id}`, 3])
 ]);
 
 // Only untouched placeholders are replaced during the one-time catalogue upgrade.
@@ -159,4 +203,4 @@ const legacyHashes = {
   'classic-dark-wood': 'af58c3b604bf2fbf1475166427ea8fc6761d6f5e77d637eb13b845317e8e9109'
 };
 
-module.exports = { classics, legacyHashes, introducedRevision, catalogueRevision: 2 };
+module.exports = { classics, legacyHashes, introducedRevision, catalogueRevision: 3 };

@@ -238,7 +238,7 @@ Use Server Settings → Appearance or the top-right palette button to choose Cla
 
 ## Survivor Radio
 
-The built-in catalogue contains 120 classic campaigns researched from Bilibili features, a Heybox curated collection and GameMaps release pages, with Chinese summaries, tags, source attribution and usage notes. Upgrades preserve administrator edits, removed entries and cached feeds. Catalogue inclusion does not imply installation or playtesting.
+The built-in catalogue contains 160 classic campaigns researched from Bilibili features, a Heybox curated collection and GameMaps release pages, with Chinese summaries, tags, source attribution and usage notes. Upgrades preserve administrator edits, removed entries and cached feeds. Catalogue inclusion does not imply installation or playtesting.
 
 The sidebar entry below Player Management contains Map News and Guides & Q&A. Signed-in ordinary users can read; administrators can curate classic campaigns, save public Bilibili/Heybox links with attribution, and write solutions with map associations, tags, applicability and verification dates. Search, pinning, pagination, browser-session bookmarks and JSON export of curated entries are included.
 
