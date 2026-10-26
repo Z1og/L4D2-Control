@@ -61,7 +61,7 @@ function renderCurrentMap(id = currentMap) {
   $('#currentMapEnglish').textContent = id || 'UNKNOWN';
   $('#currentMapSubtitle').textContent = selected ? `${selected.campaign.name} · ${selected.campaign.english}` : '服务器当前章节';
 }
-const panelViews = { overview: '总览', gameplay: '游戏模式', maps: '地图管理', plugins: '插件、平台管理', diagnostics: '服务检查', workshop: '内容下载', proxy: '内容下载', players: '玩家管理', settings: '服务器设置', about: '关于' };
+const panelViews = { overview: '总览', gameplay: '游戏模式', maps: '地图管理', plugins: '插件、平台管理', diagnostics: '服务检查', workshop: '内容下载', proxy: '内容下载', players: '玩家管理', broadcast: '无线广播', settings: '服务器设置', about: '关于' };
 function savedPanelView() {
   const hash = location.hash.slice(1) === 'logs' ? 'settings' : location.hash.slice(1);
   if (hash) return Object.hasOwn(panelViews, hash) ? hash : 'overview';
@@ -71,7 +71,7 @@ function savedPanelView() {
 function navigate(view) {
   if (view === 'logs') view = 'settings';
   if (view === 'proxy') { selectContentSection('proxy', true); view = 'workshop'; }
-  if (!Object.hasOwn(panelViews, view) || typeof isGuest !== 'undefined' && isGuest && !['overview', 'maps', 'plugins', 'about'].includes(view)) view = 'overview';
+  if (!Object.hasOwn(panelViews, view) || typeof isGuest !== 'undefined' && isGuest && !['overview', 'maps', 'plugins', 'broadcast', 'about'].includes(view)) view = 'overview';
   try { sessionStorage.setItem('l4d2-panel-view', view); } catch {}
   try { if (location.hash !== `#${view}`) history.replaceState(null, '', `#${view}`); } catch {}
   window.panelState?.activate(view);
@@ -81,6 +81,7 @@ function navigate(view) {
   if (view === 'plugins') window.selectPluginPage?.(window.panelState?.get('pluginPage', 'plugins') || 'plugins');
   if (view === 'gameplay') loadGameplay();
   if (view === 'players') loadPlayers();
+  if (view === 'broadcast') window.loadBroadcast?.();
   if (view === 'workshop') { if (contentSection === 'proxy') loadProxy(); else loadDownloads(); }
   if (view === 'diagnostics') { loadCloudBackup(); startCloudPolling(); } else stopCloudPolling();
   $$('.nav-item').forEach(button => { if (button.dataset.view === view) button.setAttribute('aria-current', 'page'); else button.removeAttribute('aria-current'); });
@@ -89,7 +90,7 @@ function navigate(view) {
 document.addEventListener('DOMContentLoaded', () => navigate(savedPanelView()), { once: true });
 window.addEventListener('hashchange', () => navigate(savedPanelView()));
 async function api(url, options) {
-  if (isGuest && !['/api/config','/api/status','/api/maps','/api/plugins','/api/openlist/map-download-info','/api/auth/session','/api/auth/logout','/api/auth/password'].includes(new URL(url,location.origin).pathname)) throw new Error('普通账号没有此操作权限');
+  if (isGuest && !['/api/config','/api/status','/api/maps','/api/plugins','/api/broadcast','/api/openlist/map-download-info','/api/auth/session','/api/auth/logout','/api/auth/password'].includes(new URL(url,location.origin).pathname)) throw new Error('普通账号没有此操作权限');
   const settings = { ...options, headers: { ...options?.headers } };
   if (!['GET', 'HEAD'].includes((settings.method || 'GET').toUpperCase())) { settings.headers['x-csrf-token'] = panelCsrf; if (!settings.headers['content-type']) settings.headers['content-type'] = 'application/json'; }
   const response = await fetch(url, settings);

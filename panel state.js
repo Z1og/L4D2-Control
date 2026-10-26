@@ -22,7 +22,7 @@
   let storage; try { storage = sessionStorage; } catch {}
   const memory = createPanelMemory(storage, 'l4d2-panel-ui-v1-' + (document.body.dataset.panelRole || 'admin'));
   window.panelState = memory;
-  const inputs = ['mapSearch', 'pluginSearch', 'playerSearch', 'workshopSearch', 'pluginStoreSearch', 'proxyNodeSearch'];
+  const inputs = ['mapSearch', 'pluginSearch', 'playerSearch', 'workshopSearch', 'pluginStoreSearch', 'proxyNodeSearch', 'broadcastSearch'];
   for (const id of inputs) { const node = document.getElementById(id); if (!node) continue; const value = memory.get('input:' + id, ''); if (typeof value === 'string') node.value = value.slice(0, 250); node.addEventListener('input', () => memory.set('input:' + id, node.value.slice(0, 250))); }
   for (const id of inputs) {
     const input = document.getElementById(id); if (!input) continue;

@@ -6,7 +6,7 @@ const vm = require('node:vm');
 const app = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
 const code = app.slice(app.indexOf('const panelViews ='), app.indexOf('async function api('));
 function fixture(hash = '', saved = null, blocked = false) {
-  const views = ['overview', 'gameplay', 'maps', 'plugins', 'diagnostics', 'workshop', 'proxy', 'players', 'settings', 'about'];
+  const views = ['overview', 'gameplay', 'maps', 'plugins', 'diagnostics', 'workshop', 'proxy', 'players', 'broadcast', 'settings', 'about'];
   const events = {}, calls = [];
   const nodes = views.map(view => ({ id: view + 'View', dataset: { view }, classList: { toggle() {} }, setAttribute() {}, removeAttribute() {} }));
   const title = {}, location = { hash };
@@ -20,7 +20,7 @@ function fixture(hash = '', saved = null, blocked = false) {
   vm.runInContext(code, context); return { context, events, location, title, calls, saved: () => saved };
 }
 test('all panel sections restore on reload, after dependent scripts are initialized', () => {
-  for (const view of ['overview', 'gameplay', 'maps', 'plugins', 'diagnostics', 'workshop', 'proxy', 'players', 'settings', 'about']) {
+  for (const view of ['overview', 'gameplay', 'maps', 'plugins', 'diagnostics', 'workshop', 'proxy', 'players', 'broadcast', 'settings', 'about']) {
     const expected = view === 'proxy' ? 'workshop' : view;
     const first = fixture(); first.context.navigate(view); assert.equal(first.location.hash, '#' + expected);
     const second = fixture(first.location.hash, first.saved()); assert.equal(second.calls.length, 0);

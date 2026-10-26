@@ -2,7 +2,7 @@ const test=require('node:test'),assert=require('node:assert/strict'),fs=require(
 const {encodeBans}=require('../player moderation'),{steamIdentity}=require('../player manager');
 test('HTTP authentication, privacy projection, forbidden operations, ban invalidation and logout work together',async t=>{
  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'Panel HTTP test ')),sm=path.join(dir,'left4dead2/addons/sourcemod');fs.mkdirSync(path.join(sm,'plugins'),{recursive:true});fs.mkdirSync(path.join(sm,'data/l4d2 control'),{recursive:true});
- const child=spawn(process.execPath,[path.join(__dirname,'../server.js')],{env:{...process.env,PORT:'0',BIND_HOST:'127.0.0.1',L4D2_EXEC_MODE:'local',L4D2_SERVER_ROOT:dir,L4D2_PLUGIN_PATH:path.join(sm,'plugins'),WORKSHOP_ADDON_DIR:path.join(dir,'left4dead2/addons'),DOWNLOAD_STATE_DIR:path.join(dir,'downloads'),LIBRARY_STATE_DIR:path.join(dir,'library'),CLOUD_MAPS_STATE_DIR:path.join(dir,'cloud'),PLAYER_STATE_DIR:path.join(dir,'players'),PANEL_ACCOUNT_STATE_DIR:path.join(dir,'accounts'),PLUGIN_STORE_SYNC_ENABLED:'false',PLUGIN_STORE_CACHE_DIR:path.join(dir,'store'),PANEL_TLS_KEY:path.join(dir,'none'),PANEL_TLS_CERT:path.join(dir,'none'),PANEL_USER:'test-admin',PANEL_PASSWORD:'private-test-password',PANEL_AUTH_TOKEN:'',L4D2_GAME_HOST:'game.example',L4D2_GAME_PORT:'27015',OPENLIST_URL:'',OPENLIST_USERNAME:'',OPENLIST_PASSWORD:'',WORKSHOP_PROXY_ENGINE:'',WORKSHOP_SOCKS_PROXY:''},stdio:['ignore','pipe','pipe']});
+ const child=spawn(process.execPath,[path.join(__dirname,'../server.js')],{env:{...process.env,PORT:'0',BIND_HOST:'127.0.0.1',L4D2_EXEC_MODE:'local',L4D2_SERVER_ROOT:dir,L4D2_PLUGIN_PATH:path.join(sm,'plugins'),WORKSHOP_ADDON_DIR:path.join(dir,'left4dead2/addons'),BROADCAST_STATE_DIR:path.join(dir,'broadcast'),DOWNLOAD_STATE_DIR:path.join(dir,'downloads'),LIBRARY_STATE_DIR:path.join(dir,'library'),CLOUD_MAPS_STATE_DIR:path.join(dir,'cloud'),PLAYER_STATE_DIR:path.join(dir,'players'),PANEL_ACCOUNT_STATE_DIR:path.join(dir,'accounts'),PLUGIN_STORE_SYNC_ENABLED:'false',PLUGIN_STORE_CACHE_DIR:path.join(dir,'store'),PANEL_TLS_KEY:path.join(dir,'none'),PANEL_TLS_CERT:path.join(dir,'none'),PANEL_USER:'test-admin',PANEL_PASSWORD:'private-test-password',PANEL_AUTH_TOKEN:'',L4D2_GAME_HOST:'game.example',L4D2_GAME_PORT:'27015',OPENLIST_URL:'',OPENLIST_USERNAME:'',OPENLIST_PASSWORD:'',WORKSHOP_PROXY_ENGINE:'',WORKSHOP_SOCKS_PROXY:''},stdio:['ignore','pipe','pipe']});
  t.after(async()=>{const exited=new Promise(r=>child.once('exit',r));child.kill();await exited;fs.rmSync(dir,{recursive:true,force:true});});
  const port=await new Promise((resolve,reject)=>{let output='',err='';const timer=setTimeout(()=>reject(Error(err||'timeout')),15000);child.stderr.on('data',d=>err+=d);child.stdout.on('data',d=>{output+=d;const m=/127\.0\.0\.1:(\d+)/.exec(output);if(m){clearTimeout(timer);resolve(m[1]);}});child.on('error',reject);});
  const base='http://127.0.0.1:'+port;let cookie='',csrf='';
@@ -31,6 +31,9 @@ test('HTTP authentication, privacy projection, forbidden operations, ban invalid
  for(const asset of ['/appearance.js','/appearance.css'])assert.equal((await req(asset)).status,200,asset);
  for(const url of ['/api/platforms','/api/players','/api/gameplay','/api/diagnostics','/api/proxy/nodes','/api/maps/export?package=a.vpk','/api/openlist/maps','/api/players/whitelist','/server.js'])assert.equal((await req(url)).status,403,url);
  for(const url of ['/api/platforms/check','/api/platforms/action','/api/map','/api/gameplay','/api/server/restart','/api/maps/import','/api/plugins/import','/api/players/moderation','/api/players/notes'])assert.equal((await req(url,{confirmed:true})).status,403,url);
+ const radio=await req('/api/broadcast');assert.equal(radio.status,200);assert.ok((await radio.json()).entries.length>=14);
+ for(const asset of ['/broadcast.js','/broadcast.css'])assert.equal((await req(asset)).status,200);
+ for(const route of ['/api/broadcast/save','/api/broadcast/delete','/api/broadcast/refresh'])assert.equal((await req(route,{confirmed:true})).status,403);
  assert.equal((await req('/api/plugins')).status,200);assert.equal((await req('/panel%20state.js')).status,200);
  assert.equal((await req('/account%20password.js')).status,200);
  const passwordPayload={currentPassword:'ordinary-password',newPassword:'ordinary-updated-password',confirmPassword:'ordinary-updated-password'};
@@ -47,6 +50,14 @@ test('HTTP authentication, privacy projection, forbidden operations, ban invalid
  assert.equal((await req('/api/maps')).status,401);assert.equal((await req('/api/auth/guest',{profile:identity.steam64,password:'ordinary-password'})).status,403);
  cookie='';csrf='';r=await req('/api/auth/login',{username:'test-admin',password:'private-test-password'});assert.equal(r.status,200);data=await r.json();assert.equal(data.role,'admin');csrf=data.csrf;cookie=r.headers.get('set-cookie').split(';')[0];
  await assertPosterPreviewsOnly('admin');
+ const entry={kind:'qa',title:'HTTP verification',content:'A real saved solution',tags:['test'],url:'https://www.bilibili.com/video/BV1xx?utm_source=test'};
+ assert.equal((await req('/api/broadcast/save',entry,{'x-csrf-token':''})).status,403);
+ assert.equal((await req('/api/broadcast/save',entry,{origin:'https://elsewhere.example'})).status,403);
+ let radioSaved=await req('/api/broadcast/save',entry);assert.equal(radioSaved.status,200);let radioEntry=(await radioSaved.json()).entries.find(x=>x.title===entry.title);assert.ok(radioEntry);assert.ok(!radioEntry.url.includes('utm_source'));
+ radioSaved=await req('/api/broadcast/save',{...radioEntry,content:'Updated solution'});assert.equal(radioSaved.status,200);assert.equal((await radioSaved.json()).entries.find(x=>x.id===radioEntry.id).content,'Updated solution');
+ assert.equal((await req('/api/broadcast/delete',{id:radioEntry.id,confirmed:false})).status,400);
+ assert.equal((await req('/api/broadcast/delete',{id:radioEntry.id,confirmed:true})).status,200);
+ assert.ok(!(await(await req('/api/broadcast')).json()).entries.some(x=>x.id===radioEntry.id));
  assert.match(await(await req('/')).text(),/data-panel-role="admin"/);assert.equal((await req('/gameplay.js')).status,200);
  assert.equal((await req('/api/gameplay',{confirmed:false})).status,400);
  assert.equal((await req('/api/platforms/action',{id:'metamod',action:'install',confirmed:false})).status,400);

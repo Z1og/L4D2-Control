@@ -235,3 +235,11 @@ Selecting a version only previews its cautions and available upstream release no
 ### Appearance themes
 
 Use Server Settings → Appearance or the top-right palette button to choose Classic COUI / Cupertino and six accent colors. Light, dark and custom sunrise/sunset modes are independent. Preferences are browser-local and shared by sign-in and panel pages, without changing the server or other users. Cupertino is an original web implementation inspired by [compose-cupertino](https://github.com/alexzhirkevich/compose-cupertino), not an embedded Kotlin library.
+
+## Survivor Radio
+
+The sidebar entry below Player Management contains Map News and Guides & Q&A. Signed-in ordinary users can read; administrators can curate classic campaigns, save public Bilibili/Heybox links with attribution, and write solutions with map associations, tags, applicability and verification dates. Search, pinning, pagination, browser-session bookmarks and JSON export of curated entries are included.
+
+Manual map refresh checks up to 90 recently updated Steam Campaigns entries, verifies app 550 and actual update timestamps, and retains entries updated within one calendar month. Multipart campaigns remain separate Workshop entries. Guides are collected from Steam's Simplified Chinese tagged, top-rated directory and filtered for Chinese text in titles or summaries; up to 90 candidates are checked and 30 shown. Author-provided summaries are not independently verified. Bilibili search and the Heybox community provide discovery entry points with manual link curation rather than cookie-dependent scraping.
+
+Only explicit refresh requests collect external data through the configured content proxy. Cached content survives restarts and failed refreshes; expired maps leave the recent list automatically. Curated content and cache live in `~/.local/state/dead-air-panel/broadcast/broadcast.json` (override with `BROADCAST_STATE_DIR`). Back up that private directory and keep it out of public repositories. Curated JSON exports exclude feed caches and panel accounts.

@@ -14,6 +14,8 @@ const { createSource } = require('./content sources');
 const { createSource: createSteamSource, parseSearch: parseSteamSearch, buildSearchUrl } = require('./steam source');
 const { createManager } = require('./download manager');
 const { createPluginStore } = require('./plugin store');
+const { createBroadcast } = require('./broadcast manager');
+const { createBroadcastSource } = require('./broadcast sources');
 const { createLibrary } = require('./library manager');
 const { createPlatforms } = require('./platform manager');
 const { PROJECT_URL, parseConfig: parseOpenListConfig, createManager: createOpenListManager } = require('./openlist manager');
@@ -59,6 +61,7 @@ const workshopProxy = process.env.WORKSHOP_SOCKS_PROXY || '';
 if (workshopProxy && !/^socks5h:\/\/127\.0\.0\.1:\d{2,5}$/.test(workshopProxy)) throw new Error('WORKSHOP_SOCKS_PROXY must be a local socks5h URL');
 const gameMaps = createSource(workshopProxy);
 const steamSource = createSteamSource(workshopProxy, { search: fetchSteamWorkshop });
+const broadcast = createBroadcast({ directory: process.env.BROADCAST_STATE_DIR || path.join(os.homedir(), '.local', 'state', 'dead-air-panel', 'broadcast'), collect: createBroadcastSource(workshopProxy) });
 const steamcmdPath = process.env.STEAMCMD_PATH || '/opt/steamcmd/steamcmd.sh';
 const workshopAddonDir = process.env.WORKSHOP_ADDON_DIR || `${serverRoot}/left4dead2/addons`;
 const workshopStageDir = process.env.WORKSHOP_STAGE_DIR || '/tmp/dead-air-workshop';
@@ -518,6 +521,10 @@ async function handleApi(req, res, body) {
     if (req.method === 'GET' && pathname === '/api/downloads') { res.end(JSON.stringify({ jobs: downloads.list() })); return; }
     if (req.method === 'POST' && pathname === '/api/downloads/cancel') { const payload = body ? JSON.parse(body) : {}; res.end(JSON.stringify(downloads.cancel(payload.id))); return; }
     if (req.method === 'POST' && pathname === '/api/downloads/dismiss') { const payload = body ? JSON.parse(body) : {}; res.end(JSON.stringify(downloads.dismiss(payload.id))); return; }
+    if (req.method === 'GET' && pathname === '/api/broadcast') { res.end(JSON.stringify(await broadcast.snapshot())); return; }
+    if (req.method === 'POST' && pathname === '/api/broadcast/save') { res.end(JSON.stringify(await broadcast.save(body ? JSON.parse(body) : {}))); return; }
+    if (req.method === 'POST' && pathname === '/api/broadcast/delete') { res.end(JSON.stringify(await broadcast.remove(body ? JSON.parse(body) : {}))); return; }
+    if (req.method === 'POST' && pathname === '/api/broadcast/refresh') { res.end(JSON.stringify(await broadcast.refresh((body ? JSON.parse(body) : {}).feed))); return; }
     if (req.method === 'GET' && pathname === '/api/plugin-store') {
       const requestUrl = new URL(req.url, 'http://localhost');
       const query = (requestUrl.searchParams.get('query') || '').trim();
@@ -657,7 +664,7 @@ function serveFile(req, res) {
     stream.pipe(res); return;
   }
   const relative = requestPath === '/' ? 'index.html' : requestPath === '/login' ? 'login.html' : requestPath.replace(/^\/+/, '');
-  if (!['index.html', 'app.js', 'panel dialogs.js', 'account password.js', 'panel state.js', 'players.js', 'platforms.js', 'gameplay.js', 'styles.css', 'appearance.js', 'appearance.css', 'login.html', 'login.js', 'login.css', 'project community.js', 'project community.css'].includes(relative)) { res.statusCode = 404; res.end('Not found'); return; }
+  if (!['index.html', 'app.js', 'broadcast.js', 'broadcast.css', 'panel dialogs.js', 'account password.js', 'panel state.js', 'players.js', 'platforms.js', 'gameplay.js', 'styles.css', 'appearance.js', 'appearance.css', 'login.html', 'login.js', 'login.css', 'project community.js', 'project community.css'].includes(relative)) { res.statusCode = 404; res.end('Not found'); return; }
   const filePath = path.resolve(root, relative);
   const relativeToRoot = path.relative(root, filePath);
   if (relativeToRoot.startsWith('..') || path.isAbsolute(relativeToRoot) || !fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) { res.statusCode = 404; res.end('Not found'); return; }
