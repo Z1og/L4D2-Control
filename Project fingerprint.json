@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "projectId": "l4d2-control-bf312edc896c79baad5c",
-  "fingerprint": "f096bf6b725abfa60d9dd0b3e06b8d318418e500cdec3349cd973bf4bffb39c4",
+  "fingerprint": "6c3f25b0b38c5088bf6d5491fd21135b4e231e7b4e4dcf8b1a11904a9eaebe77",
   "files": [
     {
       "path": "Build project fingerprint.js",
@@ -73,7 +73,7 @@
     },
     {
       "path": "broadcast sources.js",
-      "sha256": "fb044ecfc8e1e911510ed812a0ac2c17ca645270e71746a7556afdcaf4089c9b"
+      "sha256": "47677b1d660bfc45cbef5d5fd22845386e73fbe9f8b8b9a549cb2ff15da5434a"
     },
     {
       "path": "broadcast.css",

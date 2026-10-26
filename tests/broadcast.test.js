@@ -109,3 +109,9 @@ test('translation failure preserves source content and surfaces an explicit erro
  const result=await chineseSummaries({items:[{id:'1',summary:'Original campaign description'}]},async()=>{throw Error('upstream 429');});
  assert.equal(result.items[0].summary,'Original campaign description');assert.match(result.translationError,/upstream 429/);assert.equal(result.items[0].summaryOriginal,undefined);
 });
+
+test('bilingual summaries explicitly translate English while keeping the Chinese source inspectable',async()=>{
+ const text='三章节地图，地图大更新。A three-chapter map with a major update.';
+ const result=await chineseSummaries({items:[{id:'mixed',summary:text}]},async(url)=>{assert.match(url,/from=en/);return JSON.stringify([{translations:[{text:'三章节地图，地图大更新。包含重大更新的三章地图。'}]}]);});
+ assert.equal(result.items[0].summaryOriginal,text);assert.ok(!result.items[0].summary.includes('three-chapter'));
+});

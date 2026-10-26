@@ -41,7 +41,7 @@ function normalizeMaps(candidates, details, now) {
 }
 function needsChineseSummary(text) {
   const letters = (text.match(/\p{L}/gu) || []).length, chinese = (text.match(/\p{Script=Han}/gu) || []).length;
-  return letters - chinese >= 4 && (!chinese || letters - chinese >= 24 && chinese / letters < 0.65);
+  return letters - chinese >= (chinese ? 24 : 4);
 }
 async function chineseSummaries(result, request, previous) {
   const saved = new Map([...(previous?.items || []), ...(previous?.reviewItems || [])].map(item => [item.id, item]));
@@ -54,12 +54,17 @@ async function chineseSummaries(result, request, previous) {
     } else pending.push(item);
   }
   result.translationError = '';
+  const groups = [[], []];
+  for (const item of pending) groups[Number(/\p{Script=Han}/u.test(item.summary) && /[a-z]{3}/i.test(item.summary))].push(item);
   try {
-    for (let offset = 0; offset < pending.length; offset += 20) {
-      const batch = pending.slice(offset, offset + 20);
-      const translated = JSON.parse(await request('https://edge.microsoft.com/translate/translatetext?isEnterpriseClient=false&to=zh-Hans', JSON.stringify(batch.map(item => item.summary)), { json: true, label: '简介翻译' }));
-      if (!Array.isArray(translated) || translated.length !== batch.length || translated.some(item => typeof item?.translations?.[0]?.text !== 'string' || !item.translations[0].text.trim())) throw new Error('翻译服务返回无效内容');
-      batch.forEach((item, index) => { item.summaryOriginal = item.summary; item.summary = translated[index].translations[0].text.trim(); item.translationSource = 'Microsoft 翻译'; });
+    // Auto detection can treat bilingual summaries as Chinese and leave English intact.
+    for (const [mixed, group] of groups.entries()) {
+      for (let offset = 0; offset < group.length; offset += 20) {
+        const batch = group.slice(offset, offset + 20);
+        const translated = JSON.parse(await request('https://edge.microsoft.com/translate/translatetext?isEnterpriseClient=false&to=zh-Hans' + (mixed ? '&from=en' : ''), JSON.stringify(batch.map(item => item.summary)), { json: true, label: '简介翻译' }));
+        if (!Array.isArray(translated) || translated.length !== batch.length || translated.some(item => typeof item?.translations?.[0]?.text !== 'string' || !item.translations[0].text.trim())) throw new Error('翻译服务返回无效内容');
+        batch.forEach((item, index) => { item.summaryOriginal = item.summary; item.summary = translated[index].translations[0].text.trim(); item.translationSource = 'Microsoft 翻译'; });
+      }
     }
   } catch (error) { result.translationError = `部分简介翻译失败，已保留原文：${error.message}`; }
   return result;
