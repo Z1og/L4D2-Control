@@ -1,7 +1,7 @@
 const fs = require('node:fs/promises');
 const path = require('node:path');
 const crypto = require('node:crypto');
-const { classics, guides } = require('./broadcast seeds');
+const { classics, guides, legacyGuideHashes, guideIntroducedRevision, guideCatalogueRevision } = require('./broadcast seeds');
 const { legacyHashes, introducedRevision, catalogueRevision } = require('./broadcast classics');
 const { monthAgo } = require('./broadcast sources');
 
@@ -40,13 +40,14 @@ function createBroadcast({ directory, collect, now = Date.now }) {
         raw = await fs.readFile(filename, 'utf8');
       } catch (error) {
         if (error.code !== 'ENOENT') throw error;
-        const initial = { schema: 1, classicCatalogueRevision: catalogueRevision, entries: structuredClone([...classics, ...guides]), feeds: {} };
+        const initial = { schema: 1, classicCatalogueRevision: catalogueRevision, guideCatalogueRevision, entries: structuredClone([...classics, ...guides]), feeds: {} };
         await persist(initial);
         return state = initial;
       }
       if (Buffer.byteLength(raw) > 16 * 1024 * 1024) throw new Error('无线广播数据过大');
       const saved = JSON.parse(raw);
       if (saved.schema !== 1 || !Array.isArray(saved.entries) || saved.entries.length > 1000 || !saved.feeds || typeof saved.feeds !== 'object') throw new Error('无线广播数据格式无效');
+      let upgraded = false;
       if ((saved.classicCatalogueRevision || 0) < catalogueRevision) {
         for (const item of classics) {
           const index = saved.entries.findIndex(entry => entry.id === item.id);
@@ -55,8 +56,22 @@ function createBroadcast({ directory, collect, now = Date.now }) {
             if (hash === legacyHashes[item.id]) saved.entries[index] = structuredClone(item);
           } else if (introducedRevision[item.id] > (saved.classicCatalogueRevision || 0) && !saved.dismissed?.includes(item.id)) saved.entries.push(structuredClone(item));
         }
-        if (saved.entries.length > 1000) throw Object.assign(new Error('经典地图收录后超过 1000 条，请先整理广播记录'), { status: 413 });
         saved.classicCatalogueRevision = catalogueRevision;
+        upgraded = true;
+      }
+      if ((saved.guideCatalogueRevision || 0) < guideCatalogueRevision) {
+        for (const item of guides) {
+          const index = saved.entries.findIndex(entry => entry.id === item.id);
+          if (index >= 0) {
+            const hash = crypto.createHash('sha256').update(JSON.stringify(saved.entries[index])).digest('hex');
+            if (hash === legacyGuideHashes[item.id]) saved.entries[index] = structuredClone(item);
+          } else if (guideIntroducedRevision[item.id] > (saved.guideCatalogueRevision || 0) && !saved.dismissed?.includes(item.id)) saved.entries.push(structuredClone(item));
+        }
+        saved.guideCatalogueRevision = guideCatalogueRevision;
+        upgraded = true;
+      }
+      if (upgraded) {
+        if (saved.entries.length > 1000) throw Object.assign(new Error('广播资料收录后超过 1000 条，请先整理广播记录'), { status: 413 });
         await persist(saved);
       }
       return state = saved;
