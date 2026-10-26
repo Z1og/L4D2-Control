@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "projectId": "l4d2-control-bf312edc896c79baad5c",
-  "fingerprint": "56d13cdd6867fadf10332be4090d06166bd9fe4195c9e3ab28d5d6c81cfc7e01",
+  "fingerprint": "af6689ae317bf1757cd8a028ea2699a4bcd30a6f037eee0a4e771b33bb77c2cd",
   "files": [
     {
       "path": "Build project fingerprint.js",
@@ -65,11 +65,11 @@
     },
     {
       "path": "broadcast classics.js",
-      "sha256": "ca8ce463a469c083a81e2a5a053c647008d9835590a76b2f76cc98f89bb13975"
+      "sha256": "a9a7bcea3e49723804d22937503d657557853b08d2461f0c62afe9c50aa167f7"
     },
     {
       "path": "broadcast manager.js",
-      "sha256": "c7b9145547e5d3ff27698b8bf87c94c50465fefbf5f52da9cb03790eb220e28d"
+      "sha256": "b3c2d1d787da12eb8b24e567c7930dee66e1e44a6988aeb32626ca61f3a6ac65"
     },
     {
       "path": "broadcast seeds.js",
