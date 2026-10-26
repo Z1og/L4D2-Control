@@ -238,6 +238,8 @@ Use Server Settings → Appearance or the top-right palette button to choose Cla
 
 ## Survivor Radio
 
+The built-in catalogue contains 50 classic campaigns researched from Bilibili features, a Heybox curated collection and GameMaps release pages, with Chinese summaries, tags, source attribution and usage notes. Upgrades preserve administrator edits, removed entries and cached feeds. Catalogue inclusion does not imply installation or playtesting.
+
 The sidebar entry below Player Management contains Map News and Guides & Q&A. Signed-in ordinary users can read; administrators can curate classic campaigns, save public Bilibili/Heybox links with attribution, and write solutions with map associations, tags, applicability and verification dates. Search, pinning, pagination, browser-session bookmarks and JSON export of curated entries are included.
 
 Manual map refresh checks up to 90 recently updated Steam Campaigns entries, verifies app 550, update timestamps, package size and explicit campaign evidence, and retains entries updated within one calendar month. Multipart campaigns remain separate Workshop entries. Entries without explicit map evidence go to an administrator-only review queue, where entries can be dismissed or curated as classics. This also applies to music and texture patches tagged only as Campaigns. This metadata screening is not downloaded-file verification. Guides are collected from Steam's Simplified Chinese tagged, top-rated directory and filtered for Chinese text in titles or summaries; up to 90 candidates are checked and 30 shown. Author-provided summaries are not independently verified. Bilibili search and the Heybox community provide discovery entry points with manual link curation rather than cookie-dependent scraping.

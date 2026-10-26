@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "projectId": "l4d2-control-bf312edc896c79baad5c",
-  "fingerprint": "6c3f25b0b38c5088bf6d5491fd21135b4e231e7b4e4dcf8b1a11904a9eaebe77",
+  "fingerprint": "801ecd2851107256866b2f72effd6f4291881eecc495919bd44f34c16e62114e",
   "files": [
     {
       "path": "Build project fingerprint.js",
@@ -64,12 +64,16 @@
       "sha256": "605e4529626ab39546cd79312138bd475067b9dc1e882c64d9a3585863fd68fc"
     },
     {
+      "path": "broadcast classics.js",
+      "sha256": "ca8ce463a469c083a81e2a5a053c647008d9835590a76b2f76cc98f89bb13975"
+    },
+    {
       "path": "broadcast manager.js",
-      "sha256": "094b20a8956dee29a75bb51f4160e2125bd82158f40fd3864f1290c41befad2d"
+      "sha256": "c7b9145547e5d3ff27698b8bf87c94c50465fefbf5f52da9cb03790eb220e28d"
     },
     {
       "path": "broadcast seeds.js",
-      "sha256": "b35b73042d6d5ebaadb803d8317942ca694cd1651338c9913aa60a6bc980699b"
+      "sha256": "4922a5505685768ab31d714d806d3ddbc4fd5047ef82348d9e7fca0297f49265"
     },
     {
       "path": "broadcast sources.js",
@@ -149,7 +153,7 @@
     },
     {
       "path": "project fingerprint.js",
-      "sha256": "59e9ec8aa4f08cc87bdaddc5c25d158ed13e47021c212e7c736621c1877ca1a9"
+      "sha256": "298ae8a2ba34b57f0092ca461e35a5e96b534da731a04ce8beb0a0e73d2c3c7b"
     },
     {
       "path": "server.js",

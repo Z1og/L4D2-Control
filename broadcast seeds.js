@@ -1,14 +1,4 @@
-const search = title => `https://steamcommunity.com/workshop/browse/?appid=550&searchtext=${encodeURIComponent(title)}&requiredtags%5B%5D=Campaigns`;
-const classics = [
-  ['back-to-school', '重返校园', 'Back to School', '长篇战役候选，适合预留完整时间组队游玩。下载时核对全部分包与必需项目。', ['长篇战役', '组队']],
-  ['urban-flight', '城市航班', 'Urban Flight', '城市撤离题材战役候选，可作为好友联机的拓展路线。', ['城市', '战役']],
-  ['suicide-blitz-2', '自杀闪电战 2', 'Suicide Blitz 2', '社区老牌战役候选，收录时请核对适用于 L4D2 的版本。', ['经典战役', '组队']],
-  ['i-hate-mountains-2', '我恨山 2', 'I Hate Mountains 2', '山林题材社区战役候选，请核对版本及作者依赖说明。', ['山林', '探索']],
-  ['day-break', '黎明', 'Day Break', '社区战役候选；同名项目较多，选择下载项前核对作者与介绍。', ['战役', '撤离']],
-  ['warcelona', 'Warcelona', 'Warcelona', '以巴塞罗那为题材的社区战役候选，适合收录游玩体验与路线攻略。', ['城市', '战役']],
-  ['yama', 'Yama', 'Yama', '日本题材社区战役候选，可关联路线、机关与补给点攻略。', ['日本题材', '探索']],
-  ['dark-wood', '黑暗森林', 'Dark Wood', '森林题材社区战役候选，适合组队探索。具体难度以所选版本与游戏设置为准。', ['森林', '组队']]
-].map(([id, title, english, summary, tags]) => ({ id: `classic-${id}`, kind: 'classic', title, english, summary, content: '', url: search(english), source: 'Steam 战役搜索', author: '', tags, map: english, pinned: false, publishedAt: null, updatedAt: null, linkType: 'search' }));
+const { classics } = require('./broadcast classics');
 
 const guides = [
   ['install-map', '好友进服前，怎样安装同一套自定义地图？', '地图安装', '先确认服务器使用的战役名称、版本及完整分包。每位玩家在本地安装相同版本；工坊订阅要包含作者列出的必需项目，手动下载的 VPK 放进游戏 left4dead2/addons 目录。\n\n发现缺图或版本不一致时，先退出游戏，核对旧版与新版是否同时存在，再按作者说明处理重复包。面板的“直连下载导出”可分享已备份的服务器地图。', 'https://developer.valvesoftware.com/wiki/L4D2_Campaign_Add-on_Tutorial'],

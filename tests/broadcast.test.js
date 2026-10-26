@@ -8,15 +8,48 @@ const entry = { kind: 'qa', title: '紫黑贴图怎么解决？', content: '核�
 test('radio data survives restarts, serialized edits and confirmed deletion without any network reads', async t => {
   const directory = await temp(t); let calls = 0;
   const make = () => createBroadcast({ directory, now: () => at, collect: async () => { calls++; return { items: [] }; } });
-  const manager = make(), baseline = await manager.snapshot(); assert.equal(baseline.entries.length, 14); assert.equal(calls, 0);
+  const manager = make(), baseline = await manager.snapshot(); assert.equal(baseline.entries.length, 56); assert.equal(calls, 0);
   await Promise.all(Array.from({ length: 5 }, (_, i) => manager.save({ ...entry, title: '问题 ' + i })));
-  let snapshot = await make().snapshot(); assert.equal(snapshot.entries.length, 19); assert.equal(calls, 0);
+  let snapshot = await make().snapshot(); assert.equal(snapshot.entries.length, 61); assert.equal(calls, 0);
   const saved = snapshot.entries.find(x => x.title === '问题 0');
   await manager.save({ ...saved, content: '已解决', verifiedAt: '2026-10-26', pinned: true });
   assert.equal((await make().snapshot()).entries.find(x => x.id === saved.id).content, '已解决');
   await assert.rejects(() => manager.remove({ id: saved.id, confirmed: false }), e => e.status === 400);
   await manager.remove({ id: saved.id, confirmed: true });
   assert.ok(!(await make().snapshot()).entries.some(x => x.id === saved.id));
+});
+test('researched classic catalogue has Chinese summaries, unique campaigns and real source articles', () => {
+  const { classics } = require('../broadcast classics');
+  assert.equal(classics.length, 50);
+  assert.equal(new Set(classics.map(x => x.id)).size, 50);
+  assert.equal(new Set(classics.map(x => x.english.toLowerCase())).size, 50);
+  for (const item of classics) {
+    assert.match(item.title, /[\u3400-\u9fff]/);
+    assert.match(item.summary, /[\u3400-\u9fff]/);
+    assert.equal(item.linkType, 'article'); assert.equal(sourceLink(item.url), item.url);
+    assert.ok(item.author); assert.ok(item.content); cleanEntry(item);
+  }
+  assert.deepEqual(new Set(classics.map(x => new URL(x.url).hostname)), new Set(['www.gamemaps.com', 'www.xiaoheihe.cn', 'www.bilibili.com']));
+});
+test('catalogue upgrade replaces untouched placeholders but preserves edits, deleted classics and cached feeds', async t => {
+  const directory = await temp(t), file = path.join(directory, 'broadcast.json');
+  const untouched = { id: 'classic-urban-flight', kind: 'classic', title: '城市航班', english: 'Urban Flight', summary: '城市撤离题材战役候选，可作为好友联机的拓展路线。', content: '', url: 'https://steamcommunity.com/workshop/browse/?appid=550&searchtext=Urban%20Flight&requiredtags%5B%5D=Campaigns', source: 'Steam 战役搜索', author: '', tags: ['城市', '战役'], map: 'Urban Flight', pinned: false, publishedAt: null, updatedAt: null, linkType: 'search' };
+  const edited = { ...untouched, id: 'classic-back-to-school', title: '我自己编辑的返校', summary: '保留我的备注' };
+  const feed = { items: [{ id: 'cached-guide', title: '已存攻略' }], updatedAt: '2026-10-25T00:00:00.000Z' };
+  await fs.writeFile(file, JSON.stringify({ schema: 1, entries: [untouched, edited], feeds: { guides: feed }, dismissed: ['classic-nanning'] }));
+  const make = () => createBroadcast({ directory, collect: () => { throw Error('must not collect'); } });
+  const manager = make(), data = await manager.snapshot();
+  assert.equal(data.classicCatalogueRevision, 1);
+  assert.equal(data.entries.find(x => x.id === untouched.id).linkType, 'article');
+  assert.deepEqual(data.entries.find(x => x.id === edited.id), edited);
+  assert.ok(!data.entries.some(x => x.id === 'classic-yama'));
+  assert.ok(!data.entries.some(x => x.id === 'classic-nanning'));
+  assert.ok(data.entries.some(x => x.id === 'classic-buried-deep'));
+  assert.deepEqual(JSON.parse(await fs.readFile(file, 'utf8')).feeds.guides, feed);
+  await manager.remove({ id: 'classic-buried-deep', confirmed: true });
+  const restarted = await make().snapshot();
+  assert.ok(!restarted.entries.some(x => x.id === 'classic-buried-deep'));
+  assert.deepEqual(restarted.entries, JSON.parse(await fs.readFile(file, 'utf8')).entries);
 });
 test('source URLs reject executable schemes and credentials; plain text content remains literal', () => {
   for (const url of ['javascript:alert(1)', 'data:text/html,test', 'http://example.com', 'https://secret:token@example.com', 'https://127.0.0.1/a']) assert.throws(() => sourceLink(url), e => e.status === 400);

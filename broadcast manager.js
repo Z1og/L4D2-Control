@@ -2,6 +2,7 @@ const fs = require('node:fs/promises');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const { classics, guides } = require('./broadcast seeds');
+const { legacyHashes, catalogueRevision } = require('./broadcast classics');
 const { monthAgo } = require('./broadcast sources');
 
 const fail = message => Object.assign(new Error(message), { status: 400 });
@@ -34,29 +35,46 @@ function createBroadcast({ directory, collect, now = Date.now }) {
   async function load() {
     if (state) return state;
     if (!loading) loading = (async () => {
+      let raw;
       try {
-        const raw = await fs.readFile(filename, 'utf8');
-        if (Buffer.byteLength(raw) > 16 * 1024 * 1024) throw new Error('无线广播数据过大');
-        const saved = JSON.parse(raw);
-        if (saved.schema !== 1 || !Array.isArray(saved.entries) || saved.entries.length > 1000 || !saved.feeds || typeof saved.feeds !== 'object') throw new Error('无线广播数据格式无效');
-        state = saved;
+        raw = await fs.readFile(filename, 'utf8');
       } catch (error) {
         if (error.code !== 'ENOENT') throw error;
-        state = { schema: 1, entries: structuredClone([...classics, ...guides]), feeds: {} };
+        const initial = { schema: 1, classicCatalogueRevision: catalogueRevision, entries: structuredClone([...classics, ...guides]), feeds: {} };
+        await persist(initial);
+        return state = initial;
       }
-      return state;
+      if (Buffer.byteLength(raw) > 16 * 1024 * 1024) throw new Error('无线广播数据过大');
+      const saved = JSON.parse(raw);
+      if (saved.schema !== 1 || !Array.isArray(saved.entries) || saved.entries.length > 1000 || !saved.feeds || typeof saved.feeds !== 'object') throw new Error('无线广播数据格式无效');
+      if ((saved.classicCatalogueRevision || 0) < catalogueRevision) {
+        for (const item of classics) {
+          const index = saved.entries.findIndex(entry => entry.id === item.id);
+          if (index >= 0) {
+            const hash = crypto.createHash('sha256').update(JSON.stringify(saved.entries[index])).digest('hex');
+            if (hash === legacyHashes[item.id]) saved.entries[index] = structuredClone(item);
+          } else if (!legacyHashes[item.id] && !saved.dismissed?.includes(item.id)) saved.entries.push(structuredClone(item));
+        }
+        if (saved.entries.length > 1000) throw Object.assign(new Error('经典地图收录后超过 1000 条，请先整理广播记录'), { status: 413 });
+        saved.classicCatalogueRevision = catalogueRevision;
+        await persist(saved);
+      }
+      return state = saved;
     })().finally(() => { loading = null; });
     return loading;
+  }
+  async function persist(next) {
+    const serialized = JSON.stringify(next, null, 2) + '\n';
+    if (Buffer.byteLength(serialized) > 16 * 1024 * 1024) throw Object.assign(new Error('广播内容超过 16 MB，请先导出并整理旧记录'), { status: 413 });
+    await fs.mkdir(directory, { recursive: true, mode: 0o700 });
+    const temporary = filename + '.' + crypto.randomBytes(6).toString('hex') + '.tmp';
+    try { await fs.writeFile(temporary, serialized, { mode: 0o600 }); await fs.rename(temporary, filename); }
+    catch (error) { await fs.rm(temporary, { force: true }); throw error; }
   }
   function mutate(action) {
     const operation = queue.then(async () => {
       const next = structuredClone(await load()), result = action(next);
-      const serialized = JSON.stringify(next, null, 2) + '\n';
-      if (Buffer.byteLength(serialized) > 16 * 1024 * 1024) throw Object.assign(new Error('广播内容超过 16 MB，请先导出并整理旧记录'), { status: 413 });
-      await fs.mkdir(directory, { recursive: true, mode: 0o700 });
-      const temporary = filename + '.' + crypto.randomBytes(6).toString('hex') + '.tmp';
-      try { await fs.writeFile(temporary, serialized, { mode: 0o600 }); await fs.rename(temporary, filename); }
-      catch (error) { await fs.rm(temporary, { force: true }); throw error; }
+      await persist(next);
       state = next; return result;
     });
     queue = operation.catch(() => {}); return operation;
