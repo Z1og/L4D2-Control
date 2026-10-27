@@ -1,8 +1,7 @@
 const fs = require('node:fs/promises');
 const path = require('node:path');
 const crypto = require('node:crypto');
-const { classics, guides, legacyGuideHashes, guideIntroducedRevision, guideCatalogueRevision } = require('./broadcast seeds');
-const { legacyHashes, introducedRevision, catalogueRevision } = require('./broadcast classics');
+const { classics, legacyHashes, introducedRevision, catalogueRevision } = require('./broadcast classics');
 const { monthAgo } = require('./broadcast sources');
 
 const fail = message => Object.assign(new Error(message), { status: 400 });
@@ -21,7 +20,7 @@ function cleanEntry(input) {
     if (value.length > limit || required && !value) throw fail(`${key} 内容为空或过长`);
     return value;
   };
-  if (!['classic', 'guide', 'qa', 'review'].includes(input.kind)) throw fail('内容分类无效');
+  if (input.kind !== 'classic') throw fail('仅支持收录经典地图');
   if (!Array.isArray(input.tags) || input.tags.length > 8 || input.tags.some(tag => typeof tag !== 'string' || !tag.trim() || tag.length > 30)) throw fail('标签最多 8 个，每个不超过 30 字');
   const verifiedAt = text('verifiedAt', 10);
   if (verifiedAt && (!/^\d{4}-\d{2}-\d{2}$/.test(verifiedAt) || !Number.isFinite(Date.parse(verifiedAt + 'T00:00:00Z')) || new Date(verifiedAt + 'T00:00:00Z').toISOString().slice(0, 10) !== verifiedAt)) throw fail('验证日期无效');
@@ -40,7 +39,7 @@ function createBroadcast({ directory, collect, now = Date.now }) {
         raw = await fs.readFile(filename, 'utf8');
       } catch (error) {
         if (error.code !== 'ENOENT') throw error;
-        const initial = { schema: 1, classicCatalogueRevision: catalogueRevision, guideCatalogueRevision, entries: structuredClone([...classics, ...guides]), feeds: {} };
+        const initial = { schema: 1, classicCatalogueRevision: catalogueRevision, entries: structuredClone(classics), feeds: {} };
         await persist(initial);
         return state = initial;
       }
@@ -57,17 +56,6 @@ function createBroadcast({ directory, collect, now = Date.now }) {
           } else if (introducedRevision[item.id] > (saved.classicCatalogueRevision || 0) && !saved.dismissed?.includes(item.id)) saved.entries.push(structuredClone(item));
         }
         saved.classicCatalogueRevision = catalogueRevision;
-        upgraded = true;
-      }
-      if ((saved.guideCatalogueRevision || 0) < guideCatalogueRevision) {
-        for (const item of guides) {
-          const index = saved.entries.findIndex(entry => entry.id === item.id);
-          if (index >= 0) {
-            const hash = crypto.createHash('sha256').update(JSON.stringify(saved.entries[index])).digest('hex');
-            if (hash === legacyGuideHashes[item.id]) saved.entries[index] = structuredClone(item);
-          } else if (guideIntroducedRevision[item.id] > (saved.guideCatalogueRevision || 0) && !saved.dismissed?.includes(item.id)) saved.entries.push(structuredClone(item));
-        }
-        saved.guideCatalogueRevision = guideCatalogueRevision;
         upgraded = true;
       }
       if (upgraded) {
@@ -96,20 +84,19 @@ function createBroadcast({ directory, collect, now = Date.now }) {
   }
   async function snapshot() {
     const data = structuredClone(await load()), at = now();
-    for (const feed of ['maps', 'guides']) {
-      const saved = data.feeds[feed] || { items: [], updatedAt: null, error: '' };
-      if (feed === 'maps') saved.items = saved.items.filter(item => Date.parse(item.updatedAt) >= monthAgo(at) && Date.parse(item.updatedAt) <= at + 300000);
-      saved.items = saved.items.filter(item => !data.dismissed?.includes(item.id));
-      if (feed === 'maps') saved.reviewItems = (saved.reviewItems || []).filter(item => Date.parse(item.updatedAt) >= monthAgo(at) && Date.parse(item.updatedAt) <= at + 300000 && !data.dismissed?.includes(item.id) && !data.entries.some(entry => entry.kind === 'classic' && entry.url === item.url));
-      data.feeds[feed] = { ...saved, refreshing: pending.has(feed) };
-    }
+    const saved = data.feeds.maps || { items: [], updatedAt: null, error: '' };
+    saved.items = saved.items.filter(item => Date.parse(item.updatedAt) >= monthAgo(at) && Date.parse(item.updatedAt) <= at + 300000 && !data.dismissed?.includes(item.id));
+    saved.reviewItems = (saved.reviewItems || []).filter(item => Date.parse(item.updatedAt) >= monthAgo(at) && Date.parse(item.updatedAt) <= at + 300000 && !data.dismissed?.includes(item.id) && !data.entries.some(entry => entry.kind === 'classic' && entry.url === item.url));
+    data.feeds.maps = { ...saved, refreshing: pending.has('maps') };
+    data.entries = data.entries.filter(item => item.kind === 'classic');
+    data.feeds = { maps: data.feeds.maps };
     return data;
   }
   async function save(input) {
     const entry = cleanEntry(input), id = input.id;
     if (id !== undefined && (typeof id !== 'string' || !/^[\w-]{1,100}$/.test(id))) throw fail('内容编号无效');
     await mutate(data => {
-      const index = id ? data.entries.findIndex(item => item.id === id) : -1;
+      const index = id ? data.entries.findIndex(item => item.id === id && item.kind === 'classic') : -1;
       if (id && index < 0) throw Object.assign(new Error('内容已不存在，请刷新后重试'), { status: 404 });
       if (index < 0 && data.entries.length >= 1000) throw fail('已达到 1000 条收录上限');
       const previous = data.entries[index], at = new Date(now()).toISOString();
@@ -121,16 +108,16 @@ function createBroadcast({ directory, collect, now = Date.now }) {
   async function remove({ id, confirmed }) {
     if (confirmed !== true) throw fail('请确认删除内容');
     await mutate(data => {
-      const index = data.entries.findIndex(item => item.id === id);
+      const index = data.entries.findIndex(item => item.id === id && item.kind === 'classic');
       if (index >= 0) data.entries.splice(index, 1);
-      else if (Object.values(data.feeds).some(feed => [...feed.items, ...(feed.reviewItems || [])].some(item => item.id === id))) {
+      else if ([...(data.feeds.maps?.items || []), ...(data.feeds.maps?.reviewItems || [])].some(item => item.id === id)) {
         data.dismissed = [...new Set([...(data.dismissed || []), id])].slice(-2000);
       } else throw Object.assign(new Error('内容已不存在'), { status: 404 });
     });
     return snapshot();
   }
   function refresh(feed) {
-    if (!['maps', 'guides'].includes(feed)) return Promise.reject(fail('资讯类型无效'));
+    if (feed !== 'maps') return Promise.reject(fail('仅支持更新地图资讯'));
     if (pending.has(feed)) return pending.get(feed);
     const operation = (async () => {
       try {

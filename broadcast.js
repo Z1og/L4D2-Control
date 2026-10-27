@@ -4,50 +4,42 @@
   const el = id => document.getElementById(id), memory = window.panelState;
   const read = (key, fallback) => memory?.get('radio:' + key, fallback) ?? fallback;
   const store = (key, value) => memory?.set('radio:' + key, value);
-  const e = escapeHtml, names = { classic: '经典地图', recent: '近期更新', candidate: '待核验条目', guide: '网络攻略', review: '地图测评', qa: '问题答疑' };
+  const e = escapeHtml, names = { classic: '经典地图', recent: '近期更新', candidate: '待核验条目' };
   const date = value => value ? new Date(value).toLocaleDateString('zh-CN') : '';
-  let tab = read('tab', 'maps') === 'guides' ? 'guides' : 'maps';
   let filter = '', tag = '', page = 1, data = null, loading = null, editing = null, detail = null, saving = false;
   const savedFavorites = read('favorites', []), favorites = new Set(Array.isArray(savedFavorites) ? savedFavorites.filter(id => typeof id === 'string').slice(0, 1000) : []);
   function restoreFilters() {
-    const allowed = tab === 'maps' ? ['classic', 'recent', 'favorites', ...(isGuest ? [] : ['candidate'])] : ['all', 'guide', 'review', 'qa', 'favorites'];
-    const saved = read('filter:' + tab, allowed[0]); filter = allowed.includes(saved) ? saved : allowed[0];
-    tag = read('tag:' + tab, '');
-    page = Math.max(1, Math.min(1000, Number(read('page:' + tab, 1)) || 1));
+    const allowed = ['classic', 'recent', 'favorites', ...(isGuest ? [] : ['candidate'])];
+    const saved = read('filter:maps', allowed[0]); filter = allowed.includes(saved) ? saved : allowed[0];
+    tag = read('tag:maps', '');
+    page = Math.max(1, Math.min(1000, Number(read('page:maps', 1)) || 1));
   }
   restoreFilters();
-  function entries() { return [...(data?.entries || []), ...(data?.feeds.maps.items || []), ...(isGuest ? [] : data?.feeds.maps.reviewItems || []), ...(data?.feeds.guides.items || [])]; }
+  function entries() { return [...(data?.entries || []), ...(data?.feeds.maps.items || []), ...(isGuest ? [] : data?.feeds.maps.reviewItems || [])]; }
   const isMap = item => ['classic', 'recent', 'candidate'].includes(item.kind);
   function sourceLink(item, label) { return item.url ? `<a class="text-button" href="${e(item.url)}" target="_blank" rel="noopener noreferrer">${label || (item.linkType === 'search' ? '查找地图版本' : item.source?.startsWith('项目整理') ? '参考资料' : '查看原文')} <i data-lucide="arrow-up-right"></i></a>` : ''; }
   function meta(item) {
     return [item.source, item.author && `作者：${item.author}`, ['recent', 'candidate'].includes(item.kind) ? `项目更新：${date(item.updatedAt)}${item.isNew ? ' · 新发布' : ''}` : item.updatedAt ? `记录更新：${date(item.updatedAt)}` : '', item.verifiedAt ? `验证：${item.verifiedAt}` : ''].filter(Boolean).join(' · ');
   }
   function render() {
-    root.querySelectorAll('[data-radio-tab]').forEach(button => {
-      const active = button.dataset.radioTab === tab; button.classList.toggle('active', active); button.setAttribute('aria-selected', String(active)); button.tabIndex = active ? 0 : -1;
-    });
-    el('broadcastMapsPage').classList.toggle('hidden', tab !== 'maps'); el('broadcastGuidesPage').classList.toggle('hidden', tab !== 'guides');
     root.querySelectorAll('[data-radio-filter]').forEach(button => { const active = button.dataset.radioFilter === filter; button.classList.toggle('active', active); button.setAttribute('aria-pressed', String(active)); });
-    el('broadcastIntroTitle').textContent = tab === 'maps' ? '好地图，值得一起出发' : '把经验留给下一位生还者';
-    el('broadcastIntroText').textContent = tab === 'maps' ? '精选经典战役，关注近一个月的地图更新。' : '攻略有出处，问题有解法。收藏好内容，记录已验证的经验。';
-    const all = entries(), subset = all.filter(item => isMap(item) === (tab === 'maps'));
-    el('broadcastStats').innerHTML = tab === 'maps' ? `<span><b>${all.filter(x => x.kind === 'classic').length}</b>经典推荐</span><span><b>${data?.feeds.maps.items.length || 0}</b>近期条目</span>` : `<span><b>${all.filter(x => ['guide', 'review'].includes(x.kind)).length}</b>攻略测评</span><span><b>${all.filter(x => x.kind === 'qa').length}</b>问题答疑</span>`;
+    el('broadcastIntroTitle').textContent = '好地图，值得一起出发';
+    el('broadcastIntroText').textContent = '精选经典战役，关注近一个月的地图更新。';
+    const all = entries(), subset = all;
+    el('broadcastStats').innerHTML = `<span><b>${all.filter(x => x.kind === 'classic').length}</b>经典推荐</span><span><b>${data?.feeds.maps.items.length || 0}</b>近期条目</span>`;
     const categoryRows = subset.filter(item => filter === 'all' || filter === 'favorites' ? filter !== 'favorites' || favorites.has(item.id) : item.kind === filter);
     const tags = [...new Set(categoryRows.flatMap(item => item.tags || []))].sort((a, b) => a.localeCompare(b, 'zh-CN'));
     if (!tags.includes(tag)) tag = '';
     el('broadcastTag').innerHTML = '<option value="">全部标签</option>' + tags.map(value => `<option value="${e(value)}">${e(value)}</option>`).join(''); el('broadcastTag').value = tag;
     const query = el('broadcastSearch').value.trim().toLowerCase();
     const rows = categoryRows.filter(item => (!tag || item.tags?.includes(tag)) && (!query || [item.title, item.english, item.summary, item.content, item.map, item.author, item.source, ...(item.tags || [])].join(' ').toLowerCase().includes(query))).sort((a, b) => Number(Boolean(b.pinned)) - Number(Boolean(a.pinned)));
-    const pages = Math.max(1, Math.ceil(rows.length / 12)); page = Math.min(page, pages); store('page:' + tab, page);
-    el('broadcastList').innerHTML = rows.slice((page - 1) * 12, page * 12).map(item => `<article class="radio-card${isMap(item) ? ' radio-map-card' : ''}"><div class="radio-card-top"><span class="radio-pill ${item.kind === 'recent' && item.isNew ? 'radio-new' : ''}">${item.pinned ? '置顶 · ' : ''}${item.kind === 'recent' && item.isNew ? '近期新发布' : names[item.kind]}</span><button class="icon-button small radio-favorite${favorites.has(item.id) ? ' active' : ''}" data-radio-favorite="${e(item.id)}" aria-label="${favorites.has(item.id) ? '取消收藏' : '收藏'} ${e(item.title)}" aria-pressed="${favorites.has(item.id)}" title="${favorites.has(item.id) ? '取消收藏' : '收藏'}"><i data-lucide="bookmark"></i></button></div><h3><button data-radio-detail="${e(item.id)}">${e(item.title)}</button></h3>${item.english && item.english !== item.title ? `<p class="radio-english">${e(item.english)}</p>` : ''}<p class="radio-summary">${e(item.summary || item.content?.slice(0, 180) || '打开详情查看来源和说明。')}</p><div class="radio-tags">${(item.tags || []).slice(0, 4).map(t => `<span>${e(t)}</span>`).join('')}</div>${item.map && !isMap(item) ? `<p class="radio-meta">关联地图：${e(item.map)}</p>` : ''}<p class="radio-meta">${e(meta(item) || '经典入门清单 · 可由管理员调整')}</p><div class="radio-card-actions"><button class="text-button" data-radio-detail="${e(item.id)}">查看详情 <i data-lucide="arrow-right"></i></button>${sourceLink(item)}${!isGuest && data.entries.some(x => x.id === item.id) ? `<button class="text-button" data-radio-edit="${e(item.id)}" aria-label="编辑 ${e(item.title)}">编辑</button>` : ''}</div></article>`).join('') || `<div class="radio-empty"><i data-lucide="${filter === 'favorites' ? 'bookmark' : 'radio'}"></i><h3>${!data ? '暂时无法读取广播' : filter === 'favorites' ? '这里还没有收藏' : query || tag ? '没有找到匹配内容' : filter === 'recent' ? '暂无近一个月更新条目' : '暂无收录内容'}</h3><p>${!data ? '点击“读取已存内容”重试。' : filter === 'favorites' ? '点击卡片右上角书签，把想看的内容留在这里。' : query || tag ? '试试其他关键词，或清除搜索和标签。' : filter === 'recent' ? '管理员可点击“更新地图资讯”读取 Steam 最新战役目录。' : '管理员可收录来源链接，或写下一条解决方案。'}</p></div>`;
+    const pages = Math.max(1, Math.ceil(rows.length / 12)); page = Math.min(page, pages); store('page:maps', page);
+    el('broadcastList').innerHTML = rows.slice((page - 1) * 12, page * 12).map(item => `<article class="radio-card${isMap(item) ? ' radio-map-card' : ''}"><div class="radio-card-top"><span class="radio-pill ${item.kind === 'recent' && item.isNew ? 'radio-new' : ''}">${item.pinned ? '置顶 · ' : ''}${item.kind === 'recent' && item.isNew ? '近期新发布' : names[item.kind]}</span><button class="icon-button small radio-favorite${favorites.has(item.id) ? ' active' : ''}" data-radio-favorite="${e(item.id)}" aria-label="${favorites.has(item.id) ? '取消收藏' : '收藏'} ${e(item.title)}" aria-pressed="${favorites.has(item.id)}" title="${favorites.has(item.id) ? '取消收藏' : '收藏'}"><i data-lucide="bookmark"></i></button></div><h3><button data-radio-detail="${e(item.id)}">${e(item.title)}</button></h3>${item.english && item.english !== item.title ? `<p class="radio-english">${e(item.english)}</p>` : ''}<p class="radio-summary">${e(item.summary || item.content?.slice(0, 180) || '打开详情查看来源和说明。')}</p><div class="radio-tags">${(item.tags || []).slice(0, 4).map(t => `<span>${e(t)}</span>`).join('')}</div><p class="radio-meta">${e(meta(item) || '经典入门清单 · 可由管理员调整')}</p><div class="radio-card-actions"><button class="text-button" data-radio-detail="${e(item.id)}">查看详情 <i data-lucide="arrow-right"></i></button>${sourceLink(item)}${!isGuest && data.entries.some(x => x.id === item.id) ? `<button class="text-button" data-radio-edit="${e(item.id)}" aria-label="编辑 ${e(item.title)}">编辑</button>` : ''}</div></article>`).join('') || `<div class="radio-empty"><i data-lucide="${filter === 'favorites' ? 'bookmark' : 'radio'}"></i><h3>${!data ? '暂时无法读取地图资讯' : filter === 'favorites' ? '这里还没有收藏' : query || tag ? '没有找到匹配内容' : filter === 'recent' ? '暂无近一个月更新条目' : '暂无收录地图'}</h3><p>${!data ? '点击“读取已存内容”重试。' : filter === 'favorites' ? '点击卡片右上角书签，把想看的内容留在这里。' : query || tag ? '试试其他关键词，或清除搜索和标签。' : filter === 'recent' ? '管理员可点击“更新地图资讯”读取 Steam 最新战役目录。' : '管理员可添加经典地图收录。'}</p></div>`;
     el('broadcastResultCount').textContent = `${rows.length} 条内容`; el('broadcastPageNumber').textContent = `${page} / ${pages}`;
     el('broadcastPrev').disabled = page <= 1; el('broadcastNext').disabled = page >= pages;
-    const feedName = tab === 'maps' ? 'maps' : 'guides', feed = data?.feeds[feedName];
-    el('broadcastFeedStatus').textContent = feed ? [feed.updatedAt ? `网络资讯采集于 ${new Date(feed.updatedAt).toLocaleString('zh-CN')}` : '尚未采集网络资讯', feed.scope || (tab === 'maps' ? '经典清单可由管理员维护；近一个月以地图更新时间计算。' : '网络链接保留作者与出处；自定义答疑可补充版本和验证日期。'), feed.error ? `上次更新失败：${feed.error}。已保留原有内容。` : '', feed.translationError].filter(Boolean).join(' · ') : '正在读取广播内容…';
-    el('refreshBroadcastFeed').disabled = Boolean(feed?.refreshing); el('refreshBroadcastFeed').innerHTML = `<i data-lucide="${feed?.refreshing ? 'loader-circle' : 'cloud-download'}"></i>${feed?.refreshing ? '正在采集…' : tab === 'maps' ? '更新地图资讯' : '更新网络攻略'}`;
-    const keyword = `求生之路2 ${el('broadcastSearch').value.trim() || '地图攻略'}`;
-    el('radioBiliSearch').href = 'https://search.bilibili.com/all?keyword=' + encodeURIComponent(keyword);
-    el('radioHeyboxSearch').href = 'https://www.xiaoheihe.cn/app/bbs/home';
+    const feed = data?.feeds.maps;
+    el('broadcastFeedStatus').textContent = feed ? [feed.updatedAt ? `网络资讯采集于 ${new Date(feed.updatedAt).toLocaleString('zh-CN')}` : '尚未采集网络资讯', feed.scope || '经典清单可由管理员维护；近一个月以地图更新时间计算。', feed.error ? `上次更新失败：${feed.error}。已保留原有内容。` : '', feed.translationError].filter(Boolean).join(' · ') : '正在读取广播内容…';
+    el('refreshBroadcastFeed').disabled = Boolean(feed?.refreshing); el('refreshBroadcastFeed').innerHTML = `<i data-lucide="${feed?.refreshing ? 'loader-circle' : 'cloud-download'}"></i>${feed?.refreshing ? '正在采集…' : '更新地图资讯'}`;
     icons();
   }
   function error(message = '') { el('broadcastError').textContent = message; el('broadcastError').classList.toggle('hidden', !message); }
@@ -62,25 +54,19 @@
     })(); return loading;
   }
   window.loadBroadcast = load;
-  function selectTab(value) { tab = value; store('tab', tab); restoreFilters(); render(); }
-  el('broadcastTabs').addEventListener('click', event => { const button = event.target.closest('[data-radio-tab]'); if (button) selectTab(button.dataset.radioTab); });
-  el('broadcastTabs').addEventListener('keydown', event => {
-    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
-    event.preventDefault(); selectTab(event.key === 'Home' ? 'maps' : event.key === 'End' ? 'guides' : tab === 'maps' ? 'guides' : 'maps'); el(tab === 'maps' ? 'broadcastMapsTab' : 'broadcastGuidesTab').focus();
-  });
   root.addEventListener('click', event => {
     const button = event.target.closest('[data-radio-filter]');
-    if (button) { filter = button.dataset.radioFilter; page = 1; store('filter:' + tab, filter); render(); }
+    if (button) { filter = button.dataset.radioFilter; page = 1; store('filter:maps', filter); render(); }
   });
   el('broadcastSearch').addEventListener('input', () => { page = 1; render(); });
-  el('broadcastTag').addEventListener('change', () => { tag = el('broadcastTag').value; page = 1; store('tag:' + tab, tag); render(); });
+  el('broadcastTag').addEventListener('change', () => { tag = el('broadcastTag').value; page = 1; store('tag:maps', tag); render(); });
   el('broadcastPrev').onclick = () => { page--; render(); };
   el('broadcastNext').onclick = () => { page++; render(); };
   el('reloadBroadcast').onclick = () => load(true);
   el('refreshBroadcastFeed').onclick = async () => {
-    const feed = tab === 'maps' ? 'maps' : 'guides', button = el('refreshBroadcastFeed'); button.disabled = true; error();
+    const feed = 'maps', button = el('refreshBroadcastFeed'); button.disabled = true; error();
     if (data) data.feeds[feed].refreshing = true; render();
-    try { data = await post('/api/broadcast/refresh', { feed }); toast(feed === 'maps' ? '地图资讯已更新' : '网络攻略已更新'); }
+    try { data = await post('/api/broadcast/refresh', { feed }); toast('地图资讯已更新'); }
     catch (failure) { await load(true); error(failure.message); }
     finally { if (data) data.feeds[feed].refreshing = false; button.disabled = false; render(); }
   };
@@ -95,7 +81,7 @@
     const related = map ? entries().filter(x => x.id !== id && x.map && (x.map.toLowerCase().includes(map) || map.includes(x.map.toLowerCase()))).slice(0, 8) : [];
     el('broadcastRelated').innerHTML = related.length ? '<h3>关联内容</h3>' + related.map(x => `<button class="text-button" data-radio-detail="${e(x.id)}">${e(x.title)} <i data-lucide="arrow-right"></i></button>`).join('') : '';
     const own = data.entries.some(x => x.id === id);
-    el('broadcastDetailActions').innerHTML = sourceLink(item) + `<button class="secondary-button" data-radio-favorite="${e(id)}"><i data-lucide="bookmark"></i>${favorites.has(id) ? '取消收藏' : '收藏'}</button>` + (isGuest ? '' : `${isMap(item) ? `<button class="primary-button" data-radio-download="${e(id)}"><i data-lucide="search"></i>查找下载项</button>` : ''}<button class="secondary-button" data-radio-edit="${e(id)}">${own ? '编辑内容' : isMap(item) ? '收录为经典' : '收录并补充'}</button><button class="danger-button" data-radio-delete="${e(id)}">${own ? '删除' : '移除资讯'}</button>`);
+    el('broadcastDetailActions').innerHTML = sourceLink(item) + `<button class="secondary-button" data-radio-favorite="${e(id)}"><i data-lucide="bookmark"></i>${favorites.has(id) ? '取消收藏' : '收藏'}</button>` + (isGuest ? '' : `${isMap(item) ? `<button class="primary-button" data-radio-download="${e(id)}"><i data-lucide="search"></i>查找下载项</button>` : ''}<button class="secondary-button" data-radio-edit="${e(id)}">${own ? '编辑地图' : '收录为经典地图'}</button><button class="danger-button" data-radio-delete="${e(id)}">${own ? '删除地图记录' : '移除资讯'}</button>`);
     if (open && !el('broadcastDetailDialog').open) el('broadcastDetailDialog').showModal(); icons();
   }
   function edit(id) {
@@ -103,9 +89,9 @@
     const item = entries().find(x => x.id === id), own = item && data.entries.some(x => x.id === id);
     editing = own ? id : null;
     const form = el('broadcastForm'); form.reset();
-    const values = item ? { ...item, kind: ['recent', 'candidate'].includes(item.kind) ? 'classic' : item.kind, map: item.map || (isMap(item) ? item.english || item.title : ''), tags: (item.tags || []).slice(0, 8).join('，') } : { kind: tab === 'maps' ? 'classic' : filter === 'review' ? 'review' : 'qa' };
+    const values = item ? { ...item, kind: 'classic', map: item.map || item.english || item.title, tags: (item.tags || []).slice(0, 8).join('，') } : { kind: 'classic' };
     for (const [key, value] of Object.entries(values)) { const field = form.elements.namedItem(key); if (!field) continue; if (field.type === 'checkbox') field.checked = Boolean(value); else field.value = value || ''; }
-    el('broadcastEditorTitle').textContent = own ? '编辑收录内容' : '收录内容'; el('broadcastSaveError').textContent = '';
+    el('broadcastEditorTitle').textContent = own ? '编辑地图收录' : '收录地图'; el('broadcastSaveError').textContent = '';
     if (el('broadcastDetailDialog').open) el('broadcastDetailDialog').close(); el('broadcastEditor').showModal();
   }
   async function handleAction(event) {
@@ -116,9 +102,9 @@
     if (button.dataset.radioEdit) { edit(button.dataset.radioEdit); return; }
     if (button.dataset.radioDelete) {
       const id = button.dataset.radioDelete, item = entries().find(x => x.id === id);
-      if (!await window.PanelDialogs.confirm(`删除“${item.title}”？\n此操作只删除广播收录记录。`, { title: '删除收录内容', danger: true, confirmLabel: '确认删除' })) return;
+      if (!await window.PanelDialogs.confirm(`删除“${item.title}”？\n此操作只删除地图收录记录。`, { title: '删除地图收录', danger: true, confirmLabel: '确认删除' })) return;
       button.disabled = true;
-      try { data = await post('/api/broadcast/delete', { id, confirmed: true }); el('broadcastDetailDialog').close(); render(); toast('收录内容已删除'); }
+      try { data = await post('/api/broadcast/delete', { id, confirmed: true }); el('broadcastDetailDialog').close(); render(); toast('地图收录已删除'); }
       catch (failure) { toast(failure.message); button.disabled = false; } return;
     }
     const item = entries().find(x => x.id === button.dataset.radioDownload);
@@ -133,11 +119,11 @@
   el('broadcastForm').onsubmit = async event => {
     event.preventDefault(); if (isGuest || saving) return;
     const form = event.currentTarget, payload = Object.fromEntries(new FormData(form));
-    payload.tags = String(payload.tags || '').split(/[,，]/).map(x => x.trim()).filter(Boolean); payload.pinned = form.elements.pinned.checked;
+    payload.kind = 'classic'; payload.tags = String(payload.tags || '').split(/[,，]/).map(x => x.trim()).filter(Boolean); payload.pinned = form.elements.pinned.checked;
     if (editing) payload.id = editing;
     const existing = data?.entries.find(x => x.id === editing); if (existing?.linkType === 'search' && payload.url === existing.url) payload.linkType = 'search';
     saving = true; el('saveBroadcast').disabled = true; el('broadcastSaveError').textContent = '';
-    try { data = await post('/api/broadcast/save', payload); el('broadcastEditor').close(); tab = payload.kind === 'classic' ? 'maps' : 'guides'; store('tab', tab); filter = payload.kind; store('filter:' + tab, filter); tag = ''; store('tag:' + tab, ''); page = 1; el('broadcastSearch').value = ''; el('broadcastSearch').dispatchEvent(new Event('input', { bubbles: true })); render(); toast('内容已保存'); }
+    try { data = await post('/api/broadcast/save', payload); el('broadcastEditor').close(); filter = 'classic'; store('filter:maps', filter); tag = ''; store('tag:maps', ''); page = 1; el('broadcastSearch').value = ''; el('broadcastSearch').dispatchEvent(new Event('input', { bubbles: true })); render(); toast('地图已保存'); }
     catch (failure) { el('broadcastSaveError').textContent = failure.message; }
     finally { saving = false; el('saveBroadcast').disabled = false; }
   };

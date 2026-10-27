@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "projectId": "l4d2-control-bf312edc896c79baad5c",
-  "fingerprint": "6d9625735f8adce2d4abedd738dedeed0b03b6b855bbec48294cba3ae4ce003c",
+  "fingerprint": "932a86cfb29c16956bfd429aa908289b06a5900866fd194421a224cf3386223f",
   "files": [
     {
       "path": "Build project fingerprint.js",
@@ -69,27 +69,23 @@
     },
     {
       "path": "broadcast manager.js",
-      "sha256": "3b1e512de58b2c2740a7dae3f7f68cf7b44142dfa2fe0ca07b11f6af06c65d09"
-    },
-    {
-      "path": "broadcast seeds.js",
-      "sha256": "9766ba6d98d8f1eb4bd4659781305bd655e40dd4ec2a8ea47b095ff8746a6bb6"
+      "sha256": "07cccb523342af55ba8e13f1015385a6f47855b84d566fd219ebb3f53415e000"
     },
     {
       "path": "broadcast sources.js",
-      "sha256": "47677b1d660bfc45cbef5d5fd22845386e73fbe9f8b8b9a549cb2ff15da5434a"
+      "sha256": "d568ffa9323a18a8f5d406655ea29f52bf1afc023d868af207311323682d8cbc"
     },
     {
       "path": "broadcast.css",
-      "sha256": "a7ac39bcab8022ea7843d5d284d99abdd230586bd8f26068337c82105f196b12"
+      "sha256": "b9dd7e764e39f67dddd27afceec7afb92830e2230be0b20bc0fc465b37b1fb42"
     },
     {
       "path": "broadcast.js",
-      "sha256": "3e7679b46e2ae8121c43dcda9cd05b0d94828f2ecebf1b1b089222c68b089ba6"
+      "sha256": "8b8ab8034d18f4247c7d3a4e14a2d3cfc883e0902d7016ad01265cc03b91d4b1"
     },
     {
       "path": "index.html",
-      "sha256": "50bf35f0648ec0a6a4d74d15bfbd2822aa557de1928febeafbf2a37cfb59d221"
+      "sha256": "c9edfb1891d3b91604c111ee3473e81c4a77419f3852b4015629bdf85bd0b0b2"
     },
     {
       "path": "login.css",
@@ -153,7 +149,7 @@
     },
     {
       "path": "project fingerprint.js",
-      "sha256": "298ae8a2ba34b57f0092ca461e35a5e96b534da731a04ce8beb0a0e73d2c3c7b"
+      "sha256": "cd1c58ae9cca34e0e3695dbef9f6f956249c9139ec915ea0a4c25f9b34dd4105"
     },
     {
       "path": "server.js",

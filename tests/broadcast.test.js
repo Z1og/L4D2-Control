@@ -1,17 +1,28 @@
 const test = require('node:test'), assert = require('node:assert/strict'), fs = require('node:fs/promises'), path = require('node:path'), os = require('node:os');
 const { createBroadcast, cleanEntry, sourceLink } = require('../broadcast manager');
-const { normalizeMaps, parseGuides, createBroadcastSource, monthAgo, campaignEvidence, chineseSummaries } = require('../broadcast sources');
+const { normalizeMaps, createBroadcastSource, monthAgo, campaignEvidence, chineseSummaries } = require('../broadcast sources');
 const at = Date.parse('2026-10-26T08:00:00Z');
 async function temp(t) { const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'Radio test ')); t.after(() => fs.rm(dir, { recursive: true, force: true })); return dir; }
-const entry = { kind: 'qa', title: '紫黑贴图怎么解决？', content: '核对地图版本\n检查依赖', tags: ['地图故障'], map: 'Urban Flight' };
+const entry = { kind: 'classic', title: '自定义地图记录', summary: '保留地图说明', content: '核对地图版本', url: 'https://www.gamemaps.com/details/12345', tags: ['地图'], map: 'Urban Flight' };
+
+test('radio UI contains only the map catalogue and map curation form', async () => {
+  const html = await fs.readFile(path.join(__dirname, '../index.html'), 'utf8');
+  const client = await fs.readFile(path.join(__dirname, '../broadcast.js'), 'utf8');
+  assert.match(html, /id="broadcastMapFilters"/);
+  assert.match(html, /placeholder="搜索地图或标签/);
+  assert.match(html, /<h2 id="broadcastEditorTitle">收录地图<\/h2>/);
+  assert.doesNotMatch(html, /broadcastGuidesPage|broadcastTabs|攻略与答疑|网络攻略|问题答疑|地图测评/);
+  assert.match(client, /payload\.kind = 'classic'/);
+  assert.doesNotMatch(client, /broadcastGuidesPage|radioBiliSearch|radioHeyboxSearch|network guide/i);
+});
 
 test('radio data survives restarts, serialized edits and confirmed deletion without any network reads', async t => {
   const directory = await temp(t); let calls = 0;
   const make = () => createBroadcast({ directory, now: () => at, collect: async () => { calls++; return { items: [] }; } });
-  const manager = make(), baseline = await manager.snapshot(); assert.equal(baseline.entries.length, 236); assert.equal(calls, 0);
-  await Promise.all(Array.from({ length: 5 }, (_, i) => manager.save({ ...entry, title: '问题 ' + i })));
-  let snapshot = await make().snapshot(); assert.equal(snapshot.entries.length, 241); assert.equal(calls, 0);
-  const saved = snapshot.entries.find(x => x.title === '问题 0');
+  const manager = make(), baseline = await manager.snapshot(); assert.equal(baseline.entries.length, 200); assert.equal(calls, 0);
+  await Promise.all(Array.from({ length: 5 }, (_, i) => manager.save({ ...entry, title: '地图 ' + i })));
+  let snapshot = await make().snapshot(); assert.equal(snapshot.entries.length, 205); assert.equal(calls, 0);
+  const saved = snapshot.entries.find(x => x.title === '地图 0');
   await manager.save({ ...saved, content: '已解决', verifiedAt: '2026-10-26', pinned: true });
   assert.equal((await make().snapshot()).entries.find(x => x.id === saved.id).content, '已解决');
   await assert.rejects(() => manager.remove({ id: saved.id, confirmed: false }), e => e.status === 400);
@@ -70,14 +81,16 @@ for (const sourceRevision of [1, 2, 3]) test('catalogue revision ' + sourceRevis
   assert.equal(previous.length, ({ 1: 50, 2: 120, 3: 160 })[sourceRevision]);
   const entries = previous.filter(x => !['classic-nanning', 'classic-urban-flight'].includes(x.id));
   entries.find(x => x.id === 'classic-back-to-school').content = '保留我自己记下的路线';
-  const qa = { id: 'private-qa', ...entry }, feeds = { guides: { items: [{ id: 'cached', title: '本地攻略缓存' }] } };
+  const qa = { id: 'private-qa', kind: 'qa', title: '原有私人答疑', content: '保留在磁盘', tags: [] }, feeds = { guides: { items: [{ id: 'cached', title: '本地攻略缓存' }] } };
   const dismissed = ({ 1: 'classic-plan-b', 2: 'classic-orange-onslaught', 3: 'classic-unattainable' })[sourceRevision];
   await fs.writeFile(file, JSON.stringify({ schema: 1, classicCatalogueRevision: sourceRevision, entries: [...entries, qa], feeds, dismissed: [dismissed] }));
   const make = () => createBroadcast({ directory, collect: () => { throw Error('must not collect'); } });
   const manager = make(), upgraded = await manager.snapshot();
   assert.equal(upgraded.classicCatalogueRevision, catalogueRevision);
   assert.equal(upgraded.entries.filter(x => x.kind === 'classic').length, 197);
-  for (const existing of [...entries, qa]) assert.deepEqual(upgraded.entries.find(x => x.id === existing.id), existing);
+  for (const existing of entries) assert.deepEqual(upgraded.entries.find(x => x.id === existing.id), existing);
+  assert.ok(!upgraded.entries.some(x => x.id === qa.id));
+  assert.deepEqual(JSON.parse(await fs.readFile(file, 'utf8')).entries.find(x => x.id === qa.id), qa);
   for (const id of ['classic-nanning', 'classic-urban-flight', dismissed]) assert.ok(!upgraded.entries.some(x => x.id === id));
   assert.deepEqual(JSON.parse(await fs.readFile(file, 'utf8')).feeds, feeds);
   const removed = ({ 1: 'classic-wan-li', 2: 'classic-whispers-winter', 3: 'classic-cambalache-2' })[sourceRevision];
@@ -85,43 +98,28 @@ for (const sourceRevision of [1, 2, 3]) test('catalogue revision ' + sourceRevis
   const restarted = await make().snapshot();
   assert.equal(restarted.entries.filter(x => x.kind === 'classic').length, 196);
   assert.ok(!restarted.entries.some(x => x.id === removed));
-  assert.deepEqual(restarted.entries, JSON.parse(await fs.readFile(file, 'utf8')).entries);
+  const stored = JSON.parse(await fs.readFile(file, 'utf8'));
+  assert.deepEqual(restarted.entries, stored.entries.filter(x => x.kind === 'classic'));
+  assert.deepEqual(stored.entries.find(x => x.id === qa.id), qa);
 });
 
 
-test('troubleshooting catalogue separates evidence, action and verification without claiming unperformed playtests', () => {
-  const { guides, guideCatalogueRevision } = require('../broadcast seeds');
-  assert.equal(guideCatalogueRevision, 1); assert.equal(guides.length, 36);
-  assert.equal(new Set(guides.map(x => x.id)).size, guides.length);
-  for (const item of guides) {
-    cleanEntry(item); assert.equal(item.verifiedAt, ''); assert.ok(item.applicability); assert.ok(item.summary);
-    for (const label of ['现象：', '确认：', '处理：', '验证：']) assert.ok(item.content.includes(label), item.id);
-  }
-  for (const id of ['server-exit', 'server-oom', 'server-segfault', 'server-restart-loop', 'chapter-crash', 'client-crash', 'addon-conflict']) assert.ok(guides.some(item => item.id === 'builtin-' + id));
-});
-
-test('QA migration updates pristine old advice while preserving edits, removals, maps and feeds', async t => {
-  const { guides, guideCatalogueRevision } = require('../broadcast seeds');
+test('legacy guide and QA records are hidden from the map API but preserved byte-for-byte on disk', async t => {
   const { classics, catalogueRevision } = require('../broadcast classics');
-  const old = {"id":"builtin-install-map","kind":"qa","title":"好友进服前，怎样安装同一套自定义地图？","english":"","summary":"先确认服务器使用的战役名称、版本及完整分包。每位玩家在本地安装相同版本；工坊订阅要包含作者列出的必需项目，手动下载的 VPK 放进游戏 left4dead2/addons 目录。","content":"先确认服务器使用的战役名称、版本及完整分包。每位玩家在本地安装相同版本；工坊订阅要包含作者列出的必需项目，手动下载的 VPK 放进游戏 left4dead2/addons 目录。\n\n发现缺图或版本不一致时，先退出游戏，核对旧版与新版是否同时存在，再按作者说明处理重复包。面板的“直连下载导出”可分享已备份的服务器地图。","url":"https://developer.valvesoftware.com/wiki/L4D2_Campaign_Add-on_Tutorial","source":"项目整理 · 参考资料","author":"L4D2-Control","tags":["地图安装"],"map":"","pinned":false,"publishedAt":null,"updatedAt":null,"verifiedAt":"","applicability":"按实际游戏、地图与插件版本核对","linkType":"article"};
-  const edited = { ...old, id: 'builtin-plugin-error', title: '我的插件记录', content: '保留实际验证结果' };
-  const custom = { ...entry, id: 'private-fix' }, map = { ...classics[0], content: '自己的地图备注' };
-  const feeds = { guides: { items: [{ id: 'cached-guide', title: '已有攻略缓存' }] }, maps: { items: [] } };
   const directory = await temp(t), file = path.join(directory, 'broadcast.json');
-  const saved = { schema: 1, classicCatalogueRevision: catalogueRevision, entries: [old, edited, custom, map], feeds, dismissed: ['builtin-server-oom'] };
-  await fs.writeFile(file, JSON.stringify(saved));
-  const make = () => createBroadcast({ directory, collect: () => { throw Error('must not collect'); } });
-  const manager = make(), data = await manager.snapshot();
-  assert.equal(data.guideCatalogueRevision, guideCatalogueRevision);
-  assert.deepEqual(data.entries.find(x => x.id === old.id), guides.find(x => x.id === old.id));
-  for (const item of [edited, custom, map]) assert.deepEqual(data.entries.find(x => x.id === item.id), item);
-  assert.ok(!data.entries.some(x => x.id === 'builtin-missing-texture'));
-  assert.ok(!data.entries.some(x => x.id === 'builtin-server-oom'));
-  assert.equal(data.entries.filter(x => x.kind === 'classic').length, 1);
-  assert.deepEqual(JSON.parse(await fs.readFile(file, 'utf8')).feeds, feeds);
-  await manager.remove({ id: 'builtin-server-segfault', confirmed: true });
-  const first = await make().snapshot(), second = await make().snapshot();
-  assert.ok(!first.entries.some(x => x.id === 'builtin-server-segfault')); assert.deepEqual(first.entries, second.entries);
+  const records = [{ id: 'private-qa', kind: 'qa', title: '私人答疑', content: '管理员保存的记录', tags: [] }, { id: 'builtin-server-exit', kind: 'guide', title: '旧攻略', content: '旧内容', tags: [] }];
+  const feeds = { guides: { items: [{ id: 'cached-guide', title: '缓存攻略' }] }, maps: { items: [] } };
+  const saved = { schema: 1, classicCatalogueRevision: catalogueRevision, entries: [...classics, ...records], feeds };
+  const raw = JSON.stringify(saved); await fs.writeFile(file, raw);
+  const manager = createBroadcast({ directory }); const data = await manager.snapshot();
+  assert.ok(data.entries.every(item => item.kind === 'classic'));
+  assert.deepEqual(Object.keys(data.feeds), ['maps']);
+  assert.deepEqual(await fs.readFile(file, 'utf8'), raw);
+  await assert.rejects(() => manager.save({ ...entry, kind: 'qa' }), e => e.status === 400);
+  await assert.rejects(() => manager.save({ ...entry, id: records[0].id }), e => e.status === 404);
+  await assert.rejects(() => manager.refresh('guides'), e => e.status === 400);
+  await assert.rejects(() => manager.remove({ id: records[0].id, confirmed: true }), e => e.status === 404);
+  assert.deepEqual(await fs.readFile(file, 'utf8'), raw);
 });
 
 test('oversized combined catalogue migration leaves the saved state unchanged', async t => {
@@ -139,22 +137,23 @@ test('source URLs reject executable schemes and credentials; plain text content 
   assert.equal(cleanEntry({ ...entry, content: '<img src=x onerror=alert(1)>' }).content, '<img src=x onerror=alert(1)>');
   for (const changes of [{ kind: 'unknown' }, { title: '' }, { tags: ['x'.repeat(31)] }, { verifiedAt: '2026-02-30' }, { verifiedAt: '2026-99-99' }, { content: '', url: '' }, { title: {} }]) assert.throws(() => cleanEntry({ ...entry, ...changes }), e => e.status === 400);
 });
-test('a failed refresh preserves cached data and reports the real error; reads never refresh', async t => {
+test('a failed map refresh preserves cached data and reports the real error; reads never refresh', async t => {
   let broken = false, calls = 0;
-  const manager = createBroadcast({ directory: await temp(t), now: () => at, collect: async () => { calls++; if (broken) throw Error('upstream unavailable'); return { items: [{ id: 'guide-123', title: '中文指南' }], scope: 'fixture' }; } });
-  await manager.refresh('guides'); broken = true;
-  await assert.rejects(() => manager.refresh('guides'), e => e.status === 502 && e.message === 'upstream unavailable');
-  const snapshot = await manager.snapshot(); assert.equal(snapshot.feeds.guides.items.length, 1); assert.equal(snapshot.feeds.guides.error, 'upstream unavailable'); assert.equal(calls, 2);
-  await manager.remove({ id: 'guide-123', confirmed: true }); assert.equal((await manager.snapshot()).feeds.guides.items.length, 0);
-  broken = false; await manager.refresh('guides'); assert.equal((await manager.snapshot()).feeds.guides.items.length, 0);
+  const cached = { id: 'steam-123', title: '中文战役', kind: 'recent', updatedAt: new Date(at).toISOString() };
+  const manager = createBroadcast({ directory: await temp(t), now: () => at, collect: async () => { calls++; if (broken) throw Error('upstream unavailable'); return { items: [cached], scope: 'fixture' }; } });
+  await manager.refresh('maps'); broken = true;
+  await assert.rejects(() => manager.refresh('maps'), e => e.status === 502 && e.message === 'upstream unavailable');
+  const snapshot = await manager.snapshot(); assert.equal(snapshot.feeds.maps.items.length, 1); assert.equal(snapshot.feeds.maps.error, 'upstream unavailable'); assert.equal(calls, 2);
+  await manager.remove({ id: 'steam-123', confirmed: true }); assert.equal((await manager.snapshot()).feeds.maps.items.length, 0);
+  broken = false; await manager.refresh('maps'); assert.equal((await manager.snapshot()).feeds.maps.items.length, 0);
 });
 test('duplicate refresh clicks share one collector; edits during refresh are retained', async t => {
   let resolve, calls = 0;
   const manager = createBroadcast({ directory: await temp(t), collect: () => { calls++; return new Promise(r => { resolve = r; }); } });
-  const first = manager.refresh('guides'), second = manager.refresh('guides');
-  assert.equal((await manager.snapshot()).feeds.guides.refreshing, true);
+  const first = manager.refresh('maps'), second = manager.refresh('maps');
+  assert.equal((await manager.snapshot()).feeds.maps.refreshing, true);
   await manager.save(entry); resolve({ items: [] }); await Promise.all([first, second]);
-  const data = await manager.snapshot(); assert.equal(calls, 1); assert.ok(data.entries.some(x => x.title === entry.title)); assert.equal(data.feeds.guides.refreshing, false);
+  const data = await manager.snapshot(); assert.equal(calls, 1); assert.ok(data.entries.some(x => x.title === entry.title)); assert.equal(data.feeds.maps.refreshing, false);
 });
 test('corrupt private data is reported rather than overwritten with defaults', async t => {
   const directory = await temp(t), file = path.join(directory, 'broadcast.json'); await fs.writeFile(file, 'broken json');
@@ -195,21 +194,14 @@ test('uncertain items remain in the admin review queue until curated or dismisse
   await manager.remove({ id, confirmed: true }); assert.equal((await manager.snapshot()).feeds.maps.reviewItems.length, 1);
   await manager.remove({ id: pending.id, confirmed: true }); await manager.refresh('maps'); assert.equal((await manager.snapshot()).feeds.maps.reviewItems.length, 0);
 });
-const guideHtml = (id, title = '中文通关攻略') => `<a class="workshopItemCollection" data-appid="550" data-publishedfileid="${id}"><span class="guide"></span><div class="workshopItemTitle">${title}</div><span class="workshopItemAuthorName">作者 &amp; 同伴</span><div class="workshopItemShortDesc">路线与补给</div></a>`;
-test('guide parser scopes title and attribution to each guide and rejects other apps', () => {
-  const data = parseGuides(guideHtml('12') + guideHtml('12') + guideHtml('13', '另一个攻略') + guideHtml('14').replace('appid="550"', 'appid="999"'));
-  assert.equal(data.length, 2); assert.equal(data[0].author, '作者 & 同伴'); assert.equal(data[1].title, '另一个攻略'); assert.match(data[0].url, /id=12$/);
-});
 test('source collector bounds scanning and verifies maps against batch metadata', async () => {
   const calls = [];
   const collect = createBroadcastSource('', { now: () => at, request: async (url, body) => {
     calls.push({ url, body });
-    if (url.includes('/guides/')) return guideHtml('45');
     if (url.includes('/browse/')) return '<a href="https://steamcommunity.com/sharedfiles/filedetails/?id=99"><img alt="战役标题" src="https://example.com/a.jpg"></a>';
     return JSON.stringify({ response: { publishedfiledetails: [{ publishedfileid: '99', result: 1, consumer_app_id: 550, time_updated: at / 1000, time_created: at / 1000, description: 'A 4-map campaign.', file_size: 500000000, tags: [{ tag: 'Campaigns' }] }] } });
   } });
-  assert.equal((await collect('guides')).items[0].title, '中文通关攻略');
-  const data = await collect('maps'); assert.equal(data.items.length, 1); assert.equal(data.scanned, 1); assert.match(calls[2].body, /publishedfileids%5B0%5D=99/);
+  const data = await collect('maps'); assert.equal(data.items.length, 1); assert.equal(data.scanned, 1); assert.match(calls[1].body, /publishedfileids%5B0%5D=99/);
   await assert.rejects(() => collect('other'), /未知/);
 });
 

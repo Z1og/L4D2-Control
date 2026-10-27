@@ -1,5 +1,4 @@
 const { execFile } = require('node:child_process');
-const cheerio = require('cheerio');
 const { parseSearch } = require('./steam source');
 
 const steamFile = id => `https://steamcommunity.com/sharedfiles/filedetails/?id=${id}`;
@@ -15,17 +14,6 @@ function monthAgo(now) {
   date.setUTCDate(1); date.setUTCMonth(date.getUTCMonth() - 1);
   const last = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 0)).getUTCDate();
   date.setUTCDate(Math.min(day, last)); return date.getTime();
-}
-function parseGuides(html) {
-  const $ = cheerio.load(html), items = [], seen = new Set();
-  $('a.workshopItemCollection[data-appid="550"]').each((_, element) => {
-    const card = $(element), id = card.attr('data-publishedfileid');
-    if (!card.find('.guide').length || !/^\d{1,20}$/.test(id || '') || seen.has(id)) return;
-    const title = card.find('.workshopItemTitle').text().trim().slice(0, 200);
-    if (!title) return;
-    seen.add(id); items.push({ id, title, author: card.find('.workshopItemAuthorName').text().trim().slice(0, 120), summary: card.find('.workshopItemShortDesc').text().trim().slice(0, 500), url: steamFile(id) });
-  });
-  return items.slice(0, 30);
 }
 function normalizeMaps(candidates, details, now) {
   const seen = new Set(), cutoff = monthAgo(now);
@@ -83,18 +71,6 @@ function createBroadcastSource(proxy = '', { request: injectedRequest, now = Dat
     });
   }));
   return async (feed, previous) => {
-    if (feed === 'guides') {
-      const url = 'https://steamcommunity.com/app/550/guides/?browsefilter=toprated&browsesort=toprated&requiredtags%5B0%5D=schinese&l=schinese';
-      const found = [];
-      for (let page = 1; page <= 3; page++) {
-        const batch = parseGuides(await request(`${url}&p=${page}`));
-        found.push(...batch.filter(item => /[\u3400-\u9fff]/.test(item.title + item.summary)));
-        if (found.length >= 30 || batch.length < 30) break;
-      }
-      const items = [...new Map(found.map(item => [item.id, item])).values()].slice(0, 30);
-      if (!items.length) throw new Error('未读取到 Steam 指南，保留上次内容；请稍后重试');
-      return chineseSummaries({ items: items.map(item => ({ ...item, id: `guide-${item.id}`, kind: 'guide', source: 'Steam 社区指南', tags: ['网络攻略'], content: '', map: '' })), sourceUrl: url, scope: 'Steam 简体中文标签的高评分指南，筛选含中文标题或摘要的条目；最多检查 90 条、展示 30 条，摘要来自作者，未经人工验证。' }, request, previous);
-    }
     if (feed !== 'maps') throw new Error('未知资讯来源');
     const candidates = [], sourceUrl = 'https://steamcommunity.com/workshop/browse/?appid=550&browsesort=lastupdated&requiredtags%5B%5D=Campaigns&l=schinese';
     // Bound the collection cost and expose its coverage rather than implying a full index.
@@ -112,4 +88,4 @@ function createBroadcastSource(proxy = '', { request: injectedRequest, now = Dat
     return chineseSummaries({ items, reviewItems, sourceUrl, scanned: ids.length, scope: `检查 ${ids.length} 个工坊战役分类条目，按地图说明、包大小与更新时间筛选近一个月；${reviewItems.length} 条缺少明确地图说明的内容留待管理员核验。分包单独展示，尚未下载核验地图文件。` }, request, previous);
   };
 }
-module.exports = { createBroadcastSource, parseGuides, normalizeMaps, monthAgo, campaignEvidence, chineseSummaries };
+module.exports = { createBroadcastSource, normalizeMaps, monthAgo, campaignEvidence, chineseSummaries };
